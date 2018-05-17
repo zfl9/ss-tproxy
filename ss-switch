@@ -1,0 +1,61 @@
+#!/bin/bash
+
+main_cfg='/etc/tproxy/ss-tproxy.conf'
+
+function usage() {
+{
+    echo -e "\e[37mUsage:\e[0m \e[36m${0}\e[0m \e[1;37mOPTIONS\e[0m"
+    echo -e "\e[1;37mOPTIONS\e[0m := {"
+    echo -e "\t\e[33m-t\e[0m \e[33;1mtype\e[0m\t\t\tserver type {ss|ssr} \e[35;1m*\e[0m"
+    echo -e "\t\e[33m-s\e[0m \e[33;1maddr\e[0m\t\t\tserver address"
+    echo -e "\t\e[33m-p\e[0m \e[33;1mport\e[0m\t\t\tserver port"
+    echo -e "\t\e[33m-m\e[0m \e[33;1mmethod\e[0m\t\tserver method"
+    echo -e "\t\e[33m-k\e[0m \e[33;1mpasswd\e[0m\t\tserver password"
+    echo -e "\t\e[33m-O\e[0m \e[33;1mprotocol\e[0m\t\tserver protocol"
+    echo -e "\t\e[33m-G\e[0m \e[33;1mprotocol_param\e[0m\tserver protocol_param"
+    echo -e "\t\e[33m-o\e[0m \e[33;1mobfs\e[0m\t\t\tserver obfs"
+    echo -e "\t\e[33m-g\e[0m \e[33;1mobfs_param\e[0m\t\tserver obfs_param"
+    echo -e "\t\e[33m-h --help\e[0m\t\tshow current help"
+    echo -e "}"
+} | more
+}
+
+while getopts ":s:p:m:k:O:o:G:g:t:h" OPT; do
+    case $OPT in
+        s) addr="$OPTARG";;
+        p) port="$OPTARG";;
+        m) method="$OPTARG";;
+        k) passwd="$OPTARG";;
+        O) protocol="$OPTARG";;
+        G) protocol_param="$OPTARG";;
+        o) obfs="$OPTARG";;
+        g) obfs_param="$OPTARG";;
+        t) type="$OPTARG";;
+        h) usage 1>&2; exit;;
+        :) echo -e "\e[35mmissing argument to\e[0m \e[31m'-$OPTARG'\e[0m" 1>&2; usage 1>&2; exit 1;;
+    esac
+done
+
+if [ "$type" = 'ss' ]; then
+    sed -ri "s@server_use_ssr=.+@server_use_ssr='false'@g" $main_cfg
+    if [ -n "$addr" ]; then sed -ri "s@server_addr=.+@server_addr='$addr'@g" $main_cfg; fi
+    if [ -n "$port" ]; then sed -ri "s@server_port=.+@server_port='$port'@g" $main_cfg; fi
+    if [ -n "$method" ]; then sed -ri "s@server_method=.+@server_method='$method'@g" $main_cfg; fi
+    if [ -n "$passwd" ]; then sed -ri "s@server_passwd=.+@server_passwd='$passwd'@g" $main_cfg; fi
+    ss-tproxy restart
+elif [ "$type" = 'ssr' ]; then
+    sed -ri "s@server_use_ssr=.+@server_use_ssr='true'@g" $main_cfg
+    if [ -n "$addr" ]; then sed -ri "s@server_addr=.+@server_addr='$addr'@g" $main_cfg; fi
+    if [ -n "$port" ]; then sed -ri "s@server_port=.+@server_port='$port'@g" $main_cfg; fi
+    if [ -n "$method" ]; then sed -ri "s@server_method=.+@server_method='$method'@g" $main_cfg; fi
+    if [ -n "$passwd" ]; then sed -ri "s@server_passwd=.+@server_passwd='$passwd'@g" $main_cfg; fi
+    if [ -n "$protocol" ]; then sed -ri "s@server_protocol=.+@server_protocol='$protocol'@g" $main_cfg; fi
+    if [ -n "$protocol_param" ]; then sed -ri "s@server_protocol_param=.+@server_protocol_param='$protocol_param'@g" $main_cfg; fi
+    if [ -n "$obfs" ]; then sed -ri "s@server_obfs=.+@server_obfs='$obfs'@g" $main_cfg; fi
+    if [ -n "$obfs_param" ]; then sed -ri "s@server_obfs_param=.+@server_obfs_param='$obfs_param'@g" $main_cfg; fi
+    ss-tproxy restart
+else
+    echo -e "\e[35minvalid type\e[0m \e[31m'$type'\e[0m" 1>&2
+    usage 1>&2
+    exit 1
+fi
