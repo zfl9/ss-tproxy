@@ -57,8 +57,8 @@ function pdnsd_flush() {
     if [ $(pgrep -c '^pdnsd$') -eq 0 ]; then
         echo -n > $pdnsd_global_cachedir/pdnsd.cache
     else
-        pdnsd-ctl empty-cache &> /dev/null
-        pdnsd-ctl config &> /dev/null
+        pdnsd-ctl -c $pdnsd_global_cachedir empty-cache &> /dev/null
+        pdnsd-ctl -c $pdnsd_global_cachedir config &> /dev/null
     fi
 }
 
