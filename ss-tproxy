@@ -321,7 +321,6 @@ r*)     # restart
     stop
     status
     echo
-    sleep 1
     start
     status
     ;;
