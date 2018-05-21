@@ -11,7 +11,7 @@ fi
 
 function pdnsd_update() {
     if ! id -u $pdnsd_global_runuser &> /dev/null; then
-        useradd -d $pdnsd_global_cachedir -M -s /sbin/nologin $pdnsd_global_runuser
+        useradd -M -U -d $pdnsd_global_cachedir -s /sbin/nologin $pdnsd_global_runuser
     fi
     if [ ! -d $pdnsd_global_cachedir ]; then
         rm -fr $pdnsd_global_cachedir
