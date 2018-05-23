@@ -13,6 +13,8 @@
 - 注：shadowsocks-libev、shadowsocksr-libev 二选一，可一并安装
 
 ## 端口占用
+> 请检查是否有端口被占用，如果有请自行解决！
+
 - pdnsd：0.0.0.0:53/udp
 - chinadns：0.0.0.0:65353/udp
 - ss-redir：0.0.0.0:60080/tcp+udp
@@ -23,19 +25,26 @@
 - `git clone https://github.com/zfl9/ss-tproxy.git`
 
 **安装**
-- `cd ss-tproxy/`
+- `cd ss-tproxy`
 - `cp -af ss-tproxy /usr/local/bin/`
 - `cp -af ss-switch /usr/local/bin/`
-- `mkdir -p /etc/tproxy/`
+- `chown root:root /usr/local/bin/ss-tproxy /usr/local/bin/ss-switch`
+- `chmod +x /usr/local/bin/ss-tproxy /usr/local/bin/ss-switch`
+- `mkdir -m 0755 -p /etc/tproxy`
 - `cp -af pdnsd.conf /etc/tproxy/`
 - `cp -af chnroute.txt /etc/tproxy/`
 - `cp -af chnroute.ipset /etc/tproxy/`
 - `cp -af ss-tproxy.conf /etc/tproxy/`
+- `chown -R root:root /etc/tproxy`
+- `chmod 0644 /etc/tproxy/*`
 
 **配置**
-- `vim /etc/tproxy/ss-tproxy.conf`
-- 修改开头的 `ss/ssr 配置`，具体可参考文件注释
-- 如果觉得使用 vim 修改略麻烦，也可以使用 `ss-switch` 切换脚本
+- `vim /etc/tproxy/ss-tproxy.conf`，修改后重启 ss-tproxy 生效
+- 修改开头的 `ss/ssr 配置`，具体的含义请参考注释（此段配置必须修改）
+- 切换 ss/ssr 节点时请修改 ss-tproxy.conf，或使用 ss-switch 切换（`ss-switch -h` 查看帮助）
+- `chinadns_upstream="114.114.114.114,127.0.0.1:${tunnel_port}"`：建议将 114 改为原网络下的 DNS
+- `iptables_intranet=(192.168.0.0/16)`：如果内网网段不是 192.168/16，请修改（可以有多个，空格隔开）
+- `dns_original=(114.114.114.114 119.29.29.29 180.76.76.76)`：建议修改为原网络下的 DNS（最多 3 个）
 
 **自启**（Systemd）
 - `cp -af ss-tproxy.service /etc/systemd/system/`
@@ -59,8 +68,17 @@
 - `ss-tproxy flush_dnsche`：清空 dns 缓存（pdnsd 的缓存）
 - `ss-tproxy update_chnip`：更新大陆地址段列表（ipset、chinadns）
 
+**日志**
+> 如需详细日志，请打开 ss-tproxy.conf 中相关的 verbose 选项。
+
+- pdnsd：`/var/log/pdnsd.log`
+- chinadns：`/var/log/chinadns.log`
+- ss-redir：`/var/log/ss-redir.log`
+- ss-tunnel：`/var/log/ss-tunnel.log`
+
 ## 相关参考
 - [pdnsd](http://members.home.nl/p.a.rombouts/pdnsd/index.html)
 - [ChinaDNS](https://github.com/shadowsocks/ChinaDNS)
 - [shadowsocks-libev](https://github.com/shadowsocks/shadowsocks-libev)
 - [shadowsocksr-libev](https://github.com/shadowsocksr-backup/shadowsocksr-libev)
+- [ss-tproxy 常见问题](https://www.zfl9.com/ss-redir.html#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
