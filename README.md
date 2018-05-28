@@ -1,4 +1,6 @@
 # ss-redir 透明代理
+> 如果你的 SS/SSR 不支持 UDP Relay，请使用 [TCPOnly 分支](https://github.com/zfl9/ss-tproxy/tree/tcponly)！
+
 ## 脚本依赖
 - [脚本依赖 - 安装参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 - curl，获取大陆地址段列表
