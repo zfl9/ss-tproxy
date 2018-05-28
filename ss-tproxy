@@ -9,6 +9,10 @@ else
     source "${main_cfg}"
 fi
 
+function dnsfwd_update() {
+    # TODO
+}
+
 function pdnsd_update() {
     if ! id -u $pdnsd_global_runuser &> /dev/null; then
         useradd -M -U -d $pdnsd_global_cachedir -s /sbin/nologin $pdnsd_global_runuser
