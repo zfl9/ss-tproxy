@@ -1,15 +1,16 @@
 # ss-redir 透明代理
+> TCPOnly 版本，如果你的 SS/SSR 不支持 UDP Relay，请使用此分支！
+
 ## 脚本依赖
 - [脚本依赖 - 安装参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 - curl，获取大陆地址段列表
 - ipset，保存大陆地址段列表
-- TPROXY，内核模块，透明代理 UDP
-- iproute2，策略路由，透明代理 UDP
 - haveged，防止系统出现熵过低的问题
 - pdnsd，支持永久性缓存的 DNS 代理服务器
 - chinadns，利用大陆地址段列表实现 DNS 分流
-- shadowsocks-libev，ss-redir、ss-tunnel，SS 透明代理
-- shadowsocksr-libev，ssr-redir、ssr-tunnel，SSR 透明代理
+- dnsforwarder，本地 DNS 转发器，UDP 转 TCP 查询
+- shadowsocks-libev，ss-redir，SS 透明代理（仅 TCP）
+- shadowsocksr-libev，ssr-redir，SSR 透明代理（仅 TCP）
 - 注：shadowsocks-libev、shadowsocksr-libev 二选一，可一并安装
 
 ## 端口占用
@@ -17,8 +18,8 @@
 
 - pdnsd：0.0.0.0:53/udp
 - chinadns：0.0.0.0:65353/udp
-- ss-redir：0.0.0.0:60080/tcp+udp
-- ss-tunnel：0.0.0.0:60053/tcp+udp
+- dnsforwarder：0.0.0.0:60053/udp
+- ss-redir：0.0.0.0:60080/tcp+udp（udp 其实不需要，懒得改了）
 
 ## 脚本用法
 **获取**
@@ -26,6 +27,7 @@
 
 **安装**
 - `cd ss-tproxy`
+- `git checkout tcponly`
 - `cp -af ss-tproxy /usr/local/bin/`
 - `cp -af ss-switch /usr/local/bin/`
 - `chown root:root /usr/local/bin/ss-tproxy /usr/local/bin/ss-switch`
@@ -35,6 +37,7 @@
 - `cp -af chnroute.txt /etc/tproxy/`
 - `cp -af chnroute.ipset /etc/tproxy/`
 - `cp -af ss-tproxy.conf /etc/tproxy/`
+- `cp -af dnsforwarder.conf /etc/tproxy/`
 - `chown -R root:root /etc/tproxy`
 - `chmod 0644 /etc/tproxy/*`
 
@@ -42,7 +45,7 @@
 - `vim /etc/tproxy/ss-tproxy.conf`，修改后重启 ss-tproxy 生效
 - 修改开头的 `ss/ssr 配置`，具体的含义请参考注释（此段配置必须修改）
 - 切换 ss/ssr 节点时请修改 ss-tproxy.conf，或使用 ss-switch 切换（`ss-switch -h` 查看帮助）
-- `chinadns_upstream="114.114.114.114,127.0.0.1:${tunnel_port}"`：建议将 114 改为原网络下的 DNS
+- `chinadns_upstream="114.114.114.114,127.0.0.1:60053"`：建议将 114.114.114.114 改为原网络下的 DNS
 - `iptables_intranet=(192.168.0.0/16)`：如果内网网段不是 192.168/16，请修改（可以有多个，空格隔开）
 - `dns_original=(114.114.114.114 119.29.29.29 180.76.76.76)`：建议修改为原网络下的 DNS（最多 3 个）
 
@@ -73,12 +76,13 @@
 
 - pdnsd：`/var/log/pdnsd.log`
 - chinadns：`/var/log/chinadns.log`
+- dnsforwarder：`/var/log/dnsforwarder.log`
 - ss-redir：`/var/log/ss-redir.log`
-- ss-tunnel：`/var/log/ss-tunnel.log`
 
 ## 相关参考
 - [pdnsd](http://members.home.nl/p.a.rombouts/pdnsd/index.html)
 - [ChinaDNS](https://github.com/shadowsocks/ChinaDNS)
+- [dnsforwarder](https://github.com/holmium/dnsforwarder)
 - [shadowsocks-libev](https://github.com/shadowsocks/shadowsocks-libev)
 - [shadowsocksr-libev](https://github.com/shadowsocksr-backup/shadowsocksr-libev)
 - [ss-tproxy 常见问题](https://www.zfl9.com/ss-redir.html#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
