@@ -154,7 +154,8 @@ function pbr_del() {
 
 function ipfwd_on() {
     if [ $(cat /proc/sys/net/ipv4/ip_forward) -ne 1 ]; then
-        echo 1 > /proc/sys/net/ipv4/ip_forward
+        #echo 1 > /proc/sys/net/ipv4/ip_forward
+        sysctl -w net.ipv4.ip_forward=1
     fi
 }
 
@@ -178,11 +179,6 @@ function current_ip() {
 
 function start() {
     dns_origin
-
-    if [ ! -e ${chinadns_chnroute} ]; then
-        echo -e "\e[37m${chinadns_chnroute}\e[0m  [\e[1;35mnot_exist\e[0m]"
-        exit 1
-    fi
 
     if [ "${server_use_ssr}" = 'false' ]; then
         redir_params="-s '${server_addr}' -p '${server_port}' -m '${server_method}' -k '${server_passwd}' -b '${redir_addr}' -l '${redir_port}'"
