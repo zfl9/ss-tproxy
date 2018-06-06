@@ -137,7 +137,8 @@ function ipts_origin() {
 
 function ipfwd_on() {
     if [ $(cat /proc/sys/net/ipv4/ip_forward) -ne 1 ]; then
-        echo 1 > /proc/sys/net/ipv4/ip_forward
+        #echo 1 > /proc/sys/net/ipv4/ip_forward
+        sysctl -w net.ipv4.ip_forward=1
     fi
 }
 
