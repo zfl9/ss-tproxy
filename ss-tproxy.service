@@ -6,7 +6,7 @@ Requires=network-online.target haveged.service
 After=network-online.target haveged.service
 
 [Service]
-Type=forking
+Type=oneshot
 ExecStart=/usr/local/bin/ss-tproxy start
 ExecStop=/usr/local/bin/ss-tproxy stop
 ExecReload=/usr/local/bin/ss-tproxy restart
