@@ -105,4 +105,11 @@ ss-tproxy 有两种运行环境，一种是在网关/路由上运行，一种是
 - dnsforwarder：`/var/log/dnsforwarder.log`
 
 ## 更多信息
-// TODO
+- [dnsmasq](http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html)
+- [chinadns](https://github.com/shadowsocks/ChinaDNS)
+- [dnsforwarder](https://github.com/holmium/dnsforwarder)
+- [gfwlist2dnsmasq](https://github.com/zfl9/gfwlist2dnsmasq)
+- [gotun2socks](https://github.com/yinghuocho/gotun2socks)
+- [shadowsocks-libev](https://github.com/shadowsocks/shadowsocks-libev)
+- [shadowsocksr-libev](https://github.com/shadowsocksr-backup/shadowsocksr-libev)
+- [ss-redir 透明代理](https://www.zfl9.com/ss-redir.html)
