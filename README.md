@@ -95,7 +95,8 @@ ss-tproxy 有两种运行环境，一种是在网关/路由上运行，一种是
 - `ss-tproxy update-chnroute`：更新 chnroute
 
 **日志**
-默认配置下 ss-tproxy 尽可能的关闭了日志输出，如需调试，请修改 ss-tproxy.conf，打开相应的 verbose、log 选项
+> 脚本默认关闭了日志输出，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
+
 - ss-redir：`/var/log/ss-redir.log`
 - ss-tunnel：`/var/log/ss-tunnel.log`
 - tun2socks：`/var/log/tun2socks.log`
