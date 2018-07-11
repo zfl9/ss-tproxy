@@ -50,4 +50,37 @@ ss-tproxy 有两种运行环境，一种是在网关/路由上运行，一种是
 - `tun2socks_chnroute_tcp`: dnsforwarder=60053, chinadns=65353, dnsforwarder=53
 
 ## 脚本用法
+**获取**
+- `git clone https://github.com/zfl9/ss-tproxy.git --single-branch`
+
+**安装**
+- `cd ss-tproxy`
+- `cp -af ss-tproxy /usr/local/bin`
+- `chmod 0755 /usr/local/bin/ss-tproxy`
+- `chown root:root /usr/local/bin/ss-tproxy`
+- `mkdir -m 0755 -p /etc/tproxy`
+- `cp -af ss-tproxy.conf gfwlist.txt chnroute.* /etc/tproxy`
+- `chmod 0644 /etc/tproxy/* && chown -R root:root /etc/tproxy`
+
+**配置**
+- 脚本的配置文件为 `/etc/tproxy/ss-tproxy.conf`，修改后重启脚本才能生效
+- 默认模式为 `tproxy_chnroute`，这也是 v1 版本中的模式，根据自己的需要更改
+- 如果使用 `tproxy*` 模式，则修改 `ss/ssr 配置` 段中的相关 SS/SSR 服务器信息
+- 如果使用 `tun2socks*` 模式，则修改 `socks5 配置` 段中的相关 socks5 代理信息
+- `dns_remote` 用于指定代理状态下的 DNS，默认为 8.8.8.8:53，根据自己的需要修改
+- `dns_direct` 用于指定直连状态下的 DNS，默认为 114、119 DNS，根据自己的需要修改
+- `iptables_intranet` 用于指定要代理的内网网段，默认为 192.168.0.0/16，根据需要修改
+
+**自启**（Systemd）
+- `cp -af ss-tproxy.service /etc/systemd/system`
+- `systemctl daemon-reload`
+- `systemctl enable ss-tproxy.service`
+
+**自启**（SysVinit）
+- `touch /etc/rc.d/rc.local`
+- `chmod +x /etc/rc.d/rc.local`
+- `echo '/usr/local/bin/ss-tproxy start' >>/etc/rc.d/rc.local`
+
+> 配置 ss-tproxy 开机自启后容易出现一个问题，那就是必须再次运行 `ss-tproxy restart` 后才能正常代理（这之前查看运行状态，可能看不出任何问题，都是 running 状态），这是因为 ss-tproxy 启动过早了，且 server_addr/socks5_remote 为 hostname 形式，且没有将 server_addr/socks5_remote 中的 hostname 加入 /etc/hosts 文件而导致的。因为 ss-tproxy 启动时，网络还没准备好，此时根本无法解析这个 hostname。要避免这个问题，可以采取一个非常简单的方法，那就是将 hostname 加入到 /etc/hosts 中，如 hostname 为 node.proxy.net，对应的 IP 为 11.22.33.44，则只需执行 `echo "11.22.33.44 node.proxy.net" >>/etc/hosts`。不过得注意个问题，那就是假如这个 IP 变了，别忘了修改 /etc/hosts 文件哦。命令行获取某个域名对应的 IP 地址的方法：`dig +short HOSTNAME`。
+
 // TODO
