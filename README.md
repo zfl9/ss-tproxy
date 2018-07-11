@@ -83,4 +83,25 @@ ss-tproxy 有两种运行环境，一种是在网关/路由上运行，一种是
 
 配置 ss-tproxy 开机自启后容易出现一个问题，那就是必须再次运行 `ss-tproxy restart` 后才能正常代理（这之前查看运行状态可能看不出任何问题，因为都是 running 状态），这是因为 ss-tproxy 启动过早了，且 server_addr/socks5_remote 为 hostname 形式，且没有将 server_addr/socks5_remote 中的 hostname 加入 /etc/hosts 文件而导致的。因为 ss-tproxy 启动时，网络还没准备好，此时根本无法解析这个 hostname。要避免这个问题，可以采取一个非常简单的方法，那就是将 hostname 加入到 /etc/hosts 中，如 hostname 为 node.proxy.net，对应的 IP 为 11.22.33.44，则只需执行 `echo "11.22.33.44 node.proxy.net" >>/etc/hosts`。不过得注意个问题，那就是假如这个 IP 变了，别忘了修改 /etc/hosts 文件哦。命令行获取某个域名对应的 IP 地址的方法：`dig +short HOSTNAME`。如果你使用的是 ArchLinux 发行版，也可以利用 netctl 的 hook 钩子脚本来启动 ss-tproxy（比如拨号成功后启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
 
+**用法**
+- `ss-tproxy help`：查看帮助
+- `ss-tproxy start`：启动代理
+- `ss-tproxy stop`：关闭代理
+- `ss-tproxy restart`：重启代理
+- `ss-tproxy status`：代理状态
+- `ss-tproxy check-depend`：检查依赖
+- `ss-tproxy flush-cache`：清空 DNS 缓存
+- `ss-tproxy update-gfwlist`：更新 gfwlist
+- `ss-tproxy update-chnroute`：更新 chnroute
+
+**日志**
+默认配置下 ss-tproxy 尽可能的关闭了日志输出，如需调试，请修改 ss-tproxy.conf，打开相应的 verbose、log 选项
+- ss-redir：`/var/log/ss-redir.log`
+- ss-tunnel：`/var/log/ss-tunnel.log`
+- tun2socks：`/var/log/tun2socks.log`
+- dnsmasq：`/var/log/dnsmasq.log`
+- chinadns：`/var/log/chinadns.log`
+- dnsforwarder：`/var/log/dnsforwarder.log`
+
+## 更多信息
 // TODO
