@@ -17,6 +17,7 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 ss-tproxy 有两种运行环境，一种是在网关/路由上运行，一种是在普通主机上运行。脚本的初衷是将其运行在网关上的（如树莓派），但实际上脚本可以运行在任何网络角色中。本文假设 ss-tproxy 运行在网关上，内网网段为 192.168.1.0/24，网关 IP 为 192.168.1.1。
 
 ## 脚本依赖
+- [相关依赖项的安装参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 - `tproxy_global`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, dnsmasq
 - `tproxy_gfwlist`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, ipset, perl, dnsmasq
 - `tproxy_chnroute`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
