@@ -34,5 +34,20 @@ ss-tproxy 有两种运行环境，一种是在网关/路由上运行，一种是
 - `*gfwlist*` 模式更新列表时依赖 curl、base64；`*chnroute*` 模式更新列表时依赖 curl；建议都安装（反正迟早要装）
 - `*gfwlist*` 模式中的 perl 其实可以使用 sed 替代，但由于更新 gfwlist 列表依赖 perl5 v5.10.0+，所以直接使用了 perl
 
+## 端口占用
+- 请确保相关端口未被其它进程占用，如果有请自行解决
+- `tproxy_global`: ss-redir=60080, ss-tunnel=60053, dnsmasq=53
+- `tproxy_gfwlist`: ss-redir=60080, ss-tunnel=60053, dnsmasq=53
+- `tproxy_chnroute`: ss-redir=60080, ss-tunnel=60053, chinadns=65353, dnsmasq=53
+- `tproxy_global_tcp`: ss-redir=60080, dnsforwarder=53
+- `tproxy_gfwlist_tcp`: ss-redir=60080, dnsforwarder=60053, dnsmasq=53
+- `tproxy_chnroute_tcp`: ss-redir=60080, dnsforwarder=60053, chinadns=65353, dnsforwarder=53
+- `tun2socks_global`: dnsmasq=53
+- `tun2socks_gfwlist`: dnsmasq=53
+- `tun2socks_chnroute`: chinadns=60053, dnsmasq=53
+- `tun2socks_global_tcp`: dnsforwarder=53
+- `tun2socks_gfwlist_tcp`: dnsforwarder=60053, dnsmasq=53
+- `tun2socks_chnroute_tcp`: dnsforwarder=60053, chinadns=65353, dnsforwarder=53
+
 ## 脚本用法
 // TODO
