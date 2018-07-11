@@ -1,0 +1,16 @@
+[Unit]
+Description=ss-tproxy
+ConditionFileIsExecutable=/usr/local/bin/ss-tproxy
+ConditionFileNotEmpty=/etc/tproxy/ss-tproxy.conf
+Requires=network-online.target haveged.service
+After=network-online.target haveged.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ss-tproxy start
+ExecStop=/usr/local/bin/ss-tproxy stop
+ExecReload=/usr/local/bin/ss-tproxy restart
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
