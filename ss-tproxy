@@ -945,7 +945,7 @@ case $1 in
     start)      start; status;;
     stop)       stop; status;;
     status)     status;;
-    r*)         stop; status; echo; sleep 1; start; status;;
+    r*)         stop; status; echo; start; status;;
     f*)         flush_cache;;
     update-g*)  update_gfwlist;;
     update-c*)  update_chnroute;;
