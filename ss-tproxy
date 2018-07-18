@@ -299,6 +299,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
@@ -312,6 +313,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
@@ -332,6 +334,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
@@ -373,6 +376,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
@@ -422,6 +426,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
@@ -435,6 +440,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
@@ -455,6 +461,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
@@ -496,6 +503,7 @@ log-async = 20
 log-facility = $dnsmasq_log_file
 domain-needed
 cache-size = $dnsmasq_cache_size
+min-cache-ttl = $dnsmasq_cache_time
 no-negcache
 no-resolv
 port = 53
