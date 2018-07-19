@@ -91,6 +91,7 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `ss-tproxy flush-cache`：清空 DNS 缓存
 - `ss-tproxy update-gfwlist`：更新 gfwlist
 - `ss-tproxy update-chnroute`：更新 chnroute
+- 注：update-gfwlist、update-chnroute 需重启生效
 
 **日志**
 > 脚本默认关闭了日志输出，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
