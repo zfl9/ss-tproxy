@@ -322,8 +322,11 @@ $(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfw
 EOF
 );;
 tproxy_chnroute)
+    chinadns_chnroute_temp=$(mktemp)
+    cat $chinadns_chnroute >$chinadns_chnroute_temp
+    for dns in "${dns_direct[@]}"; do echo "$dns/32" >>$chinadns_chnroute_temp; done
     chinadns_upstream=$(for dns in "${dns_direct[@]}"; do echo -n "$dns,"; done)
-    chinadns_params="-b 0.0.0.0 -p 65353 -s ${chinadns_upstream}127.0.0.1:60053 -c $chinadns_chnroute"
+    chinadns_params="-b 0.0.0.0 -p 65353 -s ${chinadns_upstream}127.0.0.1:60053 -c $chinadns_chnroute_temp"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
@@ -394,8 +397,11 @@ BlockNegativeResponse true
 EOF
 ) &>/dev/null
 
+    chinadns_chnroute_temp=$(mktemp)
+    cat $chinadns_chnroute >$chinadns_chnroute_temp
+    for dns in "${dns_direct[@]}"; do echo "$dns/32" >>$chinadns_chnroute_temp; done
     chinadns_upstream=$(for dns in "${dns_direct[@]}"; do echo -n "$dns,"; done)
-    chinadns_params="-b 0.0.0.0 -p 65353 -s ${chinadns_upstream}127.0.0.1:60053 -c $chinadns_chnroute"
+    chinadns_params="-b 0.0.0.0 -p 65353 -s ${chinadns_upstream}127.0.0.1:60053 -c $chinadns_chnroute_temp"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
@@ -449,8 +455,11 @@ $(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $dnsmasq_
 EOF
 );;
 tun2socks_chnroute)
+    chinadns_chnroute_temp=$(mktemp)
+    cat $chinadns_chnroute >$chinadns_chnroute_temp
+    for dns in "${dns_direct[@]}"; do echo "$dns/32" >>$chinadns_chnroute_temp; done
     chinadns_upstream=$(for dns in "${dns_direct[@]}"; do echo -n "$dns,"; done)
-    chinadns_params="-b 0.0.0.0 -p 60053 -s ${chinadns_upstream}${dns_remote} -c $chinadns_chnroute"
+    chinadns_params="-b 0.0.0.0 -p 60053 -s ${chinadns_upstream}${dns_remote} -c $chinadns_chnroute_temp"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
@@ -521,8 +530,11 @@ BlockNegativeResponse true
 EOF
 ) &>/dev/null
 
+    chinadns_chnroute_temp=$(mktemp)
+    cat $chinadns_chnroute >$chinadns_chnroute_temp
+    for dns in "${dns_direct[@]}"; do echo "$dns/32" >>$chinadns_chnroute_temp; done
     chinadns_upstream=$(for dns in "${dns_direct[@]}"; do echo -n "$dns,"; done)
-    chinadns_params="-b 0.0.0.0 -p 65353 -s ${chinadns_upstream}127.0.0.1:60053 -c $chinadns_chnroute"
+    chinadns_params="-b 0.0.0.0 -p 65353 -s ${chinadns_upstream}127.0.0.1:60053 -c $chinadns_chnroute_temp"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
@@ -789,6 +801,7 @@ function start {
     start_rule
     start_kopts
     dns_proxy
+    rm -f $chinadns_chnroute_temp
 }
 
 function stop {
