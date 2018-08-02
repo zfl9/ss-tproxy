@@ -31,7 +31,7 @@ case "$mode" in
         command -v ip &>/dev/null || { echo "Error: iproute2 is not installed." 1>&2; exit 1; }
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
         command -v ipset &>/dev/null || { echo "Error: ipset is not installed." 1>&2; exit 1; }
-        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; }
+        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; exit 1; }
         command -v curl &>/dev/null || { echo "Warning: curl is not installed." 1>&2; }
         command -v base64 &>/dev/null || { echo "Warning: base64 is not installed." 1>&2; }
         ;;
@@ -41,7 +41,7 @@ case "$mode" in
         command -v dnsforwarder &>/dev/null || { echo "Error: dnsforwarder is not installed." 1>&2; exit 1; }
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
         command -v ipset &>/dev/null || { echo "Error: ipset is not installed." 1>&2; exit 1; }
-        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; }
+        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; exit 1; }
         command -v curl &>/dev/null || { echo "Warning: curl is not installed." 1>&2; }
         command -v base64 &>/dev/null || { echo "Warning: base64 is not installed." 1>&2; }
         ;;
@@ -79,7 +79,7 @@ case "$mode" in
         command -v ip &>/dev/null || { echo "Error: iproute2 is not installed." 1>&2; exit 1; }
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
         command -v ipset &>/dev/null || { echo "Error: ipset is not installed." 1>&2; exit 1; }
-        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; }
+        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; exit 1; }
         command -v curl &>/dev/null || { echo "Warning: curl is not installed." 1>&2; }
         command -v base64 &>/dev/null || { echo "Warning: base64 is not installed." 1>&2; }
         ;;
@@ -89,7 +89,7 @@ case "$mode" in
         command -v dnsforwarder &>/dev/null || { echo "Error: dnsforwarder is not installed." 1>&2; exit 1; }
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
         command -v ipset &>/dev/null || { echo "Error: ipset is not installed." 1>&2; exit 1; }
-        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; }
+        command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; exit 1; }
         command -v curl &>/dev/null || { echo "Warning: curl is not installed." 1>&2; }
         command -v base64 &>/dev/null || { echo "Warning: base64 is not installed." 1>&2; }
         ;;
@@ -626,7 +626,17 @@ tproxy_gfwlist*)
 
     iptables -t nat -N SS-TCP
     ipset -X gfwlist &>/dev/null
-    ipset -N gfwlist hash:ip
+    ipset -N gfwlist hash:net
+    ipset -A gfwlist 91.108.4.0/22
+    ipset -A gfwlist 91.108.8.0/22
+    ipset -A gfwlist 91.108.12.0/22
+    ipset -A gfwlist 91.108.20.0/22
+    ipset -A gfwlist 91.108.36.0/23
+    ipset -A gfwlist 91.108.38.0/23
+    ipset -A gfwlist 91.108.56.0/22
+    ipset -A gfwlist 149.154.160.0/20
+    ipset -A gfwlist 149.154.164.0/22
+    ipset -A gfwlist 149.154.172.0/22
     [[ "$mode" == *tcp ]] && iptables -t nat -A SS-TCP -p tcp -d ${dns_remote%%:*} -j REDIRECT --to-ports 60080
     iptables -t nat -A SS-TCP -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports 60080
 
@@ -713,7 +723,17 @@ tun2socks_gfwlist*)
 
     iptables -t mangle -N TUN2SOCKS
     ipset -X gfwlist &>/dev/null
-    ipset -N gfwlist hash:ip
+    ipset -N gfwlist hash:net
+    ipset -A gfwlist 91.108.4.0/22
+    ipset -A gfwlist 91.108.8.0/22
+    ipset -A gfwlist 91.108.12.0/22
+    ipset -A gfwlist 91.108.20.0/22
+    ipset -A gfwlist 91.108.36.0/23
+    ipset -A gfwlist 91.108.38.0/23
+    ipset -A gfwlist 91.108.56.0/22
+    ipset -A gfwlist 149.154.160.0/20
+    ipset -A gfwlist 149.154.164.0/22
+    ipset -A gfwlist 149.154.172.0/22
     [[ "$mode" != *tcp ]] && iptables -t mangle -A TUN2SOCKS -p udp -d ${dns_remote%%:*} -j MARK --set-mark $iptables_pbr_fwmark
     iptables -t mangle -A TUN2SOCKS -m set --match-set gfwlist dst -j MARK --set-mark $iptables_pbr_fwmark
 
