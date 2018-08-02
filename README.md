@@ -57,18 +57,28 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `chmod 0755 /usr/local/bin/ss-tproxy`
 - `chown root:root /usr/local/bin/ss-tproxy`
 - `mkdir -m 0755 -p /etc/tproxy`
-- `cp -af ss-tproxy.conf gfwlist.txt chnroute.* /etc/tproxy`
+- `cp -af ss-tproxy.conf gfwlist.* chnroute.* /etc/tproxy`
 - `chmod 0644 /etc/tproxy/* && chown -R root:root /etc/tproxy`
+
+**简介**
+- `ss-tproxy`：脚本文件
+- `ss-tproxy.conf`：配置文件
+- `ss-tproxy.service`：服务文件
+- `gfwlist.txt`：gfwlist 域名文件，不可配置
+- `gfwlist.ext`：gfwlsit 黑名单文件，可配置
+- `chnroute.txt`：chnroute for chinadns，不可配置
+- `chnroute.ipset`：chnroute for ipset，不可配置
 
 **配置**
 - 脚本的配置文件为 `/etc/tproxy/ss-tproxy.conf`，修改后重启脚本才能生效
 - 默认模式为 `tproxy_chnroute`，这也是 v1 版本中的模式，根据自己的需要更改
 - 如果使用 `tproxy*` 模式，则修改 `ss/ssr 配置` 段中的相关 SS/SSR 服务器信息
 - 如果使用 `tun2socks*` 模式，则修改 `socks5 配置` 段中的相关 socks5 代理信息
-- `dns_remote` 用于指定代理状态下的 DNS，默认为 8.8.8.8:53，根据自己的需要修改
-- `dns_direct` 用于指定直连状态下的 DNS，默认为 114、119 DNS，根据自己的需要修改
-- `iptables_intranet` 用于指定要代理的内网网段，默认为 192.168.0.0/16，根据需要修改
-- 如果你的内网网段不是“标准”网段（详见注释），请注意修改 `iptables_intranet_nonstd`
+- `dns_remote` 解析国外域名的 DNS 服务器，默认为 8.8.8.8:53，根据自己的需要修改
+- `dns_direct` 解析国内域名的 DNS 服务器，默认为 114、119 DNS，根据自己的需要修改
+- `iptables_intranet` 指定要代理的内网网段，允许多个，默认为 192.168/16，根据需要修改
+- 如果你的内网网段不是“标准”网段（详见文件注释），请注意修改 `iptables_intranet_nonstd`
+- 关于 gfwlist 黑名单，如果需要，请编辑 `/etc/tproxy/gfwlist.ext`，根据注释添加相应的条目
 
 **自启**（Systemd）
 - `cp -af ss-tproxy.service /etc/systemd/system`
@@ -80,7 +90,7 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `chmod +x /etc/rc.d/rc.local`
 - `echo '/usr/local/bin/ss-tproxy start' >>/etc/rc.d/rc.local`
 
-配置 ss-tproxy 开机自启后容易出现一个问题，那就是必须再次运行 `ss-tproxy restart` 后才能正常代理（这之前查看运行状态可能看不出任何问题，因为都是 running 状态），这是因为 ss-tproxy 启动过早了，且 server_addr/socks5_remote 为 hostname 形式，且没有将 server_addr/socks5_remote 中的 hostname 加入 /etc/hosts 文件而导致的。因为 ss-tproxy 启动时，网络还没准备好，此时根本无法解析这个 hostname。要避免这个问题，可以采取一个非常简单的方法，那就是将 hostname 加入到 /etc/hosts 中，如 hostname 为 node.proxy.net，对应的 IP 为 11.22.33.44，则只需执行 `echo "11.22.33.44 node.proxy.net" >>/etc/hosts`。不过得注意个问题，那就是假如这个 IP 变了，别忘了修改 /etc/hosts 文件哦。命令行获取某个域名对应的 IP 地址的方法：`dig +short HOSTNAME`。如果你使用的是 ArchLinux 发行版，也可以利用 netctl 的 hook 钩子脚本来启动 ss-tproxy（比如拨号成功后启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
+如果 ss-tproxy 主机使用 PPPoE 拨号上网（或者是其它耗时比较长的方式），那么配置自启后，可能导致 ss-tproxy 在网络还未完全准备好的情况下先运行。此时如果 ss-tproxy.conf 中的 socks5_remote、server_addr 为域名形式，那么就会导致 ss-tproxy 启动失败（甚至会卡一段时间，因为它一直在尝试解析这些域名，直到超时为止）。要恢复正常的代理，只能在启动完成后手动进行 `ss-tproxy restart`。如果你想避免这种 bug 的发生，请尽量将 ss-tproxy.conf 中的 socks5_remote、server_addr 替换为 IP 地址形式，或者将这些域名添加到 ss-tproxy 主机的 /etc/hosts 文件，如果你和我一样使用的 ArchLinux，那么最好的解决方式就是利用 netctl 的 hook 钩子启动 ss-tproxy（比如在拨号成功后再启动 ss-tproxy），具体的配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
 
 **用法**
 - `ss-tproxy help`：查看帮助
