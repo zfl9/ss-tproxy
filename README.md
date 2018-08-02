@@ -90,7 +90,7 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `chmod +x /etc/rc.d/rc.local`
 - `echo '/usr/local/bin/ss-tproxy start' >>/etc/rc.d/rc.local`
 
-如果 ss-tproxy 主机使用 PPPoE 拨号上网（或者是其它耗时比较长的方式），那么配置自启后，可能导致 ss-tproxy 在网络还未完全准备好的情况下先运行。此时如果 ss-tproxy.conf 中的 socks5_remote、server_addr 为域名形式，那么就会导致 ss-tproxy 启动失败（甚至会卡一段时间，因为它一直在尝试解析这些域名，直到超时为止）。要恢复正常的代理，只能在启动完成后手动进行 `ss-tproxy restart`。如果你想避免这种 bug 的发生，请尽量将 ss-tproxy.conf 中的 socks5_remote、server_addr 替换为 IP 地址形式，或者将这些域名添加到 ss-tproxy 主机的 /etc/hosts 文件，如果你和我一样使用的 ArchLinux，那么最好的解决方式就是利用 netctl 的 hook 钩子启动 ss-tproxy（比如在拨号成功后再启动 ss-tproxy），具体的配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
+如果 ss-tproxy 主机使用 PPPoE 拨号上网（或其它耗时比较长的方式），那么配置自启后，可能导致 ss-tproxy 在网络还未完全准备好的情况下先运行。此时如果 ss-tproxy.conf 中的 socks5_remote、server_addr 为域名形式，那么就会导致 ss-tproxy 启动失败（甚至会卡一段时间，因为它一直在尝试解析这些域名，直到超时为止）。要恢复正常的代理，只能在启动完成后手动进行 `ss-tproxy restart`。如果你想避免这种 bug 的发生，请尽量将 ss-tproxy.conf 中的 socks5_remote、server_addr 替换为 IP 地址形式，或者将这些域名添加到 ss-tproxy 主机的 /etc/hosts 文件，如果你和我一样使用的 ArchLinux，那么最好的解决方式就是利用 netctl 的 hook 钩子启动 ss-tproxy（比如在拨号成功后再启动 ss-tproxy），具体的配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
 
 **用法**
 - `ss-tproxy help`：查看帮助
