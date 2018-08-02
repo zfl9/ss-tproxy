@@ -318,7 +318,9 @@ no-negcache
 no-resolv
 port = 53
 $(for dns in "${dns_direct[@]}"; do echo "server = $dns"; done)
-$(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist)
+$(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist <(
+perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
+))
 EOF
 );;
 tproxy_chnroute)
@@ -384,7 +386,9 @@ no-negcache
 no-resolv
 port = 53
 $(for dns in "${dns_direct[@]}"; do echo "server = $dns"; done)
-$(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist)
+$(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist <(
+perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
+))
 EOF
 );;
 tproxy_chnroute_tcp)
@@ -451,7 +455,9 @@ no-negcache
 no-resolv
 port = 53
 $(for dns in "${dns_direct[@]}"; do echo "server = $dns"; done)
-$(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $dnsmasq_gfwlist)
+$(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $dnsmasq_gfwlist <(
+perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
+))
 EOF
 );;
 tun2socks_chnroute)
@@ -517,7 +523,9 @@ no-negcache
 no-resolv
 port = 53
 $(for dns in "${dns_direct[@]}"; do echo "server = $dns"; done)
-$(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist)
+$(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist <(
+perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
+))
 EOF
 );;
 tun2socks_chnroute_tcp)
@@ -649,6 +657,7 @@ tproxy_gfwlist*)
     ipset -A gfwlist 149.154.160.0/20
     ipset -A gfwlist 149.154.164.0/22
     ipset -A gfwlist 149.154.172.0/22
+    perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
     [[ "$mode" == *tcp ]] && iptables -t nat -A SS-TCP -p tcp -d ${dns_remote%%:*} -j REDIRECT --to-ports 60080
     iptables -t nat -A SS-TCP -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports 60080
 
@@ -746,6 +755,7 @@ tun2socks_gfwlist*)
     ipset -A gfwlist 149.154.160.0/20
     ipset -A gfwlist 149.154.164.0/22
     ipset -A gfwlist 149.154.172.0/22
+    perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
     [[ "$mode" != *tcp ]] && iptables -t mangle -A TUN2SOCKS -p udp -d ${dns_remote%%:*} -j MARK --set-mark $iptables_pbr_fwmark
     iptables -t mangle -A TUN2SOCKS -m set --match-set gfwlist dst -j MARK --set-mark $iptables_pbr_fwmark
 
