@@ -565,6 +565,9 @@ tproxy_global*|tproxy_chnroute*)
     iptables -t nat -A SS-TCP -d 169.254/16 -j RETURN
     iptables -t nat -A SS-TCP -d 172.16/12 -j RETURN
     iptables -t nat -A SS-TCP -d 192.168/16 -j RETURN
+    for cidr in "${iptables_intranet_nonstd[@]}"; do
+        iptables -t nat -A SS-TCP -d $cidr -j RETURN
+    done
     iptables -t nat -A SS-TCP -d 224/4 -j RETURN
     iptables -t nat -A SS-TCP -d 240/4 -j RETURN
     iptables -t nat -A SS-TCP -d $server_addr -j RETURN
@@ -587,6 +590,9 @@ tproxy_global*|tproxy_chnroute*)
         iptables -t mangle -A SS-UDP -d 169.254/16 -j RETURN
         iptables -t mangle -A SS-UDP -d 172.16/12 -j RETURN
         iptables -t mangle -A SS-UDP -d 192.168/16 -j RETURN
+        for cidr in "${iptables_intranet_nonstd[@]}"; do
+            iptables -t mangle -A SS-UDP -d $cidr -j RETURN
+        done
         iptables -t mangle -A SS-UDP -d 224/4 -j RETURN
         iptables -t mangle -A SS-UDP -d 240/4 -j RETURN
         iptables -t mangle -A SS-UDP -d $server_addr -j RETURN
@@ -665,6 +671,9 @@ tun2socks_global*|tun2socks_chnroute*)
     iptables -t mangle -A TUN2SOCKS -d 169.254/16 -j RETURN
     iptables -t mangle -A TUN2SOCKS -d 172.16/12 -j RETURN
     iptables -t mangle -A TUN2SOCKS -d 192.168/16 -j RETURN
+    for cidr in "${iptables_intranet_nonstd[@]}"; do
+        iptables -t mangle -A TUN2SOCKS -d $cidr -j RETURN
+    done
     iptables -t mangle -A TUN2SOCKS -d 224/4 -j RETURN
     iptables -t mangle -A TUN2SOCKS -d 240/4 -j RETURN
     iptables -t mangle -A TUN2SOCKS -d $socks5_remote -j RETURN
