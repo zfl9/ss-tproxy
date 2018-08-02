@@ -68,6 +68,7 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `dns_remote` 用于指定代理状态下的 DNS，默认为 8.8.8.8:53，根据自己的需要修改
 - `dns_direct` 用于指定直连状态下的 DNS，默认为 114、119 DNS，根据自己的需要修改
 - `iptables_intranet` 用于指定要代理的内网网段，默认为 192.168.0.0/16，根据需要修改
+- 如果你的内网网段不是“标准”网段（详见注释），请注意修改 `iptables_intranet_nonstd`
 
 **自启**（Systemd）
 - `cp -af ss-tproxy.service /etc/systemd/system`
