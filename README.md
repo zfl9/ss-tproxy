@@ -74,8 +74,8 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - 默认模式为 `tproxy_chnroute`，这也是 v1 版本中的模式，根据自己的需要更改
 - 如果使用 `tproxy*` 模式，则修改 `ss/ssr 配置` 段中的相关 SS/SSR 服务器信息
 - 如果使用 `tun2socks*` 模式，则修改 `socks5 配置` 段中的相关 socks5 代理信息
-- `dns_remote` 解析国外域名的 DNS 服务器，默认为 8.8.8.8:53，根据自己的需要修改
-- `dns_direct` 解析国内域名的 DNS 服务器，默认为 114、119 DNS，根据自己的需要修改
+- `dns_remote` 为解析国外域名的 DNS 服务器，默认为 Google DNS，根据自己的需要修改
+- `dns_direct` 为解析国内域名的 DNS 服务器，默认为 114、119 DNS，根据自己的需要修改
 - `iptables_intranet` 指定要代理的内网网段，允许多个，默认为 192.168/16，根据需要修改
 - 如果你的内网网段不是“标准”网段（详见文件注释），请注意修改 `iptables_intranet_nonstd`
 - 关于 gfwlist 黑名单，如果需要，请编辑 `/etc/tproxy/gfwlist.ext`，根据注释添加相应的条目
