@@ -7,22 +7,34 @@
 # 域名：如 example.com (包含 example.com、*.example.com)，即"域名后缀"
 # 注意：修改本文件需重启 ss-tproxy 生效，另外请删除每行末尾多余的空白符
 
+akstat.io
 androidfilehost.com
 archlinuxarm.org
 archlinux.org
+browsiprod.com
 centos.org
 clearbit.com
+cloudflare.com
 cloudfront.net
 cpan.org
+criteo.net
+crsspxl.com
+demdex.net
 disquscdn.com
 doubleclick.net
 firebaseio.com
+floodprincipal.com
+fontawesome.com
 gitbook.com
 gitbooks.io
 github.com
 github.io
 githubusercontent.com
+googlesyndication.com
+googleusercontent.com
+gstatic.com
 hotjar.com
+licdn.com
 mariadb.com
 microsoft.com
 mixpanel.com
@@ -35,9 +47,18 @@ perl.org
 python.org
 quoracdn.net
 ravenjs.com
+rawgit.com
+scorecardresearch.com
+slashdotmedia.com
 sourceforge.net
+stackcommerce.com
 stackexchange.com
 stackoverflow.com
 stripe.com
+tubemogul.com
 tutorialspoint.com
+typekit.net
+viglink.com
+windows.com
+w.org
 xda-developers.com
