@@ -7,7 +7,20 @@
 # 域名：如 example.com (包含 example.com、*.example.com)，即"域名后缀"
 # 注意：修改本文件需重启 ss-tproxy 生效，另外请删除每行末尾多余的空白符
 
-#github.io
-#github.com
-#gitbook.com
-#githubusercontent.com
+clearbit.com
+cloudfront.net
+doubleclick.net
+firebaseio.com
+gitbook.com
+gitbooks.io
+github.com
+github.io
+githubusercontent.com
+hotjar.com
+mixpanel.com
+mozilla.com
+mxpnl.com
+ravenjs.com
+stackexchange.com
+stackoverflow.com
+stripe.com
