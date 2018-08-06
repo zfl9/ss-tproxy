@@ -134,7 +134,7 @@ function update_chnroute {
     #chnroute_url="http://f.ip.cn/rt/chnroutes.txt"
     chnroute_url="https://github.com/17mon/china_ip_list/raw/master/china_ip_list.txt"
     { curl -4sSkL "$chnroute_url"; echo; } | grep -Ev '^\s*$|^\s*#' >$chinadns_chnroute
-    echo '-N chnroute hash:net' >$iptables_ipset_file; xargs -n1 echo -A chnroute <$chinadns_chnroute >>$iptables_ipset_file
+    echo '-N chnroute hash:net' >$iptables_ipset_file; sed -r 's/^.+$/-A chnroute &/' $chinadns_chnroute >>$iptables_ipset_file
 }
 
 function flush_cache {
