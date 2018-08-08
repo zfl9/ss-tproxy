@@ -5,71 +5,71 @@
 #   IP：如 11.22.33.44
 # 网段：如 123.123.0.0/16
 # 域名：如 example.com (包含 example.com、*.example.com)，即"域名后缀"
-# 注意：修改本文件需重启 ss-tproxy 生效，另外请删除每行末尾多余的空白符
+# 注意：修改本文件需重启 ss-tproxy 生效，另外请删除每行首尾多余的空白符
 
-# 这些是我个人(电信)收集的一些直连访问较慢的网站，不需要的请自行注释掉
-akstat.io
-androidfilehost.com
-apache.org
-archlinuxarm.org
-archlinux.org
-askubuntu.com
-browsiprod.com
-centos.org
-clearbit.com
-cloudflare.com
-cloudfront.net
-cpan.org
-cppblog.com
-criteo.net
-crsspxl.com
-demdex.net
-disquscdn.com
-doubleclick.net
-firebaseio.com
-floodprincipal.com
-fontawesome.com
-fsdn.com
-gitbook.com
-gitbooks.io
-github.com
-github.io
-githubusercontent.com
-googlesyndication.com
-googleusercontent.com
-gstatic.com
-hotjar.com
-ietf.org
-licdn.com
-mariadb.com
-microsoft.com
-mixpanel.com
-mozilla.com
-mozillademos.org
-mxpnl.com
-mysql.com
-opengapps.org
-oracle.com
-perl.org
-python.org
-quoracdn.net
-ravenjs.com
-rawgit.com
-scorecardresearch.com
-serverfault.com
-slashdotmedia.com
-sourceforge.net
-stackcommerce.com
-stackexchange.com
-stackoverflow.com
-stripe.com
-superuser.com
-tubemogul.com
-tutorialspoint.com
-twrp.me
-typekit.net
-viglink.com
-w3schools.com
-windows.com
-w.org
-xda-developers.com
+# 电信直连较慢的网站
+# akstat.io
+# androidfilehost.com
+# apache.org
+# archlinuxarm.org
+# archlinux.org
+# askubuntu.com
+# browsiprod.com
+# centos.org
+# clearbit.com
+# cloudflare.com
+# cloudfront.net
+# cpan.org
+# cppblog.com
+# criteo.net
+# crsspxl.com
+# demdex.net
+# disquscdn.com
+# doubleclick.net
+# firebaseio.com
+# floodprincipal.com
+# fontawesome.com
+# fsdn.com
+# gitbook.com
+# gitbooks.io
+# github.com
+# github.io
+# githubusercontent.com
+# googlesyndication.com
+# googleusercontent.com
+# gstatic.com
+# hotjar.com
+# ietf.org
+# licdn.com
+# mariadb.com
+# microsoft.com
+# mixpanel.com
+# mozilla.com
+# mozillademos.org
+# mxpnl.com
+# mysql.com
+# opengapps.org
+# oracle.com
+# perl.org
+# python.org
+# quoracdn.net
+# ravenjs.com
+# rawgit.com
+# scorecardresearch.com
+# serverfault.com
+# slashdotmedia.com
+# sourceforge.net
+# stackcommerce.com
+# stackexchange.com
+# stackoverflow.com
+# stripe.com
+# superuser.com
+# tubemogul.com
+# tutorialspoint.com
+# twrp.me
+# typekit.net
+# viglink.com
+# w3schools.com
+# windows.com
+# w.org
+# xda-developers.com
