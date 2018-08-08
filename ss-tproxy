@@ -646,16 +646,6 @@ tproxy_gfwlist*)
 
     iptables -t nat -N SS-TCP
     ipset -N gfwlist hash:net &>/dev/null
-    ipset -A gfwlist 91.108.4.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.8.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.12.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.20.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.36.0/23 &>/dev/null
-    ipset -A gfwlist 91.108.38.0/23 &>/dev/null
-    ipset -A gfwlist 91.108.56.0/22 &>/dev/null
-    ipset -A gfwlist 149.154.160.0/20 &>/dev/null
-    ipset -A gfwlist 149.154.164.0/22 &>/dev/null
-    ipset -A gfwlist 149.154.172.0/22 &>/dev/null
     perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
     [[ "$mode" == *tcp ]] && iptables -t nat -A SS-TCP -p tcp -d ${dns_remote%%:*} -j REDIRECT --to-ports 60080
     iptables -t nat -A SS-TCP -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports 60080
@@ -743,16 +733,6 @@ tun2socks_gfwlist*)
 
     iptables -t mangle -N TUN2SOCKS
     ipset -N gfwlist hash:net &>/dev/null
-    ipset -A gfwlist 91.108.4.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.8.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.12.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.20.0/22 &>/dev/null
-    ipset -A gfwlist 91.108.36.0/23 &>/dev/null
-    ipset -A gfwlist 91.108.38.0/23 &>/dev/null
-    ipset -A gfwlist 91.108.56.0/22 &>/dev/null
-    ipset -A gfwlist 149.154.160.0/20 &>/dev/null
-    ipset -A gfwlist 149.154.164.0/22 &>/dev/null
-    ipset -A gfwlist 149.154.172.0/22 &>/dev/null
     perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
     [[ "$mode" != *tcp ]] && iptables -t mangle -A TUN2SOCKS -p udp -d ${dns_remote%%:*} -j MARK --set-mark $iptables_pbr_fwmark
     iptables -t mangle -A TUN2SOCKS -m set --match-set gfwlist dst -j MARK --set-mark $iptables_pbr_fwmark
@@ -809,7 +789,7 @@ function start {
     start_rule
     start_kopts
     dns_proxy
-    rm -f $chinadns_chnroute_temp
+    rm -f $chinadns_chnroute_temp &>/dev/null
 }
 
 function stop {
