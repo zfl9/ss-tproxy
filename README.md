@@ -60,6 +60,10 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `cp -af ss-tproxy.conf gfwlist.* chnroute.* /etc/tproxy`
 - `chmod 0644 /etc/tproxy/* && chown -R root:root /etc/tproxy`
 
+**卸载**
+- `ss-tproxy stop`
+- `rm -fr /etc/tproxy /usr/local/bin/ss-tproxy`
+
 **简介**
 - `ss-tproxy`：脚本文件
 - `ss-tproxy.conf`：配置文件
