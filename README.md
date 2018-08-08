@@ -65,9 +65,9 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `ss-tproxy.conf`：配置文件
 - `ss-tproxy.service`：服务文件
 - `gfwlist.txt`：gfwlist 域名文件，不可配置
-- `gfwlist.ext`：gfwlsit 黑名单文件，可配置
+- `gfwlist.ext`：gfwlsit 黑名单文件，允许配置
+- `chnroute.set`：chnroute for ipset，不可配置
 - `chnroute.txt`：chnroute for chinadns，不可配置
-- `chnroute.ipset`：chnroute for ipset，不可配置
 
 **配置**
 - 脚本的配置文件为 `/etc/tproxy/ss-tproxy.conf`，修改后重启脚本才能生效
