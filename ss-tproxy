@@ -585,6 +585,24 @@ esac
 }
 
 function start_rule {
+    function dec2bin {
+        for ((n = $1; n > 0; n >>= 1)); do bit="$((n & 1))$bit"; done
+        printf "%08d\n" "$bit"
+    }
+    function net2bin {
+        net=$(awk -F/ '{print $1}' <<<$1)
+        len=$(awk -F/ '{print $2}' <<<$1)
+        local IFS='.'; read -ra bytes <<<"$net"
+        for byte in "${bytes[@]}"; do result+="$(dec2bin $byte)"; done
+        echo "${result:0:len}"
+    }
+    for cidr in "${iptables_intranet[@]}"; do
+        curnet=$(net2bin $cidr)
+        for stdnet in 00001010 101011000001 1010100111111110 1100000010101000; do
+            [[ "$curnet" == "$stdnet"* ]] && continue 2
+        done
+        iptables_intranet_nonstd+=($cidr)
+    done
 case "$mode" in
 tproxy_global*|tproxy_chnroute*)
     iptables -t nat -F OUTPUT
