@@ -592,7 +592,7 @@ function start_rule {
     function net2bin {
         net=$(awk -F/ '{print $1}' <<<$1)
         len=$(awk -F/ '{print $2}' <<<$1)
-        local IFS='.'; read -ra bytes <<<"$net"
+        IFS='.' read -ra bytes <<<"$net"
         for byte in "${bytes[@]}"; do result+="$(dec2bin $byte)"; done
         echo "${result:0:len}"
     }
