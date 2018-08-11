@@ -127,7 +127,8 @@ function update_gfwlist {
     s@^\s*+$@@'
     echo 'twimg.edgesuite.net'
     echo -e 'blogspot.ae\nblogspot.al\nblogspot.am\nblogspot.ba\nblogspot.be\nblogspot.bg\nblogspot.bj\nblogspot.ca\nblogspot.cat\nblogspot.cf\nblogspot.ch\nblogspot.cl\nblogspot.co.at\nblogspot.co.id\nblogspot.co.il\nblogspot.co.ke\nblogspot.com\nblogspot.com.ar\nblogspot.com.au\nblogspot.com.br\nblogspot.com.by\nblogspot.com.co\nblogspot.com.cy\nblogspot.com.ee\nblogspot.com.eg\nblogspot.com.es\nblogspot.com.mt\nblogspot.com.ng\nblogspot.com.tr\nblogspot.com.uy\nblogspot.co.nz\nblogspot.co.uk\nblogspot.co.za\nblogspot.cv\nblogspot.cz\nblogspot.de\nblogspot.dk\nblogspot.fi\nblogspot.fr\nblogspot.gr\nblogspot.hk\nblogspot.hr\nblogspot.hu\nblogspot.ie\nblogspot.in\nblogspot.is\nblogspot.it\nblogspot.jp\nblogspot.kr\nblogspot.li\nblogspot.lt\nblogspot.lu\nblogspot.md\nblogspot.mk\nblogspot.mr\nblogspot.mx\nblogspot.my\nblogspot.nl\nblogspot.no\nblogspot.pe\nblogspot.pt\nblogspot.qa\nblogspot.re\nblogspot.ro\nblogspot.rs\nblogspot.ru\nblogspot.se\nblogspot.sg\nblogspot.si\nblogspot.sk\nblogspot.sn\nblogspot.td\nblogspot.tw\nblogspot.ug\nblogspot.vn'
-    echo -e 'google.ac\ngoogle.ad\ngoogle.ae\ngoogle.al\ngoogle.am\ngoogle.as\ngoogle.at\ngoogle.az\ngoogle.ba\ngoogle.be\ngoogle.bf\ngoogle.bg\ngoogle.bi\ngoogle.bj\ngoogle.bs\ngoogle.bt\ngoogle.by\ngoogle.ca\ngoogle.cat\ngoogle.cc\ngoogle.cd\ngoogle.cf\ngoogle.cg\ngoogle.ch\ngoogle.ci\ngoogle.cl\ngoogle.cm\ngoogle.cn\ngoogle.co.ao\ngoogle.co.bw\ngoogle.co.ck\ngoogle.co.cr\ngoogle.co.id\ngoogle.co.il\ngoogle.co.in\ngoogle.co.jp\ngoogle.co.ke\ngoogle.co.kr\ngoogle.co.ls\ngoogle.com\ngoogle.co.ma\ngoogle.com.af\ngoogle.com.ag\ngoogle.com.ai\ngoogle.com.ar\ngoogle.com.au\ngoogle.com.bd\ngoogle.com.bh\ngoogle.com.bn\ngoogle.com.bo\ngoogle.com.br\ngoogle.com.bz\ngoogle.com.co\ngoogle.com.cu\ngoogle.com.cy\ngoogle.com.do\ngoogle.com.ec\ngoogle.com.eg\ngoogle.com.et\ngoogle.com.fj\ngoogle.com.gh\ngoogle.com.gi\ngoogle.com.gt\ngoogle.com.hk\ngoogle.com.jm\ngoogle.com.kh\ngoogle.com.kw\ngoogle.com.lb\ngoogle.com.lc\ngoogle.com.ly\ngoogle.com.mm\ngoogle.com.mt\ngoogle.com.mx\ngoogle.com.my\ngoogle.com.na\ngoogle.com.nf\ngoogle.com.ng\ngoogle.com.ni\ngoogle.com.np\ngoogle.com.om\ngoogle.com.pa\ngoogle.com.pe\ngoogle.com.pg\ngoogle.com.ph\ngoogle.com.pk\ngoogle.com.pr\ngoogle.com.py\ngoogle.com.qa\ngoogle.com.sa\ngoogle.com.sb\ngoogle.com.sg\ngoogle.com.sl\ngoogle.com.sv\ngoogle.com.tj\ngoogle.com.tr\ngoogle.com.tw\ngoogle.com.ua\ngoogle.com.uy\ngoogle.com.vc\ngoogle.com.vn\ngoogle.co.mz\ngoogle.co.nz\ngoogle.co.th\ngoogle.co.tz\ngoogle.co.ug\ngoogle.co.uk\ngoogle.co.uz\ngoogle.co.ve\ngoogle.co.vi\ngoogle.co.za\ngoogle.co.zm\ngoogle.co.zw\ngoogle.cv\ngoogle.cz\ngoogle.de\ngoogle.dj\ngoogle.dk\ngoogle.dm\ngoogle.dz\ngoogle.ee\ngoogle.es\ngoogle.fi\ngoogle.fm\ngoogle.fr\ngoogle.ga\ngoogle.ge\ngoogle.gf\ngoogle.gg\ngoogle.gl\ngoogle.gm\ngoogle.gp\ngoogle.gr\ngoogle.gy\ngoogle.hn\ngoogle.hr\ngoogle.ht\ngoogle.hu\ngoogle.ie\ngoogle.im\ngoogle.io\ngoogle.iq\ngoogle.is\ngoogle.it\ngoogle.je\ngoogle.jo\ngoogle.kg\ngoogle.ki\ngoogle.kz\ngoogle.la\ngoogle.li\ngoogle.lk\ngoogle.lt\ngoogle.lu\ngoogle.lv\ngoogle.md\ngoogle.me\ngoogle.mg\ngoogle.mk\ngoogle.ml\ngoogle.mn\ngoogle.ms\ngoogle.mu\ngoogle.mv\ngoogle.mw\ngoogle.ne\ngoogle.net\ngoogle.nl\ngoogle.no\ngoogle.nr\ngoogle.nu\ngoogle.org\ngoogle.pl\ngoogle.pn\ngoogle.ps\ngoogle.pt\ngoogle.ro\ngoogle.rs\ngoogle.ru\ngoogle.rw\ngoogle.sc\ngoogle.se\ngoogle.sh\ngoogle.si\ngoogle.sk\ngoogle.sm\ngoogle.sn\ngoogle.so\ngoogle.sr\ngoogle.st\ngoogle.td\ngoogle.tg\ngoogle.tk\ngoogle.tl\ngoogle.tm\ngoogle.tn\ngoogle.to\ngoogle.tt\ngoogle.vg\ngoogle.vu\ngoogle.ws'; } | sort | uniq -i >$dnsmasq_gfwlist
+    echo -e 'google.ac\ngoogle.ad\ngoogle.ae\ngoogle.al\ngoogle.am\ngoogle.as\ngoogle.at\ngoogle.az\ngoogle.ba\ngoogle.be\ngoogle.bf\ngoogle.bg\ngoogle.bi\ngoogle.bj\ngoogle.bs\ngoogle.bt\ngoogle.by\ngoogle.ca\ngoogle.cat\ngoogle.cc\ngoogle.cd\ngoogle.cf\ngoogle.cg\ngoogle.ch\ngoogle.ci\ngoogle.cl\ngoogle.cm\ngoogle.cn\ngoogle.co.ao\ngoogle.co.bw\ngoogle.co.ck\ngoogle.co.cr\ngoogle.co.id\ngoogle.co.il\ngoogle.co.in\ngoogle.co.jp\ngoogle.co.ke\ngoogle.co.kr\ngoogle.co.ls\ngoogle.com\ngoogle.co.ma\ngoogle.com.af\ngoogle.com.ag\ngoogle.com.ai\ngoogle.com.ar\ngoogle.com.au\ngoogle.com.bd\ngoogle.com.bh\ngoogle.com.bn\ngoogle.com.bo\ngoogle.com.br\ngoogle.com.bz\ngoogle.com.co\ngoogle.com.cu\ngoogle.com.cy\ngoogle.com.do\ngoogle.com.ec\ngoogle.com.eg\ngoogle.com.et\ngoogle.com.fj\ngoogle.com.gh\ngoogle.com.gi\ngoogle.com.gt\ngoogle.com.hk\ngoogle.com.jm\ngoogle.com.kh\ngoogle.com.kw\ngoogle.com.lb\ngoogle.com.lc\ngoogle.com.ly\ngoogle.com.mm\ngoogle.com.mt\ngoogle.com.mx\ngoogle.com.my\ngoogle.com.na\ngoogle.com.nf\ngoogle.com.ng\ngoogle.com.ni\ngoogle.com.np\ngoogle.com.om\ngoogle.com.pa\ngoogle.com.pe\ngoogle.com.pg\ngoogle.com.ph\ngoogle.com.pk\ngoogle.com.pr\ngoogle.com.py\ngoogle.com.qa\ngoogle.com.sa\ngoogle.com.sb\ngoogle.com.sg\ngoogle.com.sl\ngoogle.com.sv\ngoogle.com.tj\ngoogle.com.tr\ngoogle.com.tw\ngoogle.com.ua\ngoogle.com.uy\ngoogle.com.vc\ngoogle.com.vn\ngoogle.co.mz\ngoogle.co.nz\ngoogle.co.th\ngoogle.co.tz\ngoogle.co.ug\ngoogle.co.uk\ngoogle.co.uz\ngoogle.co.ve\ngoogle.co.vi\ngoogle.co.za\ngoogle.co.zm\ngoogle.co.zw\ngoogle.cv\ngoogle.cz\ngoogle.de\ngoogle.dj\ngoogle.dk\ngoogle.dm\ngoogle.dz\ngoogle.ee\ngoogle.es\ngoogle.fi\ngoogle.fm\ngoogle.fr\ngoogle.ga\ngoogle.ge\ngoogle.gf\ngoogle.gg\ngoogle.gl\ngoogle.gm\ngoogle.gp\ngoogle.gr\ngoogle.gy\ngoogle.hn\ngoogle.hr\ngoogle.ht\ngoogle.hu\ngoogle.ie\ngoogle.im\ngoogle.io\ngoogle.iq\ngoogle.is\ngoogle.it\ngoogle.je\ngoogle.jo\ngoogle.kg\ngoogle.ki\ngoogle.kz\ngoogle.la\ngoogle.li\ngoogle.lk\ngoogle.lt\ngoogle.lu\ngoogle.lv\ngoogle.md\ngoogle.me\ngoogle.mg\ngoogle.mk\ngoogle.ml\ngoogle.mn\ngoogle.ms\ngoogle.mu\ngoogle.mv\ngoogle.mw\ngoogle.ne\ngoogle.net\ngoogle.nl\ngoogle.no\ngoogle.nr\ngoogle.nu\ngoogle.org\ngoogle.pl\ngoogle.pn\ngoogle.ps\ngoogle.pt\ngoogle.ro\ngoogle.rs\ngoogle.ru\ngoogle.rw\ngoogle.sc\ngoogle.se\ngoogle.sh\ngoogle.si\ngoogle.sk\ngoogle.sm\ngoogle.sn\ngoogle.so\ngoogle.sr\ngoogle.st\ngoogle.td\ngoogle.tg\ngoogle.tk\ngoogle.tl\ngoogle.tm\ngoogle.tn\ngoogle.to\ngoogle.tt\ngoogle.vg\ngoogle.vu\ngoogle.ws'
+    } | sort | uniq -i >$dnsmasq_gfwlist
 }
 
 function update_chnroute {
@@ -139,12 +140,13 @@ function update_chnroute {
 
 function flush_cache {
 case "$mode" in
-*global|*gfwlist*|*chnroute) pgrep '^dnsmasq$' | xargs kill -HUP;;
-tproxy_global_tcp)
-if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-pkill '^dnsforwarder$' &>/dev/null
-sleep 2
-dnsforwarder -q -d -f <(cat <<EOF
+    *global|*gfwlist*|*chnroute)
+        pgrep '^dnsmasq$' | xargs kill -HUP &>/dev/null
+        ;;
+    tproxy_global_tcp)
+        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
+            pkill -9 '^dnsforwarder$' &>/dev/null
+            dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
 LogFileFolder $dnsfwd_log_dir
@@ -162,12 +164,12 @@ CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
 ) &>/dev/null
-fi;;
-tproxy_chnroute_tcp)
-if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-pkill '^dnsforwarder$' &>/dev/null
-sleep 2
-dnsforwarder -q -d -f <(cat <<EOF
+        fi
+        ;;
+    tproxy_chnroute_tcp)
+        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
+            pkill -9 '^dnsforwarder$' &>/dev/null
+            dnsforwarder -q -d -f <(cat <<EOF
 LogOn false
 UseCache false
 UDPLocal 0.0.0.0:60053
@@ -175,7 +177,7 @@ TCPGroup $dns_remote * no
 BlockNegativeResponse true
 EOF
 ) &>/dev/null
-dnsforwarder -q -d -f <(cat <<EOF
+            dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
 LogFileFolder $dnsfwd_log_dir
@@ -193,12 +195,12 @@ CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
 ) &>/dev/null
-fi;;
-tun2socks_global_tcp)
-if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-pkill '^dnsforwarder$' &>/dev/null
-sleep 2
-dnsforwarder -q -d -f <(cat <<EOF
+        fi
+        ;;
+    tun2socks_global_tcp)
+        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
+            pkill -9 '^dnsforwarder$' &>/dev/null
+            dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
 LogFileFolder $dnsfwd_log_dir
@@ -216,12 +218,12 @@ CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
 ) &>/dev/null
-fi;;
-tun2socks_chnroute_tcp)
-if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-pkill '^dnsforwarder$' &>/dev/null
-sleep 2
-dnsforwarder -q -d -f <(cat <<EOF
+        fi
+        ;;
+    tun2socks_chnroute_tcp)
+        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
+            pkill -9 '^dnsforwarder$' &>/dev/null
+            dnsforwarder -q -d -f <(cat <<EOF
 LogOn false
 UseCache false
 UDPLocal 0.0.0.0:60053
@@ -229,7 +231,7 @@ TCPGroup $dns_remote * $socks5_listen
 BlockNegativeResponse true
 EOF
 ) &>/dev/null
-dnsforwarder -q -d -f <(cat <<EOF
+            dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
 LogFileFolder $dnsfwd_log_dir
@@ -247,7 +249,8 @@ CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
 ) &>/dev/null
-fi;;
+        fi
+        ;;
 esac
 }
 
@@ -305,7 +308,8 @@ no-resolv
 port = 53
 server = 127.0.0.1#60053
 EOF
-);;
+)
+    ;;
 tproxy_gfwlist)
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
@@ -322,7 +326,8 @@ $(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfw
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
 EOF
-);;
+)
+    ;;
 tproxy_chnroute)
     chinadns_chnroute_temp=$(mktemp)
     cat $chinadns_chnroute >$chinadns_chnroute_temp
@@ -345,9 +350,10 @@ no-resolv
 port = 53
 server = 127.0.0.1#65353
 EOF
-);;
+)
+    ;;
 tproxy_global_tcp)
-    mkdir -p /root/.dnsforwarder
+    mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
@@ -365,7 +371,8 @@ MemoryCache $dnsfwd_cache_mem
 CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
-) &>/dev/null;;
+) &>/dev/null
+    ;;
 tproxy_gfwlist_tcp)
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn false
@@ -390,7 +397,8 @@ $(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfw
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
 EOF
-);;
+)
+    ;;
 tproxy_chnroute_tcp)
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn false
@@ -410,7 +418,7 @@ EOF
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
 
-    mkdir -p /root/.dnsforwarder
+    mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
@@ -428,7 +436,8 @@ MemoryCache $dnsfwd_cache_mem
 CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
-) &>/dev/null;;
+) &>/dev/null
+    ;;
 tun2socks_global)
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
@@ -442,7 +451,8 @@ no-resolv
 port = 53
 server = ${dns_remote/:/#}
 EOF
-);;
+)
+    ;;
 tun2socks_gfwlist)
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
@@ -459,7 +469,8 @@ $(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $dnsmasq_
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
 EOF
-);;
+)
+    ;;
 tun2socks_chnroute)
     chinadns_chnroute_temp=$(mktemp)
     cat $chinadns_chnroute >$chinadns_chnroute_temp
@@ -482,9 +493,10 @@ no-resolv
 port = 53
 server = 127.0.0.1#60053
 EOF
-);;
+)
+    ;;
 tun2socks_global_tcp)
-    mkdir -p /root/.dnsforwarder
+    mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
@@ -502,7 +514,8 @@ MemoryCache $dnsfwd_cache_mem
 CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
-) &>/dev/null;;
+) &>/dev/null
+    ;;
 tun2socks_gfwlist_tcp)
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn false
@@ -527,7 +540,8 @@ $(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfw
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
 EOF
-);;
+)
+    ;;
 tun2socks_chnroute_tcp)
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn false
@@ -547,7 +561,7 @@ EOF
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
 
-    mkdir -p /root/.dnsforwarder
+    mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
 LogFileThresholdLength 5242880
@@ -565,7 +579,8 @@ MemoryCache $dnsfwd_cache_mem
 CacheSize $dnsfwd_cache_size
 IgnoreTTL $dnsfwd_ignore_ttl
 EOF
-) &>/dev/null;;
+) &>/dev/null
+    ;;
 esac
 }
 
@@ -760,10 +775,10 @@ esac
 }
 
 function start_kopts {
-    [ $(sysctl net.ipv4.ip_forward | awk '{print $3}') -ne 1 ] && sysctl -w net.ipv4.ip_forward=1
+    [ $(sysctl net.ipv4.ip_forward | awk '{print $3}') -ne 1 ] && sysctl -w net.ipv4.ip_forward=1 &>/dev/null
     [[ "$mode" == tun2socks* ]] && {
         [ $(sysctl net.ipv4.conf.$tun2socks_tundev.rp_filter | awk '{print $3}') -ne 2 ] &&
-            sysctl -w net.ipv4.conf.$tun2socks_tundev.rp_filter=2
+            sysctl -w net.ipv4.conf.$tun2socks_tundev.rp_filter=2 &>/dev/null
     }
 }
 
@@ -801,7 +816,6 @@ function start {
 }
 
 function stop {
-    check_depend
     dns_normal
 
     iptables -t nat -F OUTPUT            
@@ -825,7 +839,7 @@ function stop {
     ipset -X chnroute &>/dev/null
 
     ip rule show | grep "fwmark $iptables_pbr_fwmark" | awk -F':' '{print $1}' | xargs -n1 ip rule del pref &>/dev/null
-    ip route flush table $iptables_pbr_number
+    ip route flush table $iptables_pbr_number &>/dev/null
 
     pkill -9 '^dnsmasq$'
     pkill -9 '^chinadns$'
@@ -974,7 +988,7 @@ COMMAND := {
     help                show this help and exit
 }
 Issues or Bug report: zfl9.com@gmail.com (Otokaze)
-See also https://www.zfl9.com/ss-redir.html for more details.
+See https://www.zfl9.com/ss-redir.html for more details
 EOF
 }
 
