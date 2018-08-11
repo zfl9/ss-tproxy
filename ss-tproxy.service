@@ -1,5 +1,5 @@
 [Unit]
-Description=ss-tproxy, ss/ssr/socks5 global proxy
+Description=ss/ssr/socks5 global proxy script
 ConditionFileIsExecutable=/usr/local/bin/ss-tproxy
 ConditionFileNotEmpty=/etc/tproxy/ss-tproxy.conf
 Requires=network.target network-online.target haveged.service
