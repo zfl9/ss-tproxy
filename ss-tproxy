@@ -112,6 +112,10 @@ case "$mode" in
 esac
 }
 
+function update_chnonly {
+    curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$dnsmasq_gfwlist
+}
+
 function update_gfwlist {
     curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt | base64 -d | { perl -pe '
     if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
