@@ -990,6 +990,7 @@ COMMAND := {
     restart             restart ss-tproxy
     status              status of ss-tproxy
     flush-cache         flush dns cache
+    update-chnonly      update chnonly
     update-gfwlist      update gfwlist
     update-chnroute     update chnroute
     check-depend        check dependency
@@ -1001,14 +1002,15 @@ EOF
 }
 
 case $1 in
-    start)      start; status;;
-    stop)       stop; status;;
-    status)     status;;
-    r*)         stop; status; echo; start; status;;
-    f*)         flush_cache;;
-    update-g*)  update_gfwlist;;
-    update-c*)  update_chnroute;;
-    c*)         check_depend;;
-    h*)         usage;;
-    *)          usage; exit 1;;
+    start)              start; status;;
+    stop)               stop; status;;
+    status)             status;;
+    r*)                 stop; status; echo; start; status;;
+    f*)                 flush_cache;;
+    update-chnonly)     update_chnonly;;
+    update-gfwlist)     update_gfwlist;;
+    update-chnroute)    update_chnroute;;
+    c*)                 check_depend;;
+    h*)                 usage;;
+    *)                  usage; exit 1;;
 esac

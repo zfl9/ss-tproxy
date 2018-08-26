@@ -1,6 +1,6 @@
 # SS/SSR/Socks5 全局代理
 ## 脚本简介
-ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客户端的代理功能，当然也支持 Socks5 协议的全局代理配置（如 SSH 代理隧道）。目前实现的模式有 global（全局代理模式）、gfwlist（黑名单模式）、chnroute（白名单模式，绕过大陆地址段），考虑到部分用户没有支持 UDP-Relay 的 SS/SSR 节点，所以代理模式又分为 tcp&udp 和 tcponly 两类。Linux 系统下实现透明代理有两种思路：一是利用 iptables 进行重定向（DNAT），二是利用 tun 虚拟网卡进行代理（路由）；因此代理模式又分为 tproxy、tun2socks 两大类，所以一共存在 12 种代理模式（下文中的“本机”指运行 ss-tproxy 的主机）：
+ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客户端的代理功能，当然也支持 Socks5 协议的全局代理配置（如 SSH 代理隧道）。目前实现的模式有 global（全局代理模式）、gfwlist（黑名单模式）、chnroute（白名单模式，绕过大陆地址段）、chnonly（仅代理大陆域名，国外翻回国内专用），考虑到部分用户没有支持 UDP-Relay 的 SS/SSR 节点，所以代理模式又分为 tcp&udp 和 tcponly 两类。Linux 系统下实现透明代理有两种思路：一是利用 iptables 进行重定向（DNAT），二是利用 tun 虚拟网卡进行代理（路由）；因此代理模式又分为 tproxy、tun2socks 两大类，所以一共存在 12 种代理模式（下文中的“本机”指运行 ss-tproxy 的主机）：
 - `tproxy_global`：代理 TCP/UDP（本机 UDP 除外），iptables/global 模式
 - `tproxy_global_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），iptables/global 模式
 - `tproxy_gfwlist`：代理 TCP/UDP（本机 UDP 除外），iptables/gfwlist 模式
@@ -13,6 +13,8 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `tun2socks_gfwlist_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），tun2socks/gfwlist 模式
 - `tun2socks_chnroute`：代理 TCP/UDP（包括本机 UDP），tun2socks/chnroute 模式
 - `tun2socks_chnroute_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），tun2socks/chnroute 模式
+
+> 注：chnonly 模式和 gfwlist 模式本质上没有区别，如需使用 chnonly 请选择 `*gfwlist*` mode。
 
 ## 脚本依赖
 - [ss-tproxy 脚本相关依赖的安装参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
@@ -81,6 +83,8 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `iptables_intranet` 指定要代理的内网网段，默认为 192.168.0.0/16，根据需要修改
 - 如需配置 gfwlist 黑名单，请编辑 `/etc/tproxy/gfwlist.ext`，修改后需重启脚本生效
 
+如果你需要使用 chnonly 模式（国外翻进国内），请选择 `*gfwlist*` 代理模式，比如 `tproxy_gfwlist`。此模式下，你必须修改 ss-tproxy.conf 中的 `dns_remote` 为国内的 DNS，如 `dns_remote='114.114.114.114:53'`，并且将 `dns_direct` 改为本地的 DNS（国外的），如 `dns_direct='8.8.8.8'`；因为 chnonly 模式与 gfwlist 模式共享 gfwlist.txt、gfwlist.ext 文件，所以在第一次使用时你必须先运行 `ss-tproxy update-chnonly` 将默认的 gfwlist.txt 内容替换为大陆网站域名（更新域名列表时，也应该使用 `ss-tproxy update-chnonly`，而不是 `ss-tproxy update-gfwlist`），并且注释掉 gfwlist.ext 中的 Telegram IP 段，因为这是为正常翻墙设置的。
+
 **自启**（Systemd）
 - `mv -f ss-tproxy.service /etc/systemd/system`
 - `systemctl daemon-reload`
@@ -101,9 +105,9 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `ss-tproxy status`：代理状态
 - `ss-tproxy check-depend`：检查依赖
 - `ss-tproxy flush-cache`：清空 DNS 缓存
-- `ss-tproxy update-gfwlist`：更新 gfwlist
-- `ss-tproxy update-chnroute`：更新 chnroute
-- update-gfwlist、update-chnroute 需重启生效
+- `ss-tproxy update-chnonly`：更新 chnonly（restart 生效）
+- `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
+- `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
 
 **日志**
 > 脚本默认关闭了日志输出，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
