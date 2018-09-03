@@ -990,6 +990,7 @@ COMMAND := {
     restart             restart ss-tproxy
     status              status of ss-tproxy
     flush-cache         flush dns cache
+    flush-gfwlist       flush ipset-gfwlist
     update-chnonly      update chnonly
     update-gfwlist      update gfwlist
     update-chnroute     update chnroute
