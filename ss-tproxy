@@ -1006,7 +1006,8 @@ case $1 in
     stop)               stop; status;;
     status)             status;;
     r*)                 stop; status; echo; start; status;;
-    f*)                 flush_cache;;
+    flush-cache)        flush_cache;;
+    flush-gfwlist)      ipset -F gfwlist &>/dev/null;;
     update-chnonly)     update_chnonly;;
     update-gfwlist)     update_gfwlist;;
     update-chnroute)    update_chnroute;;
