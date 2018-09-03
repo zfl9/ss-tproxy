@@ -105,9 +105,12 @@ ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客�
 - `ss-tproxy status`：代理状态
 - `ss-tproxy check-depend`：检查依赖
 - `ss-tproxy flush-cache`：清空 DNS 缓存
+- `ss-tproxy flush-gfwlist`：清空 ipset-gfwlist IP 列表
 - `ss-tproxy update-chnonly`：更新 chnonly（restart 生效）
 - `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
 - `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
+
+`ss-tproxy flush-gfwlist` 的作用：因为 `*gfwlist*` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 不会清空 `ipset-gfwlist` 集合，如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致各种稀奇古怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能需要清空内网主机的 dns 缓存，并且重启浏览器等需要代理的应用。
 
 **日志**
 > 脚本默认关闭了日志输出，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
