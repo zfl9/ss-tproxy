@@ -986,6 +986,25 @@ case "$mode" in
 esac
 }
 
+function dump_ipts {
+    echo -e "\e[36;1m==> mangle <==\e[0m"
+    iptables -t mangle -nvL --line-numbers
+    echo
+    echo -e "\e[36;1m==> nat <==\e[0m"
+    iptables -t nat -nvL --line-numbers
+}
+
+function flush_ipts {
+    iptables -t raw -F
+    iptables -t raw -X
+    iptables -t mangle -F
+    iptables -t mangle -X
+    iptables -t nat -F
+    iptables -t nat -X
+    iptables -t filter -F
+    iptables -t filter -X
+}
+
 function usage {
 cat <<EOF
 Usage: ss-tproxy <COMMAND>
@@ -994,6 +1013,8 @@ COMMAND := {
     stop                stop ss-tproxy
     restart             restart ss-tproxy
     status              status of ss-tproxy
+    dump-ipts           dump iptables rules
+    flush-ipts          flush iptables rules
     flush-cache         flush dns cache
     flush-gfwlist       flush ipset-gfwlist
     update-chnonly      update chnonly
@@ -1012,6 +1033,8 @@ case $1 in
     stop)               stop; status;;
     status)             status;;
     r*)                 stop; status; echo; start; status;;
+    d*)                 dump_ipts;;
+    flush-ipts)         flush_ipts;;
     flush-cache)        flush_cache;;
     flush-gfwlist)      ipset -F gfwlist &>/dev/null;;
     update-chnonly)     update_chnonly;;
