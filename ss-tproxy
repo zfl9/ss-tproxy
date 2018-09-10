@@ -662,7 +662,6 @@ tproxy_global*|tproxy_chnroute*)
     fi
 
     iptables -t nat -A OUTPUT -p tcp -j SS-TCP
-    iptables -t nat -A OUTPUT -p udp --dport 53 ! -d 127.0.0.1 -j REDIRECT --to-ports 53
     for intranet in "${iptables_intranet[@]}"; do
         if [[ "$mode" == *tcp ]]; then
             iptables -t nat -A PREROUTING -p tcp -s $intranet -j SS-TCP
@@ -702,7 +701,6 @@ tproxy_gfwlist*)
     fi
 
     iptables -t nat -A OUTPUT -p tcp -j SS-TCP
-    iptables -t nat -A OUTPUT -p udp --dport 53 ! -d 127.0.0.1 -j REDIRECT --to-ports 53
     for intranet in "${iptables_intranet[@]}"; do
         if [[ "$mode" == *tcp ]]; then
             iptables -t nat -A PREROUTING -p tcp -s $intranet -j SS-TCP
@@ -721,7 +719,6 @@ tun2socks_global*|tun2socks_chnroute*)
     iptables -t mangle -F PREROUTING
     iptables -t mangle -F TUN2SOCKS &>/dev/null
     iptables -t mangle -X TUN2SOCKS &>/dev/null
-    iptables -t nat -F OUTPUT
     iptables -t nat -F PREROUTING
     iptables -t nat -F POSTROUTING
 
@@ -750,7 +747,6 @@ tun2socks_global*|tun2socks_chnroute*)
 
     iptables -t mangle -A OUTPUT -p tcp -j TUN2SOCKS
     [[ "$mode" != *tcp ]] && iptables -t mangle -A OUTPUT -p udp -j TUN2SOCKS
-    iptables -t nat -A OUTPUT -p udp --dport 53 ! -d 127.0.0.1 -j REDIRECT --to-ports 53
 
     for intranet in "${iptables_intranet[@]}"; do
         if [[ "$mode" == *tcp ]]; then
@@ -770,7 +766,6 @@ tun2socks_gfwlist*)
     iptables -t mangle -F PREROUTING
     iptables -t mangle -F TUN2SOCKS &>/dev/null
     iptables -t mangle -X TUN2SOCKS &>/dev/null
-    iptables -t nat -F OUTPUT
     iptables -t nat -F PREROUTING
     iptables -t nat -F POSTROUTING
 
@@ -785,7 +780,6 @@ tun2socks_gfwlist*)
 
     iptables -t mangle -A OUTPUT -p tcp -j TUN2SOCKS
     [[ "$mode" != *tcp ]] && iptables -t mangle -A OUTPUT -p udp -j TUN2SOCKS
-    iptables -t nat -A OUTPUT -p udp --dport 53 ! -d 127.0.0.1 -j REDIRECT --to-ports 53
 
     for intranet in "${iptables_intranet[@]}"; do
         if [[ "$mode" == *tcp ]]; then
