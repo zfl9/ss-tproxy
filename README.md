@@ -117,8 +117,8 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - `ss-tproxy check-depend`：检查依赖
 - `ss-tproxy flush-cache`：清空 DNS 缓存
 - `ss-tproxy flush-gfwlist`：清空 ipset-gfwlist IP 列表
-- `ss-tproxy update-chnonly`：更新 chnonly（restart 生效）
 - `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
+- `ss-tproxy update-chnonly`：更新 chnonly（restart 生效）
 - `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
 - `ss-tproxy dump-ipts`：显示 iptables 的 mangle、nat 表规则
 - `ss-tproxy flush-ipts`：清空 raw、mangle、nat、filter 表规则
