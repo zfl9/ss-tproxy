@@ -28,6 +28,8 @@ case "$mode" in
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
         command -v ipset &>/dev/null || { echo "Error: ipset is not installed." 1>&2; exit 1; }
         command -v perl &>/dev/null || { echo "Error: perl is not installed." 1>&2; exit 1; }
+        command -v curl &>/dev/null || { echo "Warning: curl is not installed." 1>&2; }
+        command -v base64 &>/dev/null || { echo "Warning: base64 is not installed." 1>&2; }
         ;;
     v2ray_chnroute)
         command -v v2ray &>/dev/null || { echo "Error: v2ray is not installed." 1>&2; exit 1; }
@@ -36,6 +38,7 @@ case "$mode" in
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
         command -v ipset &>/dev/null || { echo "Error: ipset is not installed." 1>&2; exit 1; }
         command -v chinadns &>/dev/null || { echo "Error: chinadns is not installed." 1>&2; exit 1; }
+        command -v curl &>/dev/null || { echo "Warning: curl is not installed." 1>&2; }
         ;;
     tproxy_global)
         { command -v ss-redir &>/dev/null || command -v ssr-redir &>/dev/null; } || { echo "Error: ss-redir/ssr-redir is not installed." 1>&2; exit 1; }
