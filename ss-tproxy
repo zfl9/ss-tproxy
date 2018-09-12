@@ -957,14 +957,12 @@ function stop {
     pkill -9 '^dnsforwarder$'
 
     eval "$v2ray_stopcmd"
+    eval "$socks5_stopcmd"
     pkill -9 '^ss-redir$'
     pkill -9 '^ss-tunnel$'
     pkill -9 '^ssr-redir$'
     pkill -9 '^ssr-tunnel$'
     pkill -9 '^tun2socks$'
-
-    port=$(echo $socks5_listen | awk -F: '{print $2}')
-    ss -lnptu | grep ":$port\s" | grep -Eo 'pid=[0-9]+' | awk -F= '{print $2}' | sort -n | uniq | xargs kill -9 &>/dev/null
 }
 
 function status {
