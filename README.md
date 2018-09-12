@@ -43,18 +43,21 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 
 ## 端口占用
 - 请确保相关端口未被其它进程占用，如果有请自行解决
-- `tproxy_global`: ss-redir=60080, ss-tunnel=60053, dnsmasq=53
-- `tproxy_gfwlist`: ss-redir=60080, ss-tunnel=60053, dnsmasq=53
-- `tproxy_chnroute`: ss-redir=60080, ss-tunnel=60053, chinadns=65353, dnsmasq=53
-- `tproxy_global_tcp`: ss-redir=60080, dnsforwarder=53
-- `tproxy_gfwlist_tcp`: ss-redir=60080, dnsforwarder=60053, dnsmasq=53
-- `tproxy_chnroute_tcp`: ss-redir=60080, dnsforwarder=60053, chinadns=65353, dnsforwarder=53
-- `tun2socks_global`: dnsmasq=53
-- `tun2socks_gfwlist`: dnsmasq=53
-- `tun2socks_chnroute`: chinadns=60053, dnsmasq=53
-- `tun2socks_global_tcp`: dnsforwarder=53
-- `tun2socks_gfwlist_tcp`: dnsforwarder=60053, dnsmasq=53
-- `tun2socks_chnroute_tcp`: dnsforwarder=60053, chinadns=65353, dnsforwarder=53
+- `v2ray_global`: dnsmasq=53/udp
+- `v2ray_gfwlist`: dnsmasq=53/udp
+- `v2ray_chnroute`: chinadns=65353/udp, dnsmasq=53/udp
+- `tproxy_global`: ss-redir=60080/tcp+udp, ss-tunnel=60053/udp, dnsmasq=53/udp
+- `tproxy_gfwlist`: ss-redir=60080/tcp+udp, ss-tunnel=60053/udp, dnsmasq=53/udp
+- `tproxy_chnroute`: ss-redir=60080/tcp+udp, ss-tunnel=60053/udp, chinadns=65353/udp, dnsmasq=53/udp
+- `tproxy_global_tcp`: ss-redir=60080/tcp, dnsforwarder=53/udp
+- `tproxy_gfwlist_tcp`: ss-redir=60080/tcp, dnsforwarder=60053/udp, dnsmasq=53/udp
+- `tproxy_chnroute_tcp`: ss-redir=60080/tcp, dnsforwarder=60053/udp, chinadns=65353/udp, dnsforwarder=53/udp
+- `tun2socks_global`: dnsmasq=53/udp
+- `tun2socks_gfwlist`: dnsmasq=53/udp
+- `tun2socks_chnroute`: chinadns=60053/udp, dnsmasq=53/udp
+- `tun2socks_global_tcp`: dnsforwarder=53/udp
+- `tun2socks_gfwlist_tcp`: dnsforwarder=60053/udp, dnsmasq=53/udp
+- `tun2socks_chnroute_tcp`: dnsforwarder=60053/udp, chinadns=65353/udp, dnsforwarder=53/udp
 
 ## 脚本用法
 **安装**
