@@ -953,7 +953,7 @@ function stop {
     pkill -9 '^chinadns$'
     pkill -9 '^dnsforwarder$'
 
-    pkill -9 '^v2ray$'
+    eval "$v2ray_stopcmd"
     pkill -9 '^ss-redir$'
     pkill -9 '^ss-tunnel$'
     pkill -9 '^ssr-redir$'
