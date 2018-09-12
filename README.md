@@ -96,6 +96,40 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 
 如果你需要使用 chnonly 模式（国外翻进国内），请选择 `*gfwlist*` 代理模式，比如 `tproxy_gfwlist`。chnonly 模式下，你必须修改 ss-tproxy.conf 中的 `dns_remote` 为国内的 DNS，如 `dns_remote='114.114.114.114:53'`，并将 `dns_direct` 改为本地 DNS（国外的），如 `dns_direct='8.8.8.8'`；因为 chnonly 模式与 gfwlist 模式共享 gfwlist.txt、gfwlist.ext 文件，所以在第一次使用时你必须先运行 `ss-tproxy update-chnonly` 将默认的 gfwlist.txt 内容替换为大陆域名（更新列表时，也应使用 `ss-tproxy update-chnonly`），并且注释掉 gfwlist.ext 中的 Telegram IP 段，因为这是为正常翻墙设置的，反之亦然。
 
+如果使用 v2ray 模式，你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，并且需要两个 `dokodemo-door` 配置，一个用于实现类似 ss-redir 的透明代理，另一个用于实现类似 ss-tunnel 的端口转发（解析 DNS）。具体配置可参考（原有的 inbound 可以不动，通常该 inbound 是一个 socks5 传入协议，你只要保证不同的 inbound 的监听端口不冲突就行）：
+```json
+{
+    "inbound": { ... },
+    "inboundDetour": [
+        // as ss-redir
+        {
+            "port": 60080,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "network": "tcp,udp",
+                "followRedirect": true,
+                "domainOverride": ["quic"]
+            }
+        },
+        // as ss-tunnel
+        {
+            "port": 60053,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "address": "8.8.8.8",
+                "port": 53,
+                "network": "udp",
+                "followRedirect": false
+            }
+        }
+        ...
+    ],
+    "outbound": { ... },
+    "outboundDetour": [ ... ],
+    "routing": { ... }
+}
+```
+
 **自启**（Systemd）
 - `mv -f ss-tproxy.service /etc/systemd/system`
 - `systemctl daemon-reload`
@@ -134,6 +168,13 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - dnsmasq：`/var/log/dnsmasq.log`
 - chinadns：`/var/log/chinadns.log`
 - dnsforwarder：`/var/log/dnsforwarder.log`
+
+## 已知问题
+- v2ray 模式下，在 Android 中访问部分 Google 网站不是很稳定，其根本原因是因为 v2ray 的 `dokodemo-door` 传入协议对 Google 开发的 QUIC（Quick UDP Internet Connections）协议支持不好导致的，虽然我已经在 `dokodemo-door` 中配置了 `"domainOverride": ["quic"]`（讨论此问题的 Issue：<https://github.com/v2ray/v2ray-core/issues/819>），但是测试后还是发现 `domainOverride` 效果不是很好，一会可以访问一会不可以访问，并且 Google Play 加载的速度明显比其它类型的代理慢了许多。目前的解决方案有两个：一是使用 redsocks 对 v2ray 的 socks5 inbound 进行透明转发；二是使用本脚本自带的 tun2socks 模式对 v2ray 的 socks5 inbound 进行透明转发（推荐此方式）。当然最好的解决方式还是希望 v2ray 官方能够解决此问题，虽然目前只有部分 Google 的网站启用了 QUIC，但是随着时间的推移，启用 QUIC 的网站肯定会更多！
+
+## 更新计划
+- 内网主机黑名单（全走代理）、白名单（全走直连）支持，方便部分游戏用户
+- 精简 ss-tproxy 脚本，特别是 `check_depend`、`start_dns`、`status` 函数
 
 ## 更多信息
 - [dnsmasq](http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html)
