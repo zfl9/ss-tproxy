@@ -1,20 +1,24 @@
-# SS/SSR/Socks5 全局代理
+# SS/SSR/V2Ray/Socks5 透明代理
 ## 脚本简介
-ss-tproxy 脚本运行于 Linux 系统，用于实现类似 Windows SS/SSR 客户端的代理功能，当然也支持 Socks5 协议的全局代理配置（如 SSH 代理隧道）。目前实现的模式有 global（全局代理模式）、gfwlist（黑名单模式）、chnroute（白名单模式，绕过大陆地址段）、chnonly（仅代理大陆域名，国外翻回国内专用），考虑到部分用户没有支持 UDP-Relay 的 SS/SSR 节点，所以代理模式又分为 tcp&udp 和 tcponly 两类。Linux 系统下实现透明代理有两种思路：一是利用 iptables 进行重定向（DNAT），二是利用 tun 虚拟网卡进行代理（路由）；因此代理模式又分为 tproxy、tun2socks 两大类，所以一共存在 12 种代理模式（下文中的“本机”指运行 ss-tproxy 的主机）：
-- `tproxy_global`：代理 TCP/UDP（本机 UDP 除外），iptables/global 模式
-- `tproxy_global_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），iptables/global 模式
-- `tproxy_gfwlist`：代理 TCP/UDP（本机 UDP 除外），iptables/gfwlist 模式
-- `tproxy_gfwlist_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），iptables/gfwlist 模式
-- `tproxy_chnroute`：代理 TCP/UDP（本机 UDP 除外），iptables/chnroute 模式
-- `tproxy_chnroute_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），iptables/chnroute 模式
-- `tun2socks_global`：代理 TCP/UDP（包括本机 UDP），tun2socks/global 模式
-- `tun2socks_global_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），tun2socks/global 模式
-- `tun2socks_gfwlist`：代理 TCP/UDP（包括本机 UDP），tun2socks/gfwlist 模式
-- `tun2socks_gfwlist_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），tun2socks/gfwlist 模式
-- `tun2socks_chnroute`：代理 TCP/UDP（包括本机 UDP），tun2socks/chnroute 模式
-- `tun2socks_chnroute_tcp`：仅代理 TCP（DNS 使用 TCP 方式查询），tun2socks/chnroute 模式
-
-> 注：chnonly 模式和 gfwlist 模式本质上没有区别，如需使用 chnonly 请选择 `*gfwlist*` mode。
+ss-tproxy 脚本运行于 Linux 系统（网关、软路由、虚拟机、普通 PC），用于实现 SS/SSR/V2Ray/Socks5 全局透明代理功能。普遍用法是将 ss-tproxy 部署在 Linux 软路由（或位于桥接模式下的 Linux 虚拟机），透明代理内网主机的 TCP、UDP 数据流。脚本目前实现了 4 种分流模式：global（全局模式，不分流）、gfwlist（仅代理 gfwlist 域名）、chnonly（仅代理大陆域名，国外翻回国内）、chnroute（绕过大陆地址段，其余均走代理）。脚本目前定义了 15 种代理模式，如下（下文中的“本机”指运行 ss-tproxy 的主机）：
+```bash
+mode='v2ray_global'            # v2ray  global   模式
+mode='v2ray_gfwlist'           # v2ray  gfwlist  模式
+mode='v2ray_chnroute'          # v2ray  chnroute 模式
+mode='tproxy_global'           # ss/ssr global   模式
+mode='tproxy_gfwlist'          # ss/ssr gfwlist  模式
+mode='tproxy_chnroute'         # ss/ssr chnroute 模式
+mode='tproxy_global_tcp'       # ss/ssr global   模式 (tcponly)
+mode='tproxy_gfwlist_tcp'      # ss/ssr gfwlist  模式 (tcponly)
+mode='tproxy_chnroute_tcp'     # ss/ssr chnroute 模式 (tcponly)
+mode='tun2socks_global'        # socks5 global   模式
+mode='tun2socks_gfwlist'       # socks5 gfwlist  模式
+mode='tun2socks_chnroute'      # socks5 chnroute 模式
+mode='tun2socks_global_tcp'    # socks5 global   模式 (tcponly)
+mode='tun2socks_gfwlist_tcp'   # socks5 gfwlist  模式 (tcponly)
+mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
+```
+标识了 `tcponly` 的 mode 表示只代理 tcp 流量（dns 通过 tcp 方式解析），udp 不会被处理，主要用于不支持 udp relay 的 ss/ssr/socks5 代理。除了 `tun2socks*` mode 外，其它的 mode 均不能代理 ss-tproxy 本机的 udp 流量（dns 会另外处理），`tun2socks` mode 之所以能代理本机 udp 是因为它不是依靠 iptables-DNAT/xt_TPROXY 实现的，而是通过策略路由 + tun 虚拟网卡。还有，`chnonly` 模式并未单独分出来，因为它本质上与 `gfwlist` 模式完全相同，只不过域名列表不一样而已，所以如果要使用 `chnonly` 分流模式，请选择对应的 `gfwlist` mode（当然还需要几个步骤，后面会说明）。
 
 ## 脚本依赖
 - [ss-tproxy 脚本相关依赖的安装参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
