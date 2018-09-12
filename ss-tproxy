@@ -16,13 +16,11 @@ fi
 function check_depend {
 case "$mode" in
     v2ray_global)
-        command -v v2ray &>/dev/null || { echo "Error: v2ray is not installed." 1>&2; exit 1; }
         modprobe xt_TPROXY &>/dev/null || { echo "Error: xt_TPROXY module is not installed." 1>&2; exit 1; }
         command -v ip &>/dev/null || { echo "Error: iproute2 is not installed." 1>&2; exit 1; }
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
         ;;
     v2ray_gfwlist)
-        command -v v2ray &>/dev/null || { echo "Error: v2ray is not installed." 1>&2; exit 1; }
         modprobe xt_TPROXY &>/dev/null || { echo "Error: xt_TPROXY module is not installed." 1>&2; exit 1; }
         command -v ip &>/dev/null || { echo "Error: iproute2 is not installed." 1>&2; exit 1; }
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
@@ -32,7 +30,6 @@ case "$mode" in
         command -v base64 &>/dev/null || { echo "Warning: base64 is not installed." 1>&2; }
         ;;
     v2ray_chnroute)
-        command -v v2ray &>/dev/null || { echo "Error: v2ray is not installed." 1>&2; exit 1; }
         modprobe xt_TPROXY &>/dev/null || { echo "Error: xt_TPROXY module is not installed." 1>&2; exit 1; }
         command -v ip &>/dev/null || { echo "Error: iproute2 is not installed." 1>&2; exit 1; }
         command -v dnsmasq &>/dev/null || { echo "Error: dnsmasq is not installed." 1>&2; exit 1; }
