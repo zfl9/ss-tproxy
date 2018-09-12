@@ -97,7 +97,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 如果你需要使用 chnonly 模式（国外翻进国内），请选择 `*gfwlist*` 代理模式，比如 `tproxy_gfwlist`。chnonly 模式下，你必须修改 ss-tproxy.conf 中的 `dns_remote` 为国内的 DNS，如 `dns_remote='114.114.114.114:53'`，并将 `dns_direct` 改为本地 DNS（国外的），如 `dns_direct='8.8.8.8'`；因为 chnonly 模式与 gfwlist 模式共享 gfwlist.txt、gfwlist.ext 文件，所以在第一次使用时你必须先运行 `ss-tproxy update-chnonly` 将默认的 gfwlist.txt 内容替换为大陆域名（更新列表时，也应使用 `ss-tproxy update-chnonly`），并且注释掉 gfwlist.ext 中的 Telegram IP 段，因为这是为正常翻墙设置的，反之亦然。
 
 如果使用 v2ray 模式，你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，并且需要两个 `dokodemo-door` 配置，一个用于实现类似 ss-redir 的透明代理，另一个用于实现类似 ss-tunnel 的端口转发（解析 DNS）。具体配置可参考（原有的 inbound 可以不动，通常该 inbound 是一个 socks5 传入协议，你只要保证不同的 inbound 的监听端口不冲突就行）：
-```json
+```bash
 {
     "inbound": { ... },
     "inboundDetour": [
