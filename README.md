@@ -170,7 +170,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - dnsforwarder：`/var/log/dnsforwarder.log`
 
 ## 已知问题
-- v2ray 模式下，在 Android 中访问部分 Google 网站不是很稳定，其根本原因是因为 v2ray 的 `dokodemo-door` 传入协议对 Google 开发的 QUIC（Quick UDP Internet Connections）协议支持不好导致的，虽然我已经在 `dokodemo-door` 中配置了 `"domainOverride": ["quic"]`（讨论此问题的 Issue：<https://github.com/v2ray/v2ray-core/issues/819>），但是测试后还是发现 `domainOverride` 效果不是很好，一会可以访问一会不可以访问，并且 Google Play 加载的速度明显比其它类型的代理慢了许多。目前的解决方案有两个：一是使用 redsocks 对 v2ray 的 socks5 inbound 进行透明转发；二是使用本脚本自带的 tun2socks 模式对 v2ray 的 socks5 inbound 进行透明转发（推荐此方式）。当然最好的解决方式还是希望 v2ray 官方能够解决此问题，虽然目前只有部分 Google 的网站启用了 QUIC，但是随着时间的推移，启用 QUIC 的网站肯定会更多！
+- v2ray 模式下，在 Android 中访问部分 Google 网站不是很稳定，其根本原因是因为 v2ray 的 `dokodemo-door` 传入协议对 Google 开发的 QUIC（Quick UDP Internet Connections）协议支持不好导致的，虽然我已经在 `dokodemo-door` 中配置了 `"domainOverride": ["quic"]`（讨论此问题的 Issue：<https://github.com/v2ray/v2ray-core/issues/819>），但是测试后还是发现 `domainOverride` 效果不是很好，一会可以一会又不可以，并且 Google Play 的加载速度明显比其它类型的代理慢了许多。目前的解决方案有两个：一是使用 redsocks 对 v2ray 的 socks5 inbound 进行透明转发；二是使用脚本自带的 tun2socks 模式对 v2ray 的 socks5 inbound 进行透明转发（推荐此方式）。当然最好的解决方式还是希望 v2ray 官方能够解决此问题，虽然目前只有部分 Google 的网站启用了 QUIC，但是随着时间的推移，启用 QUIC 的网站肯定会更多，这个问题也会越严重！
 
 ## 更新计划
 - 内网主机黑名单（全走代理）、白名单（全走直连）支持，方便部分游戏用户
