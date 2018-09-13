@@ -172,115 +172,15 @@ function update_chnroute {
 function flush_cache {
 case "$mode" in
     *global|*gfwlist*|*chnroute|v2ray*)
-        pgrep '^dnsmasq$' | xargs kill -HUP &>/dev/null
+        pkill -HUP '^dnsmasq$'
         ;;
-    tproxy_global_tcp)
-        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-            pkill -9 '^dnsforwarder$' &>/dev/null
-            dnsforwarder -q -d -f <(cat <<EOF
-LogOn $dnsfwd_log_on
-LogFileThresholdLength 5242880
-LogFileFolder $dnsfwd_log_dir
-
-UDPLocal 0.0.0.0:53
-TCPGroup $dns_remote * no
-BlockNegativeResponse true
-
-Hosts file:///etc/hosts
-HostsUpdateInterval 3600
-
-UseCache $dnsfwd_cache_on
-MemoryCache $dnsfwd_cache_mem
-CacheSize $dnsfwd_cache_size
-IgnoreTTL $dnsfwd_ignore_ttl
-EOF
-) &>/dev/null
-        fi
-        ;;
-    tproxy_chnroute_tcp)
-        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-            pkill -9 '^dnsforwarder$' &>/dev/null
-            dnsforwarder -q -d -f <(cat <<EOF
-LogOn false
-UseCache false
-UDPLocal 0.0.0.0:60053
-TCPGroup $dns_remote * no
-BlockNegativeResponse true
-EOF
-) &>/dev/null
-            dnsforwarder -q -d -f <(cat <<EOF
-LogOn $dnsfwd_log_on
-LogFileThresholdLength 5242880
-LogFileFolder $dnsfwd_log_dir
-
-UDPLocal 0.0.0.0:53
-UDPGroup 127.0.0.1:65353 * on
-BlockNegativeResponse true
-
-Hosts file:///etc/hosts
-HostsUpdateInterval 3600
-
-UseCache $dnsfwd_cache_on
-MemoryCache $dnsfwd_cache_mem
-CacheSize $dnsfwd_cache_size
-IgnoreTTL $dnsfwd_ignore_ttl
-EOF
-) &>/dev/null
-        fi
-        ;;
-    tun2socks_global_tcp)
-        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-            pkill -9 '^dnsforwarder$' &>/dev/null
-            dnsforwarder -q -d -f <(cat <<EOF
-LogOn $dnsfwd_log_on
-LogFileThresholdLength 5242880
-LogFileFolder $dnsfwd_log_dir
-
-UDPLocal 0.0.0.0:53
-TCPGroup $dns_remote * $socks5_listen
-BlockNegativeResponse true
-
-Hosts file:///etc/hosts
-HostsUpdateInterval 3600
-
-UseCache $dnsfwd_cache_on
-MemoryCache $dnsfwd_cache_mem
-CacheSize $dnsfwd_cache_size
-IgnoreTTL $dnsfwd_ignore_ttl
-EOF
-) &>/dev/null
-        fi
-        ;;
-    tun2socks_chnroute_tcp)
-        if [ $(pgrep -c '^dnsforwarder$') -ne 0 ]; then
-            pkill -9 '^dnsforwarder$' &>/dev/null
-            dnsforwarder -q -d -f <(cat <<EOF
-LogOn false
-UseCache false
-UDPLocal 0.0.0.0:60053
-TCPGroup $dns_remote * $socks5_listen
-BlockNegativeResponse true
-EOF
-) &>/dev/null
-            dnsforwarder -q -d -f <(cat <<EOF
-LogOn $dnsfwd_log_on
-LogFileThresholdLength 5242880
-LogFileFolder $dnsfwd_log_dir
-
-UDPLocal 0.0.0.0:53
-UDPGroup 127.0.0.1:65353 * on
-BlockNegativeResponse true
-
-Hosts file:///etc/hosts
-HostsUpdateInterval 3600
-
-UseCache $dnsfwd_cache_on
-MemoryCache $dnsfwd_cache_mem
-CacheSize $dnsfwd_cache_size
-IgnoreTTL $dnsfwd_ignore_ttl
-EOF
-) &>/dev/null
-        fi
+    *)
+        while umount /etc/resolv.conf; do :; done &>/dev/null
+        pkill -9 '^dnsmasq$'
+        pkill -9 '^chinadns$'
+        pkill -9 '^dnsforwarder$'
+        start_dns
+        dns_proxy
         ;;
 esac
 }
@@ -398,6 +298,9 @@ EOF
 )
     ;;
 tproxy_global)
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server_addr") -eq 0 ]; then
+        ss_server_addr=$(getent hosts $server_addr | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -409,10 +312,14 @@ no-negcache
 no-resolv
 port = 53
 server = 127.0.0.1#60053
+$([ -n "$ss_server_addr" ] && echo "address = /$server_addr/$ss_server_addr")
 EOF
 )
     ;;
 tproxy_gfwlist)
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server_addr") -eq 0 ]; then
+        ss_server_addr=$(getent hosts $server_addr | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -424,6 +331,7 @@ no-negcache
 no-resolv
 port = 53
 server = $dns_direct
+$([ -n "$ss_server_addr" ] && echo "address = /$server_addr/$ss_server_addr")
 $(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist <(
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
@@ -439,6 +347,9 @@ tproxy_chnroute)
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
 
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server_addr") -eq 0 ]; then
+        ss_server_addr=$(getent hosts $server_addr | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -450,10 +361,14 @@ no-negcache
 no-resolv
 port = 53
 server = 127.0.0.1#65353
+$([ -n "$ss_server_addr" ] && echo "address = /$server_addr/$ss_server_addr")
 EOF
 )
     ;;
 tproxy_global_tcp)
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server_addr") -eq 0 ]; then
+        ss_server_addr=$(getent hosts $server_addr | awk '{print $1}' | head -n1)
+    fi
     mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
@@ -466,6 +381,7 @@ BlockNegativeResponse true
 
 Hosts file:///etc/hosts
 HostsUpdateInterval 3600
+$([ -n "$ss_server_addr" ] && echo "AppendHosts $ss_server_addr $server_addr")
 
 UseCache $dnsfwd_cache_on
 MemoryCache $dnsfwd_cache_mem
@@ -483,6 +399,10 @@ TCPGroup $dns_remote * no
 BlockNegativeResponse true
 EOF
 ) &>/dev/null
+
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server_addr") -eq 0 ]; then
+        ss_server_addr=$(getent hosts $server_addr | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -494,6 +414,7 @@ no-negcache
 no-resolv
 port = 53
 server = $dns_direct
+$([ -n "$ss_server_addr" ] && echo "address = /$server_addr/$ss_server_addr")
 $(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist <(
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
@@ -518,6 +439,9 @@ EOF
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
 
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server_addr") -eq 0 ]; then
+        ss_server_addr=$(getent hosts $server_addr | awk '{print $1}' | head -n1)
+    fi
     mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
@@ -530,6 +454,7 @@ BlockNegativeResponse true
 
 Hosts file:///etc/hosts
 HostsUpdateInterval 3600
+$([ -n "$ss_server_addr" ] && echo "AppendHosts $ss_server_addr $server_addr")
 
 UseCache $dnsfwd_cache_on
 MemoryCache $dnsfwd_cache_mem
@@ -539,6 +464,9 @@ EOF
 ) &>/dev/null
     ;;
 tun2socks_global)
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$socks5_remote") -eq 0 ]; then
+        socks5_remote_addr=$(getent hosts $socks5_remote | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -550,10 +478,14 @@ no-negcache
 no-resolv
 port = 53
 server = ${dns_remote/:/#}
+$([ -n "$socks5_remote_addr" ] && echo "address = /$socks5_remote/$socks5_remote_addr")
 EOF
 )
     ;;
 tun2socks_gfwlist)
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$socks5_remote") -eq 0 ]; then
+        socks5_remote_addr=$(getent hosts $socks5_remote | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -565,6 +497,7 @@ no-negcache
 no-resolv
 port = 53
 server = $dns_direct
+$([ -n "$socks5_remote_addr" ] && echo "address = /$socks5_remote/$socks5_remote_addr")
 $(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $dnsmasq_gfwlist <(
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
@@ -580,6 +513,9 @@ tun2socks_chnroute)
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
 
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$socks5_remote") -eq 0 ]; then
+        socks5_remote_addr=$(getent hosts $socks5_remote | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -591,10 +527,14 @@ no-negcache
 no-resolv
 port = 53
 server = 127.0.0.1#60053
+$([ -n "$socks5_remote_addr" ] && echo "address = /$socks5_remote/$socks5_remote_addr")
 EOF
 )
     ;;
 tun2socks_global_tcp)
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$socks5_remote") -eq 0 ]; then
+        socks5_remote_addr=$(getent hosts $socks5_remote | awk '{print $1}' | head -n1)
+    fi
     mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
@@ -607,6 +547,7 @@ BlockNegativeResponse true
 
 Hosts file:///etc/hosts
 HostsUpdateInterval 3600
+$([ -n "$socks5_remote_addr" ] && echo "AppendHosts $socks5_remote_addr $socks5_remote")
 
 UseCache $dnsfwd_cache_on
 MemoryCache $dnsfwd_cache_mem
@@ -624,6 +565,10 @@ TCPGroup $dns_remote * $socks5_listen
 BlockNegativeResponse true
 EOF
 ) &>/dev/null
+
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$socks5_remote") -eq 0 ]; then
+        socks5_remote_addr=$(getent hosts $socks5_remote | awk '{print $1}' | head -n1)
+    fi
     dnsmasq -C <(cat <<EOF
 $([ "$dnsmasq_log_on" = 'true' ] && echo 'log-queries')
 log-async = 20
@@ -635,6 +580,7 @@ no-negcache
 no-resolv
 port = 53
 server = $dns_direct
+$([ -n "$socks5_remote_addr" ] && echo "address = /$socks5_remote/$socks5_remote_addr")
 $(perl -pe 's@^.*+$@server=/$&/127.0.0.1#60053\nipset=/$&/gfwlist@' $dnsmasq_gfwlist <(
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext
 ))
@@ -659,6 +605,9 @@ EOF
     [ "$chinadns_verbose" = 'true' ] && chinadns_params+=' -v'
     nohup chinadns $chinadns_params </dev/null &>>"$chinadns_log" &
 
+    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$socks5_remote") -eq 0 ]; then
+        socks5_remote_addr=$(getent hosts $socks5_remote | awk '{print $1}' | head -n1)
+    fi
     mkdir -p /root/.dnsforwarder &>/dev/null
     dnsforwarder -q -d -f <(cat <<EOF
 LogOn $dnsfwd_log_on
@@ -671,6 +620,7 @@ BlockNegativeResponse true
 
 Hosts file:///etc/hosts
 HostsUpdateInterval 3600
+$([ -n "$socks5_remote_addr" ] && echo "AppendHosts $socks5_remote_addr $socks5_remote")
 
 UseCache $dnsfwd_cache_on
 MemoryCache $dnsfwd_cache_mem
