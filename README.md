@@ -121,7 +121,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
                 "network": "udp",
                 "followRedirect": false
             }
-        }
+        },
         ...
     ],
     "outbound": { ... },
