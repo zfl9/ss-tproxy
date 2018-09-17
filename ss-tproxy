@@ -902,12 +902,12 @@ function stop {
     ip rule show | grep "fwmark $iptables_pbr_fwmark" | awk -F':' '{print $1}' | xargs -n1 ip rule del pref &>/dev/null
     ip route flush table $iptables_pbr_number &>/dev/null
 
-    pkill -9 '^dnsmasq$'
+    ss -lnpu | grep 'dnsmasq' | grep ':53\s' | grep -Eo 'pid=[0-9]+' | awk -F= '{print $2}' | sort -n | uniq | xargs kill -9 &>/dev/null
     pkill -9 '^chinadns$'
     pkill -9 '^dnsforwarder$'
 
-    eval "$v2ray_stopcmd"
-    eval "$socks5_stopcmd"
+    eval "$v2ray_stopcmd" &>/dev/null
+    eval "$socks5_stopcmd" &>/dev/null
     pkill -9 '^ss-redir$'
     pkill -9 '^ss-tunnel$'
     pkill -9 '^ssr-redir$'
