@@ -40,6 +40,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - haveged 依赖项是可选的，主要用于防止系统的熵过低，从而导致 ss-redir、ss-tunnel、ss-local 启动失败等问题
 - `*gfwlist*` 模式更新列表时依赖 curl、base64；`*chnroute*` 模式更新列表时依赖 curl；建议安装，以备不时之需
 - `*gfwlist*` 模式中的 perl 其实可以使用 sed 替代，但由于更新 gfwlist 列表依赖 perl5 v5.10.0+，所以直接用了 perl
+- tun2socks 依赖 `net-tools` 包中的 `ifconfig` 命令，如果启动 tun2socks 失败，可能是没有安装 `net-tools` 的原因
 
 ## 端口占用
 - 请确保相关端口未被其它进程占用，如果有请自行解决
