@@ -902,7 +902,7 @@ function stop {
     ip rule show | grep "fwmark $iptables_pbr_fwmark" | awk -F':' '{print $1}' | xargs -n1 ip rule del pref &>/dev/null
     ip route flush table $iptables_pbr_number &>/dev/null
 
-    ss -lnpu | grep 'dnsmasq' | grep ':53\s' | grep -Eo 'pid=[0-9]+' | awk -F= '{print $2}' | sort -n | uniq | xargs kill -9 &>/dev/null
+    ss -lnp | grep 'dnsmasq' | grep ':53\s' | grep -Eo 'pid=[0-9]+' | awk -F= '{print $2}' | sort -n | uniq | xargs kill -9 &>/dev/null
     pkill -9 '^chinadns$'
     pkill -9 '^dnsforwarder$'
 
@@ -920,27 +920,27 @@ case "$mode" in
     v2ray_global)
         echo "mode:           v2ray_global"
         rport=${v2ray_redir#*:}; tport=${v2ray_tunnel#*:}
-        [ $(ss -lnpt | grep ":$rport\s" | wc -l) -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$rport\s" | wc -l) -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$tport\s" | wc -l) -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$')                -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnpt | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
+        [ $(ss -lnpu | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
+        [ $(ss -lnpu | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     v2ray_gfwlist)
         echo "mode:          v2ray_gfwlist"
         rport=${v2ray_redir#*:}; tport=${v2ray_tunnel#*:}
-        [ $(ss -lnpt | grep ":$rport\s" | wc -l) -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$rport\s" | wc -l) -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$tport\s" | wc -l) -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$')                -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnpt | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
+        [ $(ss -lnpu | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
+        [ $(ss -lnpu | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     v2ray_chnroute)
         echo "mode:         v2ray_chnroute"
         rport=${v2ray_redir#*:}; tport=${v2ray_tunnel#*:}
-        [ $(ss -lnpt | grep ":$rport\s" | wc -l) -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$rport\s" | wc -l) -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$tport\s" | wc -l) -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^chinadns$')               -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$')                -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnpt | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
+        [ $(ss -lnpu | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
+        [ $(ss -lnpu | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
+        [ $(pgrep -c '^chinadns$')                              -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tproxy_global)
         echo "mode:          tproxy_global"
@@ -951,7 +951,7 @@ case "$mode" in
             [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
             [ $(pgrep -c '^ssr-tunnel$') -ne 0 ] && echo -e "ssr-tunnel:        \e[32m[running]\e[0m" || echo -e "ssr-tunnel:        \e[35m[stopped]\e[0m"
         fi
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tproxy_global_tcp)
         echo "mode:      tproxy_global_tcp"
@@ -971,7 +971,7 @@ case "$mode" in
             [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
             [ $(pgrep -c '^ssr-tunnel$') -ne 0 ] && echo -e "ssr-tunnel:        \e[32m[running]\e[0m" || echo -e "ssr-tunnel:        \e[35m[stopped]\e[0m"
         fi
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tproxy_gfwlist_tcp)
         echo "mode:     tproxy_gfwlist_tcp"
@@ -981,7 +981,7 @@ case "$mode" in
             [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
         fi
         [ $(pgrep -c '^dnsforwarder$') -ne 0 ] && echo -e "dnsforwarder:      \e[32m[running]\e[0m" || echo -e "dnsforwarder:      \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tproxy_chnroute)
         echo "mode:        tproxy_chnroute"
@@ -993,7 +993,7 @@ case "$mode" in
             [ $(pgrep -c '^ssr-tunnel$') -ne 0 ] && echo -e "ssr-tunnel:        \e[32m[running]\e[0m" || echo -e "ssr-tunnel:        \e[35m[stopped]\e[0m"
         fi
         [ $(pgrep -c '^chinadns$') -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tproxy_chnroute_tcp)
         echo "mode:    tproxy_chnroute_tcp"
@@ -1012,7 +1012,7 @@ case "$mode" in
         [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
         [ $(ss -lnpu | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/udp:        \e[32m[running]\e[0m" || echo -e "socks5/udp:        \e[35m[stopped]\e[0m"
         [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tun2socks_global_tcp)
         echo "mode:   tun2socks_global_tcp"
@@ -1027,7 +1027,7 @@ case "$mode" in
         [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
         [ $(ss -lnpu | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/udp:        \e[32m[running]\e[0m" || echo -e "socks5/udp:        \e[35m[stopped]\e[0m"
         [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tun2socks_gfwlist_tcp)
         echo "mode:  tun2socks_gfwlist_tcp"
@@ -1035,7 +1035,7 @@ case "$mode" in
         [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
         [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
         [ $(pgrep -c '^dnsforwarder$') -ne 0 ] && echo -e "dnsforwarder:      \e[32m[running]\e[0m" || echo -e "dnsforwarder:      \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tun2socks_chnroute)
         echo "mode:     tun2socks_chnroute"
@@ -1044,7 +1044,7 @@ case "$mode" in
         [ $(ss -lnpu | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/udp:        \e[32m[running]\e[0m" || echo -e "socks5/udp:        \e[35m[stopped]\e[0m"
         [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
         [ $(pgrep -c '^chinadns$') -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsmasq$') -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tun2socks_chnroute_tcp)
         echo "mode: tun2socks_chnroute_tcp"
