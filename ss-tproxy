@@ -336,6 +336,7 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 53
+interface = lo
 server = ${dns_remote/:/#}
 $([ -n "$tlspxy_server_addr" ] && echo "address = /$tlspxy_server/$tlspxy_server_addr")
 EOF
@@ -355,6 +356,7 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 53
+interface = lo
 server = $dns_direct
 $([ -n "$tlspxy_server_addr" ] && echo "address = /$tlspxy_server/$tlspxy_server_addr")
 $(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $dnsmasq_gfwlist <(
@@ -385,6 +387,7 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 53
+interface = lo
 server = 127.0.0.1#65353
 $([ -n "$tlspxy_server_addr" ] && echo "address = /$tlspxy_server/$tlspxy_server_addr")
 EOF
