@@ -336,9 +336,9 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 53
-bind-interfaces
 interface = lo
-listen-address = 127.0.0.1
+bind-interfaces
+listen-address = 127.0.0.1,$iptables_intranet_addr
 server = ${dns_remote/:/#}
 $([ -n "$tlspxy_server_addr" ] && echo "address = /$tlspxy_server/$tlspxy_server_addr")
 EOF
@@ -358,9 +358,9 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 53
-bind-interfaces
 interface = lo
-listen-address = 127.0.0.1
+bind-interfaces
+listen-address = 127.0.0.1,$iptables_intranet_addr
 server = $dns_direct
 $([ -n "$tlspxy_server_addr" ] && echo "address = /$tlspxy_server/$tlspxy_server_addr")
 $(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $dnsmasq_gfwlist <(
@@ -391,9 +391,9 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 53
-bind-interfaces
 interface = lo
-listen-address = 127.0.0.1
+bind-interfaces
+listen-address = 127.0.0.1,$iptables_intranet_addr
 server = 127.0.0.1#65353
 $([ -n "$tlspxy_server_addr" ] && echo "address = /$tlspxy_server/$tlspxy_server_addr")
 EOF
