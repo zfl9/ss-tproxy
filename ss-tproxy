@@ -1148,14 +1148,14 @@ case "$mode" in
         tport=${tlspxy_tcport#*:}; uport=${tlspxy_udport#*:}
         [ $(ss -lnpt | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/tcp         \e[32m[running]\e[0m" || echo -e "tlspxy/tcp         \e[35m[stopped]\e[0m"
         [ $(ss -lnpu | grep ":$uport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/udp         \e[32m[running]\e[0m" || echo -e "tlspxy/udp         \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tlspxy_gfwlist)
         echo "mode:         tlspxy_gfwlist"
         tport=${tlspxy_tcport#*:}; uport=${tlspxy_udport#*:}
         [ $(ss -lnpt | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/tcp         \e[32m[running]\e[0m" || echo -e "tlspxy/tcp         \e[35m[stopped]\e[0m"
         [ $(ss -lnpu | grep ":$uport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/udp         \e[32m[running]\e[0m" || echo -e "tlspxy/udp         \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tlspxy_chnroute)
         echo "mode:        tlspxy_chnroute"
@@ -1163,7 +1163,7 @@ case "$mode" in
         [ $(ss -lnpt | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/tcp         \e[32m[running]\e[0m" || echo -e "tlspxy/tcp         \e[35m[stopped]\e[0m"
         [ $(ss -lnpu | grep ":$uport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/udp         \e[32m[running]\e[0m" || echo -e "tlspxy/udp         \e[35m[stopped]\e[0m"
         [ $(pgrep -c '^chinadns$')                              -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+        [ $(ss -lnp | grep 'dnsmasq' | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
         ;;
     tproxy_global)
         echo "mode:          tproxy_global"
