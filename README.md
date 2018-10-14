@@ -159,7 +159,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - `chmod +x /etc/rc.d/rc.local`
 - `echo '/usr/local/bin/ss-tproxy start' >>/etc/rc.d/rc.local`
 
-如果 ss-tproxy 主机使用 PPPoE 拨号上网（或其它耗时较长的方式），配置自启后，可能导致 ss-tproxy 在网络还未完全准备好的情况下先运行。此时如果 ss-tproxy.conf 中的 `v2ray_server`、`socks5_remote`、`server_addr` 为域名，则会导致 ss-tproxy 启动失败（甚至卡一段时间，因为它一直在尝试解析这些域名，直到超时为止）。要恢复正常的代理，只能在启动完成后手动进行 `ss-tproxy restart`。如果你想避免这种情况，请尽量将 ss-tproxy.conf 中的 `v2ray_server`、`socks5_remote`、`server_addr` 替换为 IP 形式，或者将这些域名添加到 ss-tproxy 主机的 /etc/hosts 文件，如果你和我一样使用的 ArchLinux，那么最好的解决方式就是利用 netctl 的 hook 启动 ss-tproxy（如拨号成功后再启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
+如果 ss-tproxy 主机使用 PPPoE 拨号上网（或其它耗时较长的方式），配置自启后，可能导致 ss-tproxy 在网络还未完全准备好的情况下先运行。此时如果 ss-tproxy.conf 中的 `v2ray_server`、`tlspxy_server`、`socks5_remote`、`server_addr` 为域名，则会导致 ss-tproxy 启动失败（甚至卡一段时间，因为它一直在尝试解析这些域名，直到超时为止）。要恢复正常的代理，只能在启动完成后手动进行 `ss-tproxy restart`。如果你想避免这种情况，请尽量将 ss-tproxy.conf 中的 `v2ray_server`、`tlspxy_server`、`socks5_remote`、`server_addr` 替换为 IP 形式，或者将这些域名添加到 ss-tproxy 主机的 /etc/hosts 文件，如果你和我一样使用的 ArchLinux，那么最好的解决方式就是利用 netctl 的 hook 启动 ss-tproxy（如拨号成功后再启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
 
 **用法**
 - `ss-tproxy help`：查看帮助
@@ -176,7 +176,9 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - `ss-tproxy dump-ipts`：显示 iptables 的 mangle、nat 表规则
 - `ss-tproxy flush-ipts`：清空 raw、mangle、nat、filter 表规则
 
-`ss-tproxy flush-gfwlist` 的作用：因为 `*gfwlist*` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 不会清空 `ipset-gfwlist` 列表，如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致稀奇古怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能需要清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
+`ss-tproxy flush-gfwlist` 的作用：因为 `*gfwlist*` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会清空 `ipset-gfwlist` 列表，所以如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或者修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致奇怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能需要还清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
+
+如果需要切换代理 mode，必须先执行 `ss-tproxy stop`，然后再修改配置文件，改完之后再执行 `ss-tproxy start`。为什么需要这么做，而不是简单的改完文件直接 `ss-tproxy restart` 呢？因为 ss-tproxy 只是一个 shell 脚本，它的一切状态都是靠 ss-tproxy.conf 配置文件保持的，如果你在修改 mode 之前没有先执行 stop 操作，那么 ss-tproxy 是不可能知道脚本之前用的是什么 mode，这样就会导致待会的 restart 操作出现问题（restart 在内部其实就是先调用 stop 函数，再调用 start 函数），执行 stop 函数时，脚本获取的 mode 其实是改了之后的 mode，所以执行清理操作时（主要是 kill 相关进程），不会清理先前那个 mode 的相关进程，然后在调用 start 函数时，很有可能新启动的进程的端口号与之前的进程的端口号相冲突，导致代理配置失败。
 
 **日志**
 > 脚本默认关闭了日志输出，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
