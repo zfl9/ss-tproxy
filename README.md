@@ -1,10 +1,13 @@
 # SS/SSR/V2Ray/Socks5 透明代理
 ## 脚本简介
-ss-tproxy 脚本运行于 Linux 系统（网关、软路由、虚拟机、普通 PC），用于实现 SS/SSR/V2Ray/Socks5 全局透明代理功能。普遍用法是将 ss-tproxy 部署在 Linux 软路由（或位于桥接模式下的 Linux 虚拟机），透明代理内网主机的 TCP、UDP 数据流（具体玩法可参考 [ss-tproxy 常见问题](https://www.zfl9.com/ss-redir.html#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)）。脚本目前实现了 4 种分流模式：global（全局模式，不分流）、gfwlist（仅代理 gfwlist 域名）、chnonly（仅代理大陆域名，国外翻回国内）、chnroute（绕过大陆地址段，其余均走代理）。脚本目前定义了 15 种代理模式，如下（下文中的“本机”指运行 ss-tproxy 的主机）：
+ss-tproxy 脚本运行于 Linux 系统（网关、软路由、虚拟机、普通 PC），用于实现 SS/SSR/V2Ray/Socks5 全局透明代理功能。普遍用法是将 ss-tproxy 部署在 Linux 软路由（或位于桥接模式下的 Linux 虚拟机），透明代理内网主机的 TCP、UDP 数据流（具体玩法可参考 [ss-tproxy 常见问题](https://www.zfl9.com/ss-redir.html#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)）。脚本目前实现了 4 种分流模式：global（全局模式，不分流）、gfwlist（仅代理 gfwlist 域名）、chnonly（仅代理大陆域名，国外翻回国内）、chnroute（绕过大陆地址段，其余均走代理）。脚本目前定义了 18 种代理模式，如下（下文中的“本机”指运行 ss-tproxy 的主机）：
 ```bash
 mode='v2ray_global'            # v2ray  global   模式
 mode='v2ray_gfwlist'           # v2ray  gfwlist  模式
 mode='v2ray_chnroute'          # v2ray  chnroute 模式
+mode='tlspxy_global'           # tlspxy global   模式
+mode='tlspxy_gfwlist'          # tlspxy gfwlist  模式
+mode='tlspxy_chnroute'         # tlspxy chnroute 模式
 mode='tproxy_global'           # ss/ssr global   模式
 mode='tproxy_gfwlist'          # ss/ssr gfwlist  模式
 mode='tproxy_chnroute'         # ss/ssr chnroute 模式
@@ -18,7 +21,15 @@ mode='tun2socks_global_tcp'    # socks5 global   模式 (tcponly)
 mode='tun2socks_gfwlist_tcp'   # socks5 gfwlist  模式 (tcponly)
 mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 ```
-标识了 `tcponly` 的 mode 表示只代理 tcp 流量（dns 通过 tcp 方式解析），udp 不会被处理，主要用于不支持 udp relay 的 ss/ssr/socks5 代理。除了 `tun2socks` mode 外，其它的 mode 均不能代理 ss-tproxy 本机的 udp 流量（dns 会另外处理），`tun2socks` mode 之所以能代理本机 udp 是因为它不是依靠 iptables-DNAT/TPROXY 实现的，而是通过策略路由 + tun 虚拟网卡。还有，`chnonly` 模式并未单独分出来，因为它本质上与 `gfwlist` 模式完全相同，只不过域名列表不一样而已，所以如果要使用 `chnonly` 分流模式，请选择对应的 `gfwlist` mode（当然还需要几个步骤，后面会说明）。
+标识了 `tcponly` 的 mode 表示只代理 tcp 流量（dns 通过 tcp 方式解析），udp 不会被处理，主要用于不支持 udp relay 的 ss/ssr/socks5 代理。除了 `tun2socks` 和 `tlspxy` mode 外，其它 mode 均不会代理 ss-tproxy 本机的 udp 流量（dns 会另外处理，见下面的说明）。另外，`chnonly` 模式并未单独分出来，因为它本质上与 `gfwlist` 模式相同，只不过域名列表不一样而已，所以如果要使用 `chnonly` 分流模式，请选择对应的 `gfwlist` mode（当然还需要几个步骤，后面会说明）。
+
+为什么除了 `tun2socks` 和 `tlspxy` mode 外（tlspxy 即 [tls-proxy](https://github.com/zfl9/tls-proxy)，是我自己写的一个代理工具），其他 mode 都不代理本机的 udp 流量呢？这里面其实是有历史原因的，怎么说呢？因为在我自己写 tls-proxy 之前，我一直以为本机的 udp 是无法通过 TPROXY 方式代理的，当初的理由很简单，因为当我尝试在 OUTPUT 链添加 TPROXY target 时，会提示这个错误：`x_tables: ip_tables: TPROXY target: used from hooks OUTPUT, but only usable from PREROUTING`（意思是 TPROXY 只能用于 PREROUTING 链），只能用于 PREROUTING 链的话，不就只能代理来自"内网"的流量了吗？当时也是因为这个原因，我才弄了个 tun2socks 模式，那为什么 tun2socks 模式就能代理本机 UDP？因为 tun2socks 会创建一张 tun 虚拟网卡，只要我们将要代理的流量通过 iproute2 策略路由，送入这张 tun 虚拟网卡就行，也就是和 VPN 差不多。
+
+直到前段时间，我因为 v2ray 对 QUIC 的支持问题而不爽，决定自己写一个 C 语言版的 v2ray（当然我只实现了 v2ray 的 websocket + tls + web 方案，毕竟这是所谓的最安全方案），经过自己的不断努力，终于写了个成品出来，也就是上面提到的 `tls-proxy`，编写 tls-proxy 期间，我也对 TPROXY 透明代理的原理有了更多深刻的理解，才知道原来 TPROXY 是可以代理本机 TCP、UDP 流量的，虽然 iptables 不允许我们直接在 OUTPUT 链上设置 TPROXY target，但是我们可以在 OUTPUT 链上打上 fwmark，然后在经过 iproute2 策略路由时，将打了指定 fwmark 的数据路由到本机（从 loopback 网卡进去），正是因为这个从 loopback 网卡流入的步骤，允许我们在 PREROUTING 链（数据包流入某张网卡之后，首先被 PREROUTING 链处理，然后再进行路由）上设置相应的 TPROXY target，然后我们就可以代理本机的 TCP 和 UDP 了。
+
+同理，其它支持 UDP Relay（TPROXY 方式）的 mode 都可以这么做。你现在又要问了，那为什么现在还是只有 `tlspxy` 和 `tun2socks` mode 才代理本机 UDP 呢？原因很简单，因为我最近真的没时间，等有时间折腾的时候，我就会更新 v3 版本的 ss-tproxy，将这些功能加上去，并且将无关紧要的 mode 去掉，比如 tun2socks，因为 tun2socks 模式已经没有任何优势了。
+
+另外，v2ray 最新版也支持纯 TPROXY 方式的代理了（TCP 和 UDP 都使用 TPROXY，以前 TCP 是使用 REDIRECT），也就是和 tls-proxy 一样了，所以，如果你愿意，你也可以在 `tlspxy_*` mode 上使用这种配置的 v2ray。
 
 ## 脚本依赖
 - [ss-tproxy 脚本相关依赖的安装参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
