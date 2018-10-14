@@ -105,7 +105,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - 脚本的配置文件为 `/etc/tproxy/ss-tproxy.conf`，修改后重启脚本才能生效
 - 默认模式为 `tproxy_chnroute`，这也是 v1 版本中的模式，根据你的需要更改
 - 如果使用 `v2ray*` 模式，则修改 `v2ray 配置` 段中的相关 V2Ray 客户端的信息
-- 如果使用 `tlspxy*` 模式，则修改 `tlspxy 配置` 段中的相关 TLS-Proxy 的信息
+- 如果使用 `tlspxy*` 模式，则修改 `tlspxy 配置` 段中的相关 tlspxy 客户端信息
 - 如果使用 `tproxy*` 模式，则修改 `ss/ssr 配置` 段中的相关 SS/SSR 服务器信息
 - 如果使用 `tun2socks*` 模式，则修改 `socks5 配置` 段中的相关 socks5 代理信息
 - `dns_remote` 为远程 DNS 服务器（走代理），默认为 Google DNS，根据需要修改
