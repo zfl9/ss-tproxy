@@ -181,7 +181,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 如果需要切换代理 mode，必须先执行 `ss-tproxy stop`，然后再修改配置文件，改完之后再执行 `ss-tproxy start`。你可能会问为什么不能简单的改完文件直接 `ss-tproxy restart`？因为 ss-tproxy 只是一个 shell 脚本，它的一切状态都是靠 ss-tproxy.conf 文件保持的，如果你在修改 mode 之前没有先执行 stop 操作，那么 ss-tproxy 是不可能知道脚本之前用的是什么 mode，这样就会导致待会的 restart 操作出现问题（restart 在内部其实就是先调用 stop 函数，再调用 start 函数），执行 stop 函数时，脚本获取的 mode 其实是改了之后的 mode，所以执行清理操作时（主要是 kill 相关进程），不会清理先前那个 mode 的相关进程，然后在调用 start 函数时，新启动的进程可能会与之前的进程产生监听端口冲突，导致代理配置失败。当然，如果你没有修改 mode，那么是完全可以先改配置文件再执行 `ss-tproxy restart` 的。
 
 **日志**
-> 脚本默认关闭了日志输出，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
+> 脚本默认关闭了详细日志，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
 
 - ss-redir：`/var/log/ss-redir.log`
 - ss-tunnel：`/var/log/ss-tunnel.log`
@@ -196,13 +196,14 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 ## 更新计划
 - 内网主机黑名单（全走代理）、白名单（全走直连）支持，方便部分游戏用户
 - 精简 ss-tproxy 脚本，特别是 `check_depend`、`start_dns`、`status` 这几个函数
-- 自写 v2ray websocket + tls 模式的 C 语言版（[tls-proxy](https://github.com/zfl9/tls-proxy)），自用于 RPi3B/Android
+- ~~自写 v2ray websocket + tls 模式的 C 语言版~~（已实现，也就是上面说的 [tls-proxy](https://github.com/zfl9/tls-proxy)）
 
 ## 更多信息
 - [dnsmasq](http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html)
 - [chinadns](https://github.com/shadowsocks/ChinaDNS)
 - [dnsforwarder](https://github.com/holmium/dnsforwarder)
 - [gotun2socks](https://github.com/yinghuocho/gotun2socks)
+- [tls-proxy](https://github.com/zfl9/tls-proxy)
 - [v2ray-core](https://github.com/v2ray/v2ray-core)
 - [shadowsocks-libev](https://github.com/shadowsocks/shadowsocks-libev)
 - [shadowsocksr-libev](https://github.com/shadowsocksr-backup/shadowsocksr-libev)
