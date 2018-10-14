@@ -199,26 +199,13 @@ case "$mode" in
     tlspxy*)
         ss -lnpu | grep 'dnsmasq' | grep ':60053\s' | grep -Eo 'pid=[0-9]+' | awk -F= '{print $2}' | sort -n | uniq | xargs kill -HUP &>/dev/null
         ;;
-    tproxy_global_tcp)
+    *_global_tcp)
         while umount /etc/resolv.conf; do :; done &>/dev/null
         pkill -9 '^dnsforwarder$'
         start_dns
         dns_proxy
         ;;
-    tproxy_chnroute_tcp)
-        while umount /etc/resolv.conf; do :; done &>/dev/null
-        pkill -9 '^chinadns$'
-        pkill -9 '^dnsforwarder$'
-        start_dns
-        dns_proxy
-        ;;
-    tun2socks_global_tcp)
-        while umount /etc/resolv.conf; do :; done &>/dev/null
-        pkill -9 '^dnsforwarder$'
-        start_dns
-        dns_proxy
-        ;;
-    tun2socks_chnroute_tcp)
+    *_chnroute_tcp)
         while umount /etc/resolv.conf; do :; done &>/dev/null
         pkill -9 '^chinadns$'
         pkill -9 '^dnsforwarder$'
