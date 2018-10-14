@@ -36,6 +36,9 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - `v2ray_global`: v2ray-core, xt_TPROXY, iproute2, dnsmasq
 - `v2ray_gfwlist`: v2ray-core, xt_TPROXY, iproute2, ipset, perl, dnsmasq
 - `v2ray_chnroute`: v2ray-core, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
+- `tlspxy_global`: tls-proxy, xt_TPROXY, iproute2, dnsmasq
+- `tlspxy_gfwlist`: tls-proxy, xt_TPROXY, iproute2, ipset, perl, dnsmasq
+- `tlspxy_chnroute`: tls-proxy, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
 - `tproxy_global`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, dnsmasq
 - `tproxy_gfwlist`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, ipset, perl, dnsmasq
 - `tproxy_chnroute`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
@@ -58,6 +61,9 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - `v2ray_global`: dnsmasq=53/udp
 - `v2ray_gfwlist`: dnsmasq=53/udp
 - `v2ray_chnroute`: chinadns=65353/udp, dnsmasq=53/udp
+- `tlspxy_global`: dnsmasq=60053/udp
+- `tlspxy_gfwlist`: dnsmasq=60053/udp
+- `tlspxy_chnroute`: chinadns=65353/udp, dnsmasq=60053/udp
 - `tproxy_global`: ss-redir=60080/tcp+udp, ss-tunnel=60053/udp, dnsmasq=53/udp
 - `tproxy_gfwlist`: ss-redir=60080/tcp+udp, ss-tunnel=60053/udp, dnsmasq=53/udp
 - `tproxy_chnroute`: ss-redir=60080/tcp+udp, ss-tunnel=60053/udp, chinadns=65353/udp, dnsmasq=53/udp
