@@ -196,7 +196,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 ## 更新计划
 - 内网主机黑名单（全走代理）、白名单（全走直连）支持，方便部分游戏用户
 - 精简 ss-tproxy 脚本，特别是 `check_depend`、`start_dns`、`status` 这几个函数
-- ~~自写 v2ray websocket + tls 模式的 C 语言版~~（已实现，也就是上面说的 [tls-proxy](https://github.com/zfl9/tls-proxy)）
+- ~~自写 v2ray websocket + tls 模式的 C 语言版~~（已实现，也即上面说的 [tls-proxy](https://github.com/zfl9/tls-proxy)）
 
 ## 更多信息
 - [dnsmasq](http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html)
