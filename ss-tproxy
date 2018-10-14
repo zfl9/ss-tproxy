@@ -767,16 +767,17 @@ tlspxy_gfwlist)
 
     iptables -t mangle -N TLSPXY
     iptables -t mangle -A TLSPXY -m set --match-set gfwlist dst -j MARK --set-mark $iptables_pbr_fwmark
+    iptables -t mangle -A TLSPXY -p udp -d ${dns_remote%:*} --dport 53 -j MARK --set-mark $iptables_pbr_fwmark
 
     iptables -t mangle -A OUTPUT -p tcp -j TLSPXY
     iptables -t mangle -A OUTPUT -p udp -j TLSPXY
     iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
     for intranet in "${iptables_intranet[@]}"; do
-        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -j REDIRECT --to-ports 60053
-        iptables -t mangle -A PREROUTING -p tcp -s $intranet -j TLSPXY
-        iptables -t mangle -A PREROUTING -p udp -s $intranet -j TLSPXY
+        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $iptables_pbr_fwmark -j ACCEPT
+        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $iptables_pbr_fwmark -j REDIRECT --to-ports 60053
+        iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $iptables_pbr_fwmark -j TLSPXY
+        iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $iptables_pbr_fwmark -j TLSPXY
         iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
 
@@ -820,10 +821,10 @@ tlspxy_global|tlspxy_chnroute)
     iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
     for intranet in "${iptables_intranet[@]}"; do
-        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -j REDIRECT --to-ports 60053
-        iptables -t mangle -A PREROUTING -p tcp -s $intranet -j TLSPXY
-        iptables -t mangle -A PREROUTING -p udp -s $intranet -j TLSPXY
+        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $iptables_pbr_fwmark -j ACCEPT
+        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $iptables_pbr_fwmark -j REDIRECT --to-ports 60053
+        iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $iptables_pbr_fwmark -j TLSPXY
+        iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $iptables_pbr_fwmark -j TLSPXY
         iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
 
