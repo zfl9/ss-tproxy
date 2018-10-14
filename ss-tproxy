@@ -357,7 +357,7 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 60053
-server = $dns_remote
+server = ${dns_remote/:/#}
 $([ -n "$tlspxy_server_addr" ] && echo "address = /$tlspxy_server/$tlspxy_server_addr")
 EOF
 )
