@@ -36,9 +36,9 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 - `v2ray_global`: v2ray-core, xt_TPROXY, iproute2, dnsmasq
 - `v2ray_gfwlist`: v2ray-core, xt_TPROXY, iproute2, ipset, perl, dnsmasq
 - `v2ray_chnroute`: v2ray-core, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
-- `tlspxy_global`: tls-proxy, xt_TPROXY, iproute2, dnsmasq
-- `tlspxy_gfwlist`: tls-proxy, xt_TPROXY, iproute2, ipset, perl, dnsmasq
-- `tlspxy_chnroute`: tls-proxy, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
+- `tlspxy_global`: 代理软件, xt_TPROXY, iproute2, dnsmasq
+- `tlspxy_gfwlist`: 代理软件, xt_TPROXY, iproute2, ipset, perl, dnsmasq
+- `tlspxy_chnroute`: 代理软件, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
 - `tproxy_global`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, dnsmasq
 - `tproxy_gfwlist`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, ipset, perl, dnsmasq
 - `tproxy_chnroute`: ss/ssr-libev, haveged, xt_TPROXY, iproute2, ipset, chinadns, dnsmasq
