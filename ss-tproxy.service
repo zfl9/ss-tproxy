@@ -1,7 +1,5 @@
 [Unit]
-Description=ss/ssr/v2ray/socks5 transparent proxy script
-ConditionFileIsExecutable=/usr/local/bin/ss-tproxy
-ConditionFileNotEmpty=/etc/tproxy/ss-tproxy.conf
+Description=linux transparent proxy script
 Requires=network.target network-online.target
 After=network.target network-online.target
 
