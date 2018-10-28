@@ -193,17 +193,11 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 ## 已知问题
 - 由于 v2ray 的 `dokodemo-door` 传入协议无法正确处理 QUIC（Quick UDP Internet Connections）协议，导致访问支持 QUIC 协议的网站极其不稳定，具体表现为：网页加载不全、Google Play 图片无法显示、Google Play 软件无法下载及更新，虽然可以在 Chrome 浏览器中关闭 QUIC 协议的支持，但是 Google Play 没这个选项。搜索一番后，找到一个解决方法（讨论此问题的 Issue：<https://github.com/v2ray/v2ray-core/issues/819>）：在 `dokodemo-door` 配置段中添加 `"domainOverride": ["quic"]`。但是实际测试并没有多好的效果，时好时坏，而且 Google Play 的加载速度比 SS/SSR 慢多了。
 
-## 更新计划
-- 内网主机黑名单（全走代理）、白名单（全走直连）支持，方便部分游戏用户
-- 精简 ss-tproxy 脚本，特别是 `check_depend`、`start_dns`、`status` 这几个函数
-- ~~自写 v2ray websocket + tls 模式的 C 语言版~~（已实现，也即上面说的 [tls-proxy](https://github.com/zfl9/tls-proxy)）
-
 ## 更多信息
 - [dnsmasq](http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html)
 - [chinadns](https://github.com/shadowsocks/ChinaDNS)
 - [dnsforwarder](https://github.com/holmium/dnsforwarder)
 - [gotun2socks](https://github.com/yinghuocho/gotun2socks)
-- [tls-proxy](https://github.com/zfl9/tls-proxy)
 - [v2ray-core](https://github.com/v2ray/v2ray-core)
 - [shadowsocks-libev](https://github.com/shadowsocks/shadowsocks-libev)
 - [shadowsocksr-libev](https://github.com/shadowsocksr-backup/shadowsocksr-libev)
