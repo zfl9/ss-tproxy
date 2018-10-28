@@ -1,6 +1,6 @@
 # SS/SSR/V2Ray/Socks5 透明代理
 ## 脚本简介
-ss-tproxy 脚本运行于 Linux 系统（网关/软路由、虚拟机、普通 PC），用于实现 SS/SSR/V2Ray/Socks5 全局透明代理功能。脚本目前实现了 4 种分流模式：global（全局模式，不分流）、gfwlist（仅代理 gfwlist 域名）、chnonly（仅代理大陆域名，国外翻回国内）、chnroute（绕过大陆地址段，其余均走代理）。脚本目前定义了 18 种代理模式，如下（下文中的“本机”指运行 ss-tproxy 的主机）：
+ss-tproxy 脚本运行于 Linux 系统（网关/软路由、虚拟机、普通 PC），用于实现 SS/SSR/V2Ray/Socks5 全局透明代理功能。脚本目前实现了 4 种分流模式：global（全局模式，不分流）、gfwlist（仅代理 gfwlist 域名）、chnonly（仅代理大陆域名，国外翻回国内）、chnroute（绕过大陆地址段，其余均走代理）；定义了 18 种代理模式，如下（“本机”指运行 ss-tproxy 的主机）：
 ```bash
 mode='v2ray_global'            # v2ray  global   模式
 mode='v2ray_gfwlist'           # v2ray  gfwlist  模式
