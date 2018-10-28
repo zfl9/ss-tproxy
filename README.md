@@ -23,7 +23,7 @@ mode='tun2socks_chnroute_tcp'  # socks5 chnroute 模式 (tcponly)
 ```
 标识了 `tcponly` 的 mode 表示只代理 tcp 流量（dns 通过 tcp 方式解析），udp 不会被处理，主要用于不支持 udp relay 的 ss/ssr/socks5 代理。除了 `tun2socks` 和 `tlspxy` mode 外，其它 mode 均不会代理 ss-tproxy 本机的 udp 流量（dns 会另外处理，见下面的说明）。另外，`chnonly` 模式并未单独分出来，因为它本质上与 `gfwlist` 模式相同，只不过域名列表不一样而已，所以如果要使用 `chnonly` 分流模式，请选择对应的 `gfwlist` mode（当然还需要几个步骤，后面会说明）。
 
-为什么除了 `tun2socks` 和 `tlspxy` mode 外（tlspxy 不打算介绍，也不打算回答与 tlspxy 有关的任何问题），其它 mode 都不代理本机的 udp 流量呢？这其实是我以前的一个认知错误导致的，怎么说呢，因为我一直以为本机的 udp 是无法通过 TPROXY 方式代理的，当初的理由很简单，因为当我尝试在 OUTPUT 链添加 TPROXY target 时，会提示这个错误：`x_tables: ip_tables: TPROXY target: used from hooks OUTPUT, but only usable from PREROUTING`（意思是 TPROXY 只能用于 PREROUTING 链），只能用于 PREROUTING 链的话，那不就只能代理来自"内网"的流量了吗（实际上并不是）？当时也是因为这个原因，才弄了个 tun2socks 模式，那为什么 tun2socks 模式就能代理本机 UDP？因为 tun2socks 会创建一张 tun 虚拟网卡，只要我们将要代理的流量通过 iproute2 策略路由，送入这张 tun 虚拟网卡就行，也就是和 VPN 差不多。
+为什么除了 `tun2socks` 和 `tlspxy` mode 外（tlspxy 不打算介绍，也不打算回答与 tlspxy 有关的任何问题），其它 mode 都不代理本机的 udp 流量呢？这其实是我以前的一个认知错误导致的，怎么说呢，因为我一直以为本机的 udp 是无法通过 TPROXY 方式代理的，当初的理由很简单，因为当我尝试在 OUTPUT 链添加 TPROXY target 时，会得到这个错误：`x_tables: ip_tables: TPROXY target: used from hooks OUTPUT, but only usable from PREROUTING`（意思是 TPROXY 只能用于 PREROUTING 链），只能用于 PREROUTING 链的话，那不就只能代理来自"内网"的流量了吗（实际上并不是）？当时也是因为这个原因，才弄了个 tun2socks 模式，那为什么 tun2socks 模式就能代理本机 UDP？因为 tun2socks 会创建一张 tun 虚拟网卡，只要我们将要代理的流量通过 iproute2 策略路由，送入这张 tun 虚拟网卡就行，也就是和 VPN 差不多。
 
 直到前段时间，我决定深入研究 TPROXY 透明代理的原理，才知道原来 TPROXY 是可以代理本机 TCP、UDP 流量的，虽然 iptables 不允许我们直接在 OUTPUT 链上设置 TPROXY target，但是我们可以在 OUTPUT 链上打上 fwmark，然后在经过 iproute2 策略路由时，将打了指定 fwmark 的数据路由到本机（从 loopback 网卡进去），正是因为这个从 loopback 网卡流入的步骤，允许我们在 PREROUTING 链（数据包流入某张网卡之后，首先被 PREROUTING 链处理，然后再进行路由）上设置相应的 TPROXY target，然后我们就可以代理本机的 TCP 和 UDP 了。
 
