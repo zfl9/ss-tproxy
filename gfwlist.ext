@@ -1,7 +1,7 @@
 # gfwlist 黑名单语法：
 # 地址：如 11.22.33.44
 # 网段：如 123.123.0.0/16
-# 域名：如 example.com (匹配 example.com、*.example.com)，即"域名后缀"
+# 域名：如 example.com (匹配 example.com、*.example.com)，即域名后缀
 # 注意：修改本文件需重启 ss-tproxy 生效，另外请删除每行首尾多余的空白符
 
 # Telegram
