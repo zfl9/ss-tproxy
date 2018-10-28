@@ -1,19 +1,14 @@
 #!/bin/bash
 
-main_cfg='/etc/tproxy/ss-tproxy.conf'
-if [ -f $main_cfg ]; then
-    source $main_cfg
-else
-    echo "No such file or directory: '$main_cfg'" 1>&2
-    exit 1
-fi
+main_conf='/etc/ss-tproxy/ss-tproxy.conf'
+[ -f $main_conf ] && source $main_conf || { echo "[ERR] No such file or directory: '$main_conf'" 1>&2; exit 1; }
 
-[ ! -f "$dnsmasq_gfwlist"     ] && { echo "dnsmasq_gfwlist: $dnsmasq_gfwlist: No such file or directory"         1>&2; exit 1; }
-[ ! -f "$dnsmasq_gfwlist_ext" ] && { echo "dnsmasq_gfwlist_ext: $dnsmasq_gfwlist_ext: No such file or directory" 1>&2; exit 1; }
-[ ! -f "$chinadns_chnroute"   ] && { echo "chinadns_chnroute: $chinadns_chnroute: No such file or directory"     1>&2; exit 1; }
-[ ! -f "$iptables_ipset_file" ] && { echo "iptables_ipset_file: $iptables_ipset_file: No such file or directory" 1>&2; exit 1; }
+[ ! -f "$file_gfwlist_txt"  ] && { echo "[ERR] No such file or directory: '$file_gfwlist_txt'"  1>&2; exit 1; }
+[ ! -f "$file_gfwlist_ext"  ] && { echo "[ERR] No such file or directory: '$file_gfwlist_ext'"  1>&2; exit 1; }
+[ ! -f "$file_chnroute_txt" ] && { echo "[ERR] No such file or directory: '$file_chnroute_txt'" 1>&2; exit 1; }
+[ ! -f "$file_chnroute_set" ] && { echo "[ERR] No such file or directory: '$file_chnroute_set'" 1>&2; exit 1; }
 
-function check_depend {
+function check_cmd {
 case "$mode" in
     v2ray_global)
         modprobe xt_TPROXY &>/dev/null || { echo "Error: xt_TPROXY module is not installed." 1>&2; exit 1; }
