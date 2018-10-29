@@ -95,7 +95,7 @@ systemctl start ssr-redir
 --fast-open         # TCP_FASTOPEN
 --reuse-port        # SO_REUSEPORT
 -u                  # 启用 udp relay
--v                  # 启用详细日志
+-v                  # 启用详细日志输出
 
 # ssr-redir args
 -s <server_addr>    # 服务器地址
@@ -109,7 +109,7 @@ systemctl start ssr-redir
 -o <obfs>           # 混淆插件
 -g <obfs_param>     # 混淆参数
 -u                  # 启用 udp relay
--v                  # 启用详细日志
+-v                  # 启用详细日志输出
 ```
 
 // TODO
