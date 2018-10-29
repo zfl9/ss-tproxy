@@ -58,7 +58,7 @@ function update_chnroute {
 }
 
 function flush_dnscache {
-    netstat -lnpu | awk -F/ '/:60053\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -HUP &>/dev/null
+    netstat -lnpu | awk -F/ '/:53\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -HUP &>/dev/null
 }
 
 function start_proxy {
@@ -80,7 +80,6 @@ cache-size = $dnsmasq_cache_size
 $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $dnsmasq_cache_time")
 no-negcache
 no-resolv
-port = 60053
 server = ${dns_remote/:/#}
 $([ -n "$proxy_server_addr" ] && echo "address = /$proxy_server/$proxy_server_addr")
 EOF
@@ -96,7 +95,6 @@ cache-size = $dnsmasq_cache_size
 $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $dnsmasq_cache_time")
 no-negcache
 no-resolv
-port = 60053
 server = $dns_direct
 $([ -n "$proxy_server_addr" ] && echo "address = /$proxy_server/$proxy_server_addr")
 $(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $file_gfwlist_txt <(
@@ -125,7 +123,6 @@ cache-size = $dnsmasq_cache_size
 $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $dnsmasq_cache_time")
 no-negcache
 no-resolv
-port = 60053
 server = 127.0.0.1#65353
 $([ -n "$proxy_server_addr" ] && echo "address = /$proxy_server/$proxy_server_addr")
 EOF
@@ -135,6 +132,8 @@ esac
 }
 
 function start_iptables {
+    [ $(sysctl net.ipv4.ip_forward | awk '{print $3}') -ne 1 ] && sysctl -w net.ipv4.ip_forward=1 &>/dev/null
+
     function dec2bin {
         for ((n = $1; n > 0; n >>= 1)); do bit="$((n & 1))$bit"; done
         printf "%08d\n" "$bit"
@@ -159,7 +158,6 @@ function start_iptables {
 if [ "$proxy_tproxy" = 'true' ]; then
 case "$mode" in
 gfwlist)
-    iptables -t nat -F OUTPUT
     iptables -t nat -F PREROUTING
     iptables -t nat -F POSTROUTING
 
@@ -179,11 +177,9 @@ gfwlist)
     iptables -t mangle -A OUTPUT -p tcp -j SETMARK
     iptables -t mangle -A OUTPUT -p udp -j SETMARK
 
-    iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
-
     for intranet in "${ipts_intranet[@]}"; do
         iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 53
 
         iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
         iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
@@ -191,14 +187,13 @@ gfwlist)
         iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
 
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_tcport}
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_udport}
+    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
+    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
 
     ip route add local 0/0 dev lo     table $ipts_rt_tab
     ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
     ;;
 global|chnroute)
-    iptables -t nat -F OUTPUT
     iptables -t nat -F PREROUTING
     iptables -t nat -F POSTROUTING
 
@@ -231,11 +226,9 @@ global|chnroute)
     iptables -t mangle -A OUTPUT -p tcp -j SETMARK
     iptables -t mangle -A OUTPUT -p udp -j SETMARK
 
-    iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
-
     for intranet in "${ipts_intranet[@]}"; do
         iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 53
 
         iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
         iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
@@ -243,143 +236,132 @@ global|chnroute)
         iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
 
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_tcport}
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_udport}
+    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
+    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
 
     ip route add local 0/0 dev lo     table $ipts_rt_tab
     ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
     ;;
 esac
 else
-    echo # TODO
+case "$mode" in
+gfwlist)
+    iptables -t nat -F OUTPUT
+    iptables -t nat -F PREROUTING
+    iptables -t nat -F POSTROUTING
+
+    iptables -t mangle -F OUTPUT
+    iptables -t mangle -F PREROUTING
+
+    iptables -t nat -F TCPCHAIN &>/dev/null
+    iptables -t nat -X TCPCHAIN &>/dev/null
+
+    iptables -t mangle -F UDPCHAIN &>/dev/null
+    iptables -t mangle -X UDPCHAIN &>/dev/null
+
+    ipset -N gfwlist hash:net &>/dev/null
+    perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
+
+    iptables -t nat -N TCPCHAIN
+    iptables -t nat -A TCPCHAIN -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports $proxy_tcport
+
+    iptables -t mangle -N UDPCHAIN
+    iptables -t mangle -A UDPCHAIN -d ${dns_remote%:*}            -j MARK --set-mark $ipts_rt_mark
+    iptables -t mangle -A UDPCHAIN -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
+
+    iptables -t nat    -A OUTPUT -p tcp -j TCPCHAIN
+    iptables -t mangle -A OUTPUT -p udp -j UDPCHAIN
+
+    for intranet in "${ipts_intranet[@]}"; do
+        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
+        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 53
+
+        iptables -t nat    -A PREROUTING -p tcp -s $intranet                                -j TCPCHAIN
+        iptables -t mangle -A PREROUTING -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
+
+        iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+    done
+
+    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
+
+    ip route add local 0/0 dev lo     table $ipts_rt_tab
+    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    ;;
+global|chnroute)
+    iptables -t nat -F OUTPUT
+    iptables -t nat -F PREROUTING
+    iptables -t nat -F POSTROUTING
+
+    iptables -t mangle -F OUTPUT
+    iptables -t mangle -F PREROUTING
+
+    iptables -t nat -F TCPCHAIN &>/dev/null
+    iptables -t nat -X TCPCHAIN &>/dev/null
+
+    iptables -t mangle -F UDPCHAIN &>/dev/null
+    iptables -t mangle -X UDPCHAIN &>/dev/null
+
+    iptables -t nat -N TCPCHAIN
+    iptables -t nat -A TCPCHAIN -d 0/8        -j RETURN
+    iptables -t nat -A TCPCHAIN -d 10/8       -j RETURN
+    iptables -t nat -A TCPCHAIN -d 127/8      -j RETURN
+    iptables -t nat -A TCPCHAIN -d 169.254/16 -j RETURN
+    iptables -t nat -A TCPCHAIN -d 172.16/12  -j RETURN
+    iptables -t nat -A TCPCHAIN -d 192.168/16 -j RETURN
+    for cidr in "${ipts_intranet_nonstd[@]}"; do
+        iptables -t nat -A TCPCHAIN -d $cidr -j RETURN
+    done
+    iptables -t nat -A TCPCHAIN -d 224/4 -j RETURN
+    iptables -t nat -A TCPCHAIN -d 240/4 -j RETURN
+    iptables -t nat -A TCPCHAIN -d $proxy_server -j RETURN
+    if [ "$mode" = chnroute ]; then
+        ipset -X chnroute &>/dev/null
+        ipset -R <$file_chnroute_set
+        iptables -t nat -A TCPCHAIN -m set --match-set chnroute dst -j RETURN
+    fi
+    iptables -t nat -A TCPCHAIN -p tcp -j REDIRECT --to-ports $proxy_tcport
+
+    iptables -t mangle -N UDPCHAIN
+    iptables -t mangle -A UDPCHAIN -d 0/8        -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 10/8       -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 127/8      -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 169.254/16 -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 172.16/12  -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 192.168/16 -j RETURN
+    for cidr in "${ipts_intranet_nonstd[@]}"; do
+        iptables -t mangle -A UDPCHAIN -d $cidr -j RETURN
+    done
+    iptables -t mangle -A UDPCHAIN -d 224/4 -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 240/4 -j RETURN
+    iptables -t mangle -A UDPCHAIN -d $proxy_server -j RETURN
+    if [ "$mode" = chnroute ]; then
+        iptables -t mangle -A UDPCHAIN -m set --match-set chnroute dst -j RETURN
+    fi
+    iptables -t mangle -A UDPCHAIN -j MARK --set-mark $ipts_rt_mark
+
+    iptables -t nat    -A OUTPUT -p tcp -j TCPCHAIN
+    iptables -t mangle -A OUTPUT -p udp -j UDPCHAIN
+
+    for intranet in "${ipts_intranet[@]}"; do
+        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
+        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 53
+
+        iptables -t nat    -A PREROUTING -p tcp -s $intranet                                -j TCPCHAIN
+        iptables -t mangle -A PREROUTING -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
+
+        iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+    done
+
+    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
+
+    ip route add local 0/0 dev lo     table $ipts_rt_tab
+    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    ;;
+esac
 fi
 }
 
-function start_rule {
-case "$mode" in
-tproxy_global*|tproxy_chnroute*|v2ray_global|v2ray_chnroute)
-    [[ "$mode" == v* ]] && server_addr=$v2ray_server
-    [[ "$mode" == v* ]] && redir_port=${v2ray_redir#*:} || redir_port=60080
-
-    iptables -t nat -F OUTPUT
-    iptables -t nat -F PREROUTING
-    iptables -t nat -F POSTROUTING
-    iptables -t nat -F SS-TCP &>/dev/null
-    iptables -t nat -X SS-TCP &>/dev/null
-
-    iptables -t nat -N SS-TCP
-    iptables -t nat -A SS-TCP -d 0/8 -j RETURN
-    iptables -t nat -A SS-TCP -d 10/8 -j RETURN
-    iptables -t nat -A SS-TCP -d 127/8 -j RETURN
-    iptables -t nat -A SS-TCP -d 169.254/16 -j RETURN
-    iptables -t nat -A SS-TCP -d 172.16/12 -j RETURN
-    iptables -t nat -A SS-TCP -d 192.168/16 -j RETURN
-    for cidr in "${iptables_intranet_nonstd[@]}"; do
-        iptables -t nat -A SS-TCP -d $cidr -j RETURN
-    done
-    iptables -t nat -A SS-TCP -d 224/4 -j RETURN
-    iptables -t nat -A SS-TCP -d 240/4 -j RETURN
-    iptables -t nat -A SS-TCP -d $server_addr -j RETURN
-    if [[ "$mode" == *chnroute* ]]; then
-        ipset -X chnroute &>/dev/null
-        ipset -R <$iptables_ipset_file
-        iptables -t nat -A SS-TCP -m set --match-set chnroute dst -j RETURN
-    fi
-    iptables -t nat -A SS-TCP -p tcp -j REDIRECT --to-ports $redir_port
-
-    if [[ "$mode" != *tcp || "$mode" == v* ]]; then
-        iptables -t mangle -F PREROUTING
-        iptables -t mangle -F SS-UDP &>/dev/null
-        iptables -t mangle -X SS-UDP &>/dev/null
-
-        iptables -t mangle -N SS-UDP
-        iptables -t mangle -A SS-UDP -d 0/8 -j RETURN
-        iptables -t mangle -A SS-UDP -d 10/8 -j RETURN
-        iptables -t mangle -A SS-UDP -d 127/8 -j RETURN
-        iptables -t mangle -A SS-UDP -d 169.254/16 -j RETURN
-        iptables -t mangle -A SS-UDP -d 172.16/12 -j RETURN
-        iptables -t mangle -A SS-UDP -d 192.168/16 -j RETURN
-        for cidr in "${iptables_intranet_nonstd[@]}"; do
-            iptables -t mangle -A SS-UDP -d $cidr -j RETURN
-        done
-        iptables -t mangle -A SS-UDP -d 224/4 -j RETURN
-        iptables -t mangle -A SS-UDP -d 240/4 -j RETURN
-        iptables -t mangle -A SS-UDP -d $server_addr -j RETURN
-        [[ "$mode" == *chnroute* ]] && iptables -t mangle -A SS-UDP -m set --match-set chnroute dst -j RETURN
-        iptables -t mangle -A SS-UDP -p udp -j TPROXY --tproxy-mark $iptables_pbr_fwmark --on-ip 127.0.0.1 --on-port $redir_port
-
-        ip route add local 0/0 dev lo table $iptables_pbr_number
-        ip rule add fwmark $iptables_pbr_fwmark table $iptables_pbr_number
-    fi
-
-    iptables -t nat -A OUTPUT -p tcp -j SS-TCP
-    for intranet in "${iptables_intranet[@]}"; do
-        if [[ "$mode" == *tcp ]]; then
-            iptables -t nat -A PREROUTING -p tcp -s $intranet -j SS-TCP
-            iptables -t nat -A PREROUTING -p udp -s $intranet ! -d $intranet --dport 53 -j REDIRECT --to-ports 53
-        else
-            iptables -t mangle -A PREROUTING -p udp -s $intranet ! -d $intranet --dport 53 -j ACCEPT
-            iptables -t nat -A PREROUTING -p udp -s $intranet ! -d $intranet --dport 53 -j REDIRECT --to-ports 53
-            iptables -t mangle -A PREROUTING -p udp -s $intranet -j SS-UDP
-            iptables -t nat -A PREROUTING -p tcp -s $intranet -j SS-TCP
-        fi
-        iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
-    done
-    ;;
-tproxy_gfwlist*|v2ray_gfwlist)
-    [[ "$mode" == v* ]] && redir_port=${v2ray_redir#*:} || redir_port=60080
-
-    iptables -t nat -F OUTPUT
-    iptables -t nat -F PREROUTING
-    iptables -t nat -F POSTROUTING
-    iptables -t nat -F SS-TCP &>/dev/null
-    iptables -t nat -X SS-TCP &>/dev/null
-
-    ipset -N gfwlist hash:net &>/dev/null
-    perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $dnsmasq_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
-
-    iptables -t nat -N SS-TCP
-    [[ "$mode" == *tcp ]] && iptables -t nat -A SS-TCP -p tcp -d ${dns_remote%%:*} -j REDIRECT --to-ports 60080
-    iptables -t nat -A SS-TCP -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports $redir_port
-
-    if [[ "$mode" != *tcp || "$mode" == v* ]]; then
-        iptables -t mangle -F PREROUTING
-        iptables -t mangle -F SS-UDP &>/dev/null
-        iptables -t mangle -X SS-UDP &>/dev/null
-
-        iptables -t mangle -N SS-UDP
-        iptables -t mangle -A SS-UDP -p udp -m set --match-set gfwlist dst -j TPROXY --tproxy-mark $iptables_pbr_fwmark --on-ip 127.0.0.1 --on-port $redir_port
-
-        ip route add local 0/0 dev lo table $iptables_pbr_number
-        ip rule add fwmark $iptables_pbr_fwmark table $iptables_pbr_number
-    fi
-
-    iptables -t nat -A OUTPUT -p tcp -j SS-TCP
-    for intranet in "${iptables_intranet[@]}"; do
-        if [[ "$mode" == *tcp ]]; then
-            iptables -t nat -A PREROUTING -p tcp -s $intranet -j SS-TCP
-            iptables -t nat -A PREROUTING -p udp -s $intranet ! -d $intranet --dport 53 -j REDIRECT --to-ports 53
-        else
-            iptables -t mangle -A PREROUTING -p udp -s $intranet ! -d $intranet --dport 53 -j ACCEPT
-            iptables -t nat -A PREROUTING -p udp -s $intranet ! -d $intranet --dport 53 -j REDIRECT --to-ports 53
-            iptables -t mangle -A PREROUTING -p udp -s $intranet -j SS-UDP
-            iptables -t nat -A PREROUTING -p tcp -s $intranet -j SS-TCP
-        fi
-        iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
-    done
-    ;;
-esac
-}
-
-function start_kopts {
-    [ $(sysctl net.ipv4.ip_forward | awk '{print $3}') -ne 1 ] && sysctl -w net.ipv4.ip_forward=1 &>/dev/null
-    [[ "$mode" == tun2socks* ]] && {
-        [ $(sysctl net.ipv4.conf.$tun2socks_tundev.rp_filter | awk '{print $3}') -ne 2 ] &&
-            sysctl -w net.ipv4.conf.$tun2socks_tundev.rp_filter=2 &>/dev/null
-    }
-}
-
-function dns_proxy {
+function start_dnsproxy {
     while umount /etc/resolv.conf; do :; done &>/dev/null
     resolv=$(mktemp)
     chmod 0644 $resolv
@@ -387,231 +369,79 @@ function dns_proxy {
 # Generated by ss-tproxy at $(date '+%F %T')
 nameserver 127.0.0.1
 EOF
-    mount -B $resolv /etc/resolv.conf
+    mount -o bind $resolv /etc/resolv.conf
     rm -f $resolv &>/dev/null
 }
 
 function start {
-    check_depend
     while umount /etc/resolv.conf; do :; done &>/dev/null
-    start_socks
-    start_dns
-    start_rule
-    start_kopts
-    dns_proxy
-    rm -f $chinadns_chnroute_temp &>/dev/null
+    check_command
+    start_proxy
+    start_resolver
+    start_iptables
+    start_dnsproxy
+    rm -f $temp_chnroute_txt &>/dev/null
 }
 
 function stop {
     while umount /etc/resolv.conf; do :; done &>/dev/null
 
-    iptables -t mangle -F SETMARK &>/dev/null
-    iptables -t mangle -X SETMARK &>/dev/null
-
     iptables -t nat -F OUTPUT
     iptables -t nat -F PREROUTING
     iptables -t nat -F POSTROUTING
-    iptables -t nat -F SS-TCP &>/dev/null
-    iptables -t nat -X SS-TCP &>/dev/null
 
     iptables -t mangle -F OUTPUT
     iptables -t mangle -F PREROUTING
-    iptables -t mangle -F SS-UDP &>/dev/null
-    iptables -t mangle -X SS-UDP &>/dev/null
-    iptables -t mangle -F TUN2SOCKS &>/dev/null
-    iptables -t mangle -X TUN2SOCKS &>/dev/null
 
-    for intranet in "${iptables_intranet[@]}"; do
-        iptables -t nat -A PREROUTING -p udp -s $intranet -d $intranet --dport 53 -j DNAT --to-destination $dns_direct
-        iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+    iptables -t nat -F TCPCHAIN &>/dev/null
+    iptables -t nat -X TCPCHAIN &>/dev/null
+
+    iptables -t mangle -F UDPCHAIN &>/dev/null
+    iptables -t mangle -X UDPCHAIN &>/dev/null
+
+    iptables -t mangle -F SETMARK &>/dev/null
+    iptables -t mangle -X SETMARK &>/dev/null
+
+    for intranet in "${ipts_intranet[@]}"; do
+        iptables -t nat -A PREROUTING  -s $intranet   -d $intranet -p udp --dport 53 -j DNAT --to-destination $dns_direct
+        iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet                   -j MASQUERADE
     done
 
     ipset -X chnroute &>/dev/null
 
-    ip rule show | grep "fwmark $iptables_pbr_fwmark" | awk -F: '{print $1}' | xargs -n1 ip rule del pref &>/dev/null
-    ip route flush table $iptables_pbr_number &>/dev/null
+    ip rule show | grep "fwmark $ipts_rt_mark" | awk -F: '{print $1}' | xargs -n1 ip rule del pref &>/dev/null
+    ip route flush table $ipts_rt_tab &>/dev/null
 
-    pkill -9 '^chinadns$'
-    pkill -9 '^dnsforwarder$'
-
-    if [[ "$mode" == tlspxy* ]]; then
-        ss -lnpu | grep 'dnsmasq' | grep ':60053\s' | grep -Eo 'pid=[0-9]+' | awk -F= '{print $2}' | sort -n | uniq | xargs kill -9 &>/dev/null
-    else
-        ss -lnpu | grep 'dnsmasq' | grep ':53\s' | grep -Eo 'pid=[0-9]+' | awk -F= '{print $2}' | sort -n | uniq | xargs kill -9 &>/dev/null
-    fi
-
-    [[ "$mode" == v2ray_*     ]] && eval "$v2ray_stopcmd" &>/dev/null
-    [[ "$mode" == tlspxy_*    ]] && eval "$tlspxy_stopcmd" &>/dev/null
-    [[ "$mode" == tun2socks_* ]] && { eval "$socks5_stopcmd" &>/dev/null; pkill -9 '^tun2socks$'; }
-    [[ "$mode" == tproxy_*    ]] && { pkill -9 '^ss-redir$'; pkill -9 '^ss-tunnel$'; pkill -9 '^ssr-redir$'; pkill -9 '^ssr-tunnel$'; }
+    eval "$proxy_kilcmd" &>/dev/null
+    kill -9 $(pidof 'chinadns') &>/dev/null
+    netstat -lnpu | awk -F/ '/:53\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
 }
 
 function status {
 case "$mode" in
-    v2ray_global)
-        echo "mode:           v2ray_global"
-        rport=${v2ray_redir#*:}; tport=${v2ray_tunnel#*:}
-        [ $(ss -lnpt | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+    global)
+        echo "mode:     global"
+        [ $(netstat -lnpt | grep -E ":$proxy_tcport\s"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":$proxy_udport\s"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":53\s.+dnsmasq"     | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
         ;;
-    v2ray_gfwlist)
-        echo "mode:          v2ray_gfwlist"
-        rport=${v2ray_redir#*:}; tport=${v2ray_tunnel#*:}
-        [ $(ss -lnpt | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
+    gfwlist)
+        echo "mode:     gfwlist"
+        [ $(netstat -lnpt | grep -E ":$proxy_tcport\s"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":$proxy_udport\s"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":53\s.+dnsmasq"     | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
         ;;
-    v2ray_chnroute)
-        echo "mode:         v2ray_chnroute"
-        rport=${v2ray_redir#*:}; tport=${v2ray_tunnel#*:}
-        [ $(ss -lnpt | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/tcp       \e[32m[running]\e[0m" || echo -e "v2-redir/tcp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$rport\s" | wc -l)                -ne 0 ] && echo -e "v2-redir/udp       \e[32m[running]\e[0m" || echo -e "v2-redir/udp       \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "v2-tunnel/udp      \e[32m[running]\e[0m" || echo -e "v2-tunnel/udp      \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^chinadns$')                              -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l)    -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tlspxy_global)
-        echo "mode:          tlspxy_global"
-        tport=${tlspxy_tcport#*:}; uport=${tlspxy_udport#*:}
-        [ $(ss -lnpt | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/tcp         \e[32m[running]\e[0m" || echo -e "tlspxy/tcp         \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$uport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/udp         \e[32m[running]\e[0m" || echo -e "tlspxy/udp         \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tlspxy_gfwlist)
-        echo "mode:         tlspxy_gfwlist"
-        tport=${tlspxy_tcport#*:}; uport=${tlspxy_udport#*:}
-        [ $(ss -lnpt | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/tcp         \e[32m[running]\e[0m" || echo -e "tlspxy/tcp         \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$uport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/udp         \e[32m[running]\e[0m" || echo -e "tlspxy/udp         \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tlspxy_chnroute)
-        echo "mode:        tlspxy_chnroute"
-        tport=${tlspxy_tcport#*:}; uport=${tlspxy_udport#*:}
-        [ $(ss -lnpt | grep ":$tport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/tcp         \e[32m[running]\e[0m" || echo -e "tlspxy/tcp         \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$uport\s" | wc -l)                -ne 0 ] && echo -e "tlspxy/udp         \e[32m[running]\e[0m" || echo -e "tlspxy/udp         \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^chinadns$')                              -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tproxy_global)
-        echo "mode:          tproxy_global"
-        if [ "$server_use_ssr" != 'true' ]; then
-            [ $(pgrep -c '^ss-redir$') -ne 0 ] && echo -e "ss-redir:          \e[32m[running]\e[0m" || echo -e "ss-redir:          \e[35m[stopped]\e[0m"
-            [ $(pgrep -c '^ss-tunnel$') -ne 0 ] && echo -e "ss-tunnel:         \e[32m[running]\e[0m" || echo -e "ss-tunnel:         \e[35m[stopped]\e[0m"
-        else
-            [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
-            [ $(pgrep -c '^ssr-tunnel$') -ne 0 ] && echo -e "ssr-tunnel:        \e[32m[running]\e[0m" || echo -e "ssr-tunnel:        \e[35m[stopped]\e[0m"
-        fi
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tproxy_global_tcp)
-        echo "mode:      tproxy_global_tcp"
-        if [ "$server_use_ssr" != 'true' ]; then
-            [ $(pgrep -c '^ss-redir$') -ne 0 ] && echo -e "ss-redir:          \e[32m[running]\e[0m" || echo -e "ss-redir:          \e[35m[stopped]\e[0m"
-        else
-            [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
-        fi
-        [ $(pgrep -c '^dnsforwarder$') -ne 0 ] && echo -e "dnsforwarder:      \e[32m[running]\e[0m" || echo -e "dnsforwarder:      \e[35m[stopped]\e[0m"
-        ;;
-    tproxy_gfwlist)
-        echo "mode:         tproxy_gfwlist"
-        if [ "$server_use_ssr" != 'true' ]; then
-            [ $(pgrep -c '^ss-redir$') -ne 0 ] && echo -e "ss-redir:          \e[32m[running]\e[0m" || echo -e "ss-redir:          \e[35m[stopped]\e[0m"
-            [ $(pgrep -c '^ss-tunnel$') -ne 0 ] && echo -e "ss-tunnel:         \e[32m[running]\e[0m" || echo -e "ss-tunnel:         \e[35m[stopped]\e[0m"
-        else
-            [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
-            [ $(pgrep -c '^ssr-tunnel$') -ne 0 ] && echo -e "ssr-tunnel:        \e[32m[running]\e[0m" || echo -e "ssr-tunnel:        \e[35m[stopped]\e[0m"
-        fi
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tproxy_gfwlist_tcp)
-        echo "mode:     tproxy_gfwlist_tcp"
-        if [ "$server_use_ssr" != 'true' ]; then
-            [ $(pgrep -c '^ss-redir$') -ne 0 ] && echo -e "ss-redir:          \e[32m[running]\e[0m" || echo -e "ss-redir:          \e[35m[stopped]\e[0m"
-        else
-            [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
-        fi
-        [ $(pgrep -c '^dnsforwarder$') -ne 0 ] && echo -e "dnsforwarder:      \e[32m[running]\e[0m" || echo -e "dnsforwarder:      \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tproxy_chnroute)
-        echo "mode:        tproxy_chnroute"
-        if [ "$server_use_ssr" != 'true' ]; then
-            [ $(pgrep -c '^ss-redir$') -ne 0 ] && echo -e "ss-redir:          \e[32m[running]\e[0m" || echo -e "ss-redir:          \e[35m[stopped]\e[0m"
-            [ $(pgrep -c '^ss-tunnel$') -ne 0 ] && echo -e "ss-tunnel:         \e[32m[running]\e[0m" || echo -e "ss-tunnel:         \e[35m[stopped]\e[0m"
-        else
-            [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
-            [ $(pgrep -c '^ssr-tunnel$') -ne 0 ] && echo -e "ssr-tunnel:        \e[32m[running]\e[0m" || echo -e "ssr-tunnel:        \e[35m[stopped]\e[0m"
-        fi
-        [ $(pgrep -c '^chinadns$') -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tproxy_chnroute_tcp)
-        echo "mode:    tproxy_chnroute_tcp"
-        if [ "$server_use_ssr" != 'true' ]; then
-            [ $(pgrep -c '^ss-redir$') -ne 0 ] && echo -e "ss-redir:          \e[32m[running]\e[0m" || echo -e "ss-redir:          \e[35m[stopped]\e[0m"
-        else
-            [ $(pgrep -c '^ssr-redir$') -ne 0 ] && echo -e "ssr-redir:         \e[32m[running]\e[0m" || echo -e "ssr-redir:         \e[35m[stopped]\e[0m"
-        fi
-        [ $(ss -lnpu | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsforwarder0:     \e[32m[running]\e[0m" || echo -e "dnsforwarder0:     \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^chinadns$') -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsforwarder1:     \e[32m[running]\e[0m" || echo -e "dnsforwarder1:     \e[35m[stopped]\e[0m"
-        ;;
-    tun2socks_global)
-        echo "mode:       tun2socks_global"
-        port=$(echo $socks5_listen | awk -F: '{print $2}')
-        [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/udp:        \e[32m[running]\e[0m" || echo -e "socks5/udp:        \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tun2socks_global_tcp)
-        echo "mode:   tun2socks_global_tcp"
-        port=$(echo $socks5_listen | awk -F: '{print $2}')
-        [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsforwarder$') -ne 0 ] && echo -e "dnsforwarder:      \e[32m[running]\e[0m" || echo -e "dnsforwarder:      \e[35m[stopped]\e[0m"
-        ;;
-    tun2socks_gfwlist)
-        echo "mode:      tun2socks_gfwlist"
-        port=$(echo $socks5_listen | awk -F: '{print $2}')
-        [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/udp:        \e[32m[running]\e[0m" || echo -e "socks5/udp:        \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tun2socks_gfwlist_tcp)
-        echo "mode:  tun2socks_gfwlist_tcp"
-        port=$(echo $socks5_listen | awk -F: '{print $2}')
-        [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^dnsforwarder$') -ne 0 ] && echo -e "dnsforwarder:      \e[32m[running]\e[0m" || echo -e "dnsforwarder:      \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tun2socks_chnroute)
-        echo "mode:     tun2socks_chnroute"
-        port=$(echo $socks5_listen | awk -F: '{print $2}')
-        [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/udp:        \e[32m[running]\e[0m" || echo -e "socks5/udp:        \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^chinadns$') -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(ss -lnp | grep 'dnsmasq' | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsmasq:           \e[32m[running]\e[0m" || echo -e "dnsmasq:           \e[35m[stopped]\e[0m"
-        ;;
-    tun2socks_chnroute_tcp)
-        echo "mode: tun2socks_chnroute_tcp"
-        port=$(echo $socks5_listen | awk -F: '{print $2}')
-        [ $(ss -lnpt | grep ":$port\s" | wc -l) -ne 0 ] && echo -e "socks5/tcp:        \e[32m[running]\e[0m" || echo -e "socks5/tcp:        \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^tun2socks$') -ne 0 ] && echo -e "tun2socks:         \e[32m[running]\e[0m" || echo -e "tun2socks:         \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ':60053\s' | wc -l) -ne 0 ] && echo -e "dnsforwarder0:     \e[32m[running]\e[0m" || echo -e "dnsforwarder0:     \e[35m[stopped]\e[0m"
-        [ $(pgrep -c '^chinadns$') -ne 0 ] && echo -e "chinadns:          \e[32m[running]\e[0m" || echo -e "chinadns:          \e[35m[stopped]\e[0m"
-        [ $(ss -lnpu | grep ':53\s' | wc -l) -ne 0 ] && echo -e "dnsforwarder1:     \e[32m[running]\e[0m" || echo -e "dnsforwarder1:     \e[35m[stopped]\e[0m"
+    chnroute)
+        echo "mode:     chnroute"
+        [ $(netstat -lnpt | grep -E ":$proxy_tcport\s"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":$proxy_udport\s"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":53\s.+dnsmasq"     | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":65353\s.+chinadns" | wc -l) -ne 0 ] && echo -e "chinadns: \e[32m[running]\e[0m" || echo -e "chinadns: \e[35m[stopped]\e[0m"
         ;;
 esac
 }
 
-function dump_ipts {
+function show_iptables {
     echo -e "\e[36;1m==> mangle <==\e[0m"
     iptables -t mangle -nvL --line-numbers
     echo
@@ -619,7 +449,7 @@ function dump_ipts {
     iptables -t nat -nvL --line-numbers
 }
 
-function flush_ipts {
+function flush_iptables {
     iptables -t raw -F
     iptables -t raw -X
     iptables -t mangle -F
@@ -630,7 +460,7 @@ function flush_ipts {
     iptables -t filter -X
 }
 
-function usage {
+function help {
 cat <<EOF
 Usage: ss-tproxy <COMMAND>
 COMMAND := {
@@ -638,15 +468,15 @@ COMMAND := {
     stop                stop ss-tproxy
     restart             restart ss-tproxy
     status              status of ss-tproxy
-    dump-ipts           dump iptables rules
-    flush-ipts          flush iptables rules
-    flush-cache         flush dns cache
+    show-iptables       show iptables rules
+    flush-iptables      flush iptables rules
+    flush-dnscache      flush dns cache
     flush-gfwlist       flush ipset-gfwlist
     update-chnonly      update chnonly
     update-gfwlist      update gfwlist
     update-chnroute     update chnroute
-    check-depend        check dependency
-    help                show this help and exit
+    check-command       check commands
+    help                show help and exit
 }
 Issues or Bug report: zfl9.com@gmail.com (Otokaze)
 See https://www.zfl9.com/ss-redir.html for more details
@@ -658,14 +488,14 @@ case $1 in
     stop)               stop; status;;
     status)             status;;
     r*)                 stop; status; echo; start; status;;
-    d*)                 dump_ipts;;
-    flush-ipts)         flush_ipts;;
-    flush-cache)        flush_cache;;
+    show-iptables)      show_iptables;;
+    flush-iptables)     flush_iptables;;
+    flush-dnscache)     flush_dnscache;;
     flush-gfwlist)      ipset -F gfwlist &>/dev/null;;
     update-chnonly)     update_chnonly;;
     update-gfwlist)     update_gfwlist;;
     update-chnroute)    update_chnroute;;
-    c*)                 check_depend;;
-    h*)                 usage;;
-    *)                  usage; exit 1;;
+    c*)                 check_command;;
+    h*)                 help;;
+    *)                  help; exit 1;;
 esac
