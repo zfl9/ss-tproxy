@@ -137,4 +137,16 @@ systemctl start ssr-redir
 
 如果使用 chnonly 模式（国外翻进国内），请选择 `gfwlist` mode，chnonly 模式下，你必须修改 ss-tproxy.conf 中的 `dns_remote` 为国内的 DNS，如 `dns_remote='114.114.114.114:53'`，并将 `dns_direct` 改为本地 DNS（国外的），如 `dns_direct='8.8.8.8'`；因为 chnonly 模式与 gfwlist 模式共享 gfwlist.txt、gfwlist.ext 文件，所以在第一次使用时你必须先运行 `ss-tproxy update-chnonly` 将默认的 gfwlist.txt 内容替换为大陆域名（更新列表时，也应使用 `ss-tproxy update-chnonly`），并且注释掉 gfwlist.ext 中的 Telegram IP 段，因为这是为正常翻墙设置的。要恢复 gfwlist 模式的话，请进行相反的步骤。
 
+**自启**（Systemd）
+- `mv -f ss-tproxy.service /etc/systemd/system`
+- `systemctl daemon-reload`
+- `systemctl enable ss-tproxy.service`
+
+**自启**（SysVinit）
+- `touch /etc/rc.d/rc.local`
+- `chmod +x /etc/rc.d/rc.local`
+- `echo '/usr/local/bin/ss-tproxy start' >>/etc/rc.d/rc.local`
+
+注意，上述自启方式并不完美，ss-tproxy 可能会自启失败，主要是因为 ss-tproxy 可能会在网络还未完全准备好的情况下先运行，如果 ss-tproxy.conf 中的 `proxy_server` 为域名（即使是 IP 形式，也可能会失败，因为某些代理软件需要在有网的情况下才能启动成功），那么就会出现域名解析失败的错误，然后导致代理软件启动失败、iptables 规则配置失败等等。缓解方法有：将 `proxy_server` 改为 IP 形式（如果允许的话）；或者将 `proxy_server` 中的域名添加到主机的 `/etc/hosts` 文件；或者使用各种方式让 ss-tproxy 在网络完全启动后再启动。如果你使用的是 ArchLinux，最好自启方式是利用 netctl 的 hook 启动 ss-tproxy（如拨号成功后再启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
+
 // TODO
