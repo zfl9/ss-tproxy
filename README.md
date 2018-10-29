@@ -21,4 +21,32 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 - chnroute 模式：dnsmasq:53@tcp+udp、chinadns:65353@udp
 
 ## 脚本用法
+**安装**
+```bash
+git clone https://github.com/zfl9/ss-tproxy
+cd ss-tproxy
+cp -af ss-tproxy /usr/local/bin
+chmod 0755 /usr/local/bin/ss-tproxy
+chown root:root /usr/local/bin/ss-tproxy
+mkdir -m 0755 -p /etc/ss-tproxy
+cp -af ss-tproxy.conf gfwlist.* chnroute.* /etc/ss-tproxy
+chmod 0644 /etc/ss-tproxy/* && chown -R root:root /etc/ss-tproxy
+```
+
+**删除**
+```bash
+ss-tproxy stop
+ss-tproxy flush-iptables
+rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
+```
+
+**简介**
+- `ss-tproxy`：脚本文件
+- `ss-tproxy.conf`：配置文件
+- `ss-tproxy.service`：服务文件
+- `gfwlist.txt`：gfwlist 域名文件，不可配置
+- `gfwlist.ext`：gfwlsit 黑名单文件，可配置
+- `chnroute.set`：chnroute for ipset，不可配置
+- `chnroute.txt`：chnroute for chinadns，不可配置
+
 // TODO
