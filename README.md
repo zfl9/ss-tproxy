@@ -49,4 +49,13 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 - `chnroute.set`：chnroute for ipset，不可配置
 - `chnroute.txt`：chnroute for chinadns，不可配置
 
+**配置**
+- 脚本配置文件为 `/etc/ss-tproxy/ss-tproxy.conf`，修改后重启脚本才能生效
+- 默认分流模式为 `chnroute`，这也是 v1 版本中的分流模式，根据你的需要修改
+- 根据实际情况，修改 `proxy` 配置段中的代理软件的信息，详细内容见下面的说明
+- `dns_remote` 为远程 DNS 服务器（走代理），默认为 Google DNS，根据需要修改
+- `dns_direct` 为直连 DNS 服务器（走直连），默认为 114 公共DNS，根据需要修改
+- `iptables_intranet` 为要代理的内网网段，默认为 192.168.0.0/16，根据需要修改
+- 如需配置 gfwlist 扩展黑名单，请编辑 `/etc/tproxy/gfwlist.ext`，重启脚本生效
+
 // TODO
