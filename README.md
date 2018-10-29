@@ -56,6 +56,6 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 - `dns_remote` 为远程 DNS 服务器（走代理），默认为 Google DNS，根据需要修改
 - `dns_direct` 为直连 DNS 服务器（走直连），默认为 114 公共DNS，根据需要修改
 - `iptables_intranet` 为要代理的内网的网段，默认为 192.168.0.0/16，根据需要修改
-- 如需配置 gfwlist 扩展列表，请编辑 `/etc/ss-tproxy/gfwlist.ext`，重启脚本以生效
+- 如需配置 gfwlist 扩展列表，请编辑 `/etc/ss-tproxy/gfwlist.ext`，然后重启脚本生效
 
 // TODO
