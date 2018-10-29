@@ -6,4 +6,6 @@ ss-tproxy v3 基本上可以认为是 ss-tproxy v2 的精简优化版，v3 版�
 
 v3 版本仍然实现了 global、gfwlist、chnonly、chnroute 四种分流模式；global 是指全部流量都走代理；gfwlist 是指 gfwlist.txt 与 gfwlist.ext 列表中的地址走代理，其余走直连；chnonly 本质与 gfwlist 没区别，只是 gfwlist.txt 与 gfwlist.ext 列表中的域名为大陆域名，所以 chnonly 是国外翻回国内的专用模式；chnroute 则是从 v1 版本开始就有的模式，chnroute 模式会放行特殊地址、国内地址的流量，然后其它的流量（发往国外的流量）都会走代理出去（默认）。
 
+如果你需要使用 tun2socks 模式（socks5 透明代理）、tcponly 模式（仅代理 TCP 流量），请转到 [ss-tproxy v2 版本](https://github.com/zfl9/ss-tproxy/tree/v2-master)。关于 tcponly 模式，可能以后会在 v3 版本中加上，但目前暂时不考虑。而对于 socks5 透明代理，我不是很建议使用 tun2socks，因为 tun2socks 是 golang 写的一个程序，在树莓派上性能堪忧（v2ray 也是如此），即使你认为性能可以接受，我还是建议你使用 [redsocks2](https://github.com/semigodking/redsocks) 来配合 v3 脚本的 REDIRECT + TPROXY 模式（当然如果你的 socks5 代理仅支持 TCP，那么目前还是只能用 v2 的 tun2socks 模式，直到 v3 的 tcponly 模式上线）。使用 redsocks2 配合 REDIRECT + TPROXY 模式很简单，配置好 redsocks2 之后，在 ss-tproxy.conf 的 runcmd 中填写 redsocks2 的启动命令就行。
+
 // TODO
