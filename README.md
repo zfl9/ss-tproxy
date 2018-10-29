@@ -71,10 +71,10 @@ nohup command <args...> </dev/null &>>/var/log/proc.log &
 command <args...> </dev/null &>>/var/log/proc.log & disown
 
 # kilcmd
+pkill -9 command
 service srvname stop
 systemctl stop srvname
 kill -9 $(pidof command)
-pkill -9 command
 
 # example
 service v2ray start
