@@ -83,6 +83,33 @@ systemctl start ss-redir
 systemctl start ssr-redir
 (ss-redir <args...> </dev/null &>>/var/log/ss-redir.log &)
 (ssr-redir <args...> </dev/null &>>/var/log/ssr-redir.log &)
+
+# ss-redir args
+-s <server_addr>    # 服务器地址
+-p <server_port>    # 服务器端口
+-m <server_method>  # 加密方式
+-k <server_passwd>  # 用户密码
+-b <listen_addr>    # 监听地址
+-l <listen_port>    # 监听端口
+--no-delay          # TCP_NODELAY
+--fast-open         # TCP_FASTOPEN
+--reuse-port        # SO_REUSEPORT
+-u                  # 启用 udp relay
+-v                  # 启用详细日志
+
+# ssr-redir args
+-s <server_addr>    # 服务器地址
+-p <server_port>    # 服务器端口
+-m <server_method>  # 加密方式
+-k <server_passwd>  # 用户密码
+-b <listen_addr>    # 监听地址
+-l <listen_port>    # 监听端口
+-O <protocol>       # 协议插件
+-G <protocol_param> # 协议参数
+-o <obfs>           # 混淆插件
+-g <obfs_param>     # 混淆参数
+-u                  # 启用 udp relay
+-v                  # 启用详细日志
 ```
 
 // TODO
