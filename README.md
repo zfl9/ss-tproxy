@@ -58,7 +58,7 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 - `iptables_intranet` 为要代理的内网的网段，默认为 192.168.0.0/16，根据需要修改
 - 如需配置 gfwlist 扩展列表，请编辑 `/etc/ss-tproxy/gfwlist.ext`，然后重启脚本生效
 
-`proxy` 配置段中的 `proxy_server` 可以填写域名、也可以填写 IP，不作要求；`proxy_runcmd` 是用来启动代理软件的命令，此命令不可以占用前台，否则 `ss-tproxy start` 将被阻塞；`proxy_kilcmd` 是用来停止代理软件的命令。`proxy_runcmd` 与 `proxy_kilcmd` 命令的常见的写法：
+`proxy` 配置段中的 `proxy_server` 可以填写域名、也可以填写 IP，不作要求；`proxy_runcmd` 是用来启动代理软件的命令，此命令不可以占用前台，否则 `ss-tproxy start` 将被阻塞；`proxy_kilcmd` 是用来停止代理软件的命令。常见的写法：
 ```bash
 # runcmd
 command <args...>
@@ -73,11 +73,16 @@ command <args...> </dev/null &>>/var/log/proc.log & disown
 # kilcmd
 service srvname stop
 systemctl stop srvname
-pkill -9 command
 kill -9 $(pidof command)
+pkill -9 command
 
 # example
-# TODO
+service v2ray start
+systemctl start v2ray
+systemctl start ss-redir
+systemctl start ssr-redir
+(ss-redir <args...> </dev/null &>>/var/log/ss-redir.log &)
+(ssr-redir <args...> </dev/null &>>/var/log/ssr-redir.log &)
 ```
 
 // TODO
