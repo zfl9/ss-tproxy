@@ -112,4 +112,29 @@ systemctl start ssr-redir
 -v                  # 启用详细日志输出
 ```
 
+如果使用 v2ray（REDIRECT + TPROXY 方式），你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，如：
+```javascript
+{
+    "inbound": { ... },
+    "inboundDetour": [
+        // as ss-redir
+        {
+            "port": 60080,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "network": "tcp,udp",
+                "followRedirect": true,
+                "domainOverride": ["quic"]
+            }
+        },
+        ...
+    ],
+    "outbound": { ... },
+    "outboundDetour": [ ... ],
+    "routing": { ... }
+}
+```
+
+如果使用 chnonly 模式（国外翻进国内），请选择 `gfwlist` mode，chnonly 模式下，你必须修改 ss-tproxy.conf 中的 `dns_remote` 为国内的 DNS，如 `dns_remote='114.114.114.114:53'`，并将 `dns_direct` 改为本地 DNS（国外的），如 `dns_direct='8.8.8.8'`；因为 chnonly 模式与 gfwlist 模式共享 gfwlist.txt、gfwlist.ext 文件，所以在第一次使用时你必须先运行 `ss-tproxy update-chnonly` 将默认的 gfwlist.txt 内容替换为大陆域名（更新列表时，也应使用 `ss-tproxy update-chnonly`），并且注释掉 gfwlist.ext 中的 Telegram IP 段，因为这是为正常翻墙设置的，反之亦然。
+
 // TODO
