@@ -112,7 +112,7 @@ systemctl start ssr-redir
 -v                  # 启用详细日志输出
 ```
 
-如果使用 v2ray（REDIRECT + TPROXY 方式），你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，如：
+如果使用 v2ray（只介绍 REDIRECT + TPROXY 方式），你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，如：
 ```javascript
 {
     "inbound": { ... },
