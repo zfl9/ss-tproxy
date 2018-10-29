@@ -165,9 +165,9 @@ systemctl start ssr-redir
 - `ss-tproxy show-iptables`：查看 iptables 的 mangle、nat 表
 - `ss-tproxy flush-iptables`：清空 raw、mangle、nat、filter 表
 
-`ss-tproxy flush-gfwlist` 的作用：因为 `gfwlist` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会清空 `ipset-gfwlist` 列表，所以如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或者修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致奇怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能需要还清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
+`ss-tproxy flush-gfwlist` 的作用：因为 `gfwlist` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会清空 `ipset-gfwlist` 列表，所以如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或者修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致奇怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能还需要清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
 
-如果需要修改 `proxy_kilcmd`（比如将 ss 改为 ssr），请先执行 `ss-tproxy stop` 再修改配置文件，否则之前的代理进程不会被 kill，这可能会造成端口冲突。
+如果需要修改 `proxy_kilcmd`（比如将 ss 改为 ssr），请先执行 `ss-tproxy stop` 后再修改 `/etc/ss-tproxy/ss-tproxy.conf` 配置文件，否则之前的代理进程不会被 kill（因为 ss-tproxy 不可能再知道之前的 kill 命令是什么，毕竟 ss-tproxy 只是一个 shell 脚本，无法维持状态），这可能会造成端口冲突。
 
 **日志**
 > 脚本默认关闭了详细日志，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
