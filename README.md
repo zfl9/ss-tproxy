@@ -150,4 +150,27 @@ systemctl start ssr-redir
 
 注意，上述自启方式并不完美，ss-tproxy 可能会自启失败，主要是因为 ss-tproxy 可能会在网络还未完全准备好的情况下先运行，如果 ss-tproxy.conf 中的 `proxy_server` 为域名（即使是 IP 形式，也可能会失败，因为某些代理软件需要在有网的情况下才能启动成功），那么就会出现域名解析失败的错误，然后导致代理软件启动失败、iptables 规则配置失败等等。缓解方法有：将 `proxy_server` 改为 IP 形式（如果允许的话）；或者将 `proxy_server` 中的域名添加到主机的 `/etc/hosts` 文件；或者使用各种方式让 ss-tproxy 在网络完全启动后再启动。如果你使用的是 ArchLinux，那么最好的自启方式是利用 netctl 的 hook 脚本来启动 ss-tproxy（如拨号成功后再启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
 
-// TODO
+**用法**
+- `ss-tproxy help`：查看帮助
+- `ss-tproxy start`：启动代理
+- `ss-tproxy stop`：关闭代理
+- `ss-tproxy restart`：重启代理
+- `ss-tproxy status`：代理状态
+- `ss-tproxy check-command`：检查命令是否存在
+- `ss-tproxy flush-dnscache`：清空 DNS 查询缓存
+- `ss-tproxy flush-gfwlist`：清空 ipset-gfwlist IP 列表
+- `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
+- `ss-tproxy update-chnonly`：更新 chnonly（restart 生效）
+- `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
+- `ss-tproxy show-iptables`：查看 iptables 的 mangle、nat 表
+- `ss-tproxy flush-iptables`：清空 raw、mangle、nat、filter 表
+
+`ss-tproxy flush-gfwlist` 的作用：因为 `gfwlist` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会清空 `ipset-gfwlist` 列表，所以如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或者修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致奇怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能需要还清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
+
+如果需要修改 `proxy_kilcmd`（比如将 ss 改为 ssr），请先执行 `ss-tproxy stop` 再修改配置文件，否则之前的代理进程不会被 kill，这可能会造成端口冲突。
+
+**日志**
+> 脚本默认关闭了详细日志，如果需要，请修改 ss-tproxy.conf，打开相应的 log/verbose 选项
+
+- dnsmasq：`/var/log/dnsmasq.log`
+- chinadns：`/var/log/chinadns.log`
