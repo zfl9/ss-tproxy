@@ -8,4 +8,6 @@ v3 版本仍然实现了 global、gfwlist、chnonly、chnroute 四种分流模�
 
 如果你需要使用 tun2socks 模式（socks5 透明代理）、tcponly 模式（仅代理 TCP 流量），请转到 [ss-tproxy v2 版本](https://github.com/zfl9/ss-tproxy/tree/v2-master)。关于 tcponly 模式，可能以后会在 v3 版本中加上，但目前暂时不考虑。而对于 socks5 透明代理，我不是很建议使用 tun2socks，因为 tun2socks 是 golang 写的一个程序，在树莓派上性能堪忧（v2ray 也是如此），即使你认为性能可以接受，我还是建议你使用 [redsocks2](https://github.com/semigodking/redsocks) 来配合 v3 脚本的 REDIRECT + TPROXY 模式（当然如果你的 socks5 代理仅支持 TCP，那么目前还是只能用 v2 的 tun2socks 模式，直到 v3 的 tcponly 模式上线）。使用 redsocks2 配合 REDIRECT + TPROXY 模式很简单，配置好 redsocks2 之后，在 ss-tproxy.conf 的 runcmd 中填写 redsocks2 的启动命令就行。
 
+ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境中，可以透明代理 ss-tproxy 主机本身以及所有网关指向 ss-tproxy 主机的其它主机的 TCP 与 UDP 流量。透明代理主机本身的 TCP 和 UDP 没什么好讲的，我主要说一下透明代理"其它主机"的 TCP 和 UDP 的流量。即使 ss-tproxy 不是运行在 Linux 软路由/网关上，但通过某些"技巧"，ss-tproxy 依旧能够透明代理其它主机的 TCP 与 UDP 流量。比如你在某台内网主机（假设 IP 地址为 192.168.0.100）中运行 ss-tproxy，那么你只要将该内网中的其它主机的网关（gateway）以及 dns 服务器指向这台内网主机，那么这些内网主机的 TCP 和 UDP 就会被 ss-tproxy 给透明代理。当然这台内网主机可以是一个虚拟机（网络要设为桥接模式），假设这台虚拟机的 IP 为 192.168.0.200，虚拟机能够与内网中的其他主机正常通信，也能够正常上外网，那么你只需将内网中的其它主机的网关和 DNS 指向 192.168.0.200 即可透明代理它们的 TCP 与 UDP 流量。
+
 // TODO
