@@ -359,6 +359,7 @@ global|chnroute)
     ;;
 esac
 fi
+    [ "$ipts_non_snat" = 'true' ] && iptables -t nat -F POSTROUTING
 }
 
 function start_dnsproxy {
@@ -404,7 +405,7 @@ function stop {
 
     for intranet in "${ipts_intranet[@]}"; do
         iptables -t nat -A PREROUTING  -s $intranet   -d $intranet -p udp --dport 53 -j DNAT --to-destination $dns_direct
-        iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet                   -j MASQUERADE
+        [ "$ipts_non_snat" != 'true' ] && iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
 
     ipset -X chnroute &>/dev/null
