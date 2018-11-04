@@ -186,6 +186,42 @@ proxy_kilcmd='service v2ray stop'
 
 `dns_modify='boolean_value'` 选项：如果值为 false（默认），那么 ss-tproxy 在修改 /etc/resolv.conf 文件时，会采用 `mount -o bind` 方式（不修改原文件，而是“覆盖”，stop 时会自动恢复为原来的文件）；如果值为 true，则直接使用 I/O 重定向来修改 /etc/resolv.conf 文件。一般情况下你不用理会这个选项，但如果 ss-tproxy 主机的网络需要经常变更，那么系统可能会修改 resolv.conf 文件，在这种情况下，当你执行 `ss-tproxy stop` 之后，主机可能会无法正常上网（因为刚才系统修改的文件其实是 `mount -o bind` 上去的，而不是“底层”的那个 resolv.conf）。
 
+**桥接模式**
+![桥接模式 - 网络拓扑](https://user-images.githubusercontent.com/22726048/47959326-e07fa280-e01b-11e8-95e5-32953cdbc803.png)
+上图由 [@myjsqmail](https://github.com/myjsqmail) 提供，他的想法是，在不改变原网络的情况下，让 ss-tproxy 透明代理内网中的所有 TCP、UDP 流量。为了达到这个目的，他在“拨号路由”下面接了一个“桥接主机”，桥接主机有两个网口，一个连接出口路由（假设为 wan），一个连接内网总线（假设为 lan），然后将这两张网卡进行桥接，得到一个逻辑网卡（假设为 br0），在桥接主机上开启“软路由功能”，即执行 `sysctl -w net.ipv4.ip_forward=1`，然后通过 DHCP 方式，获取出口路由上分配的 IP 信息，此时，桥接主机和其它内网主机已经能够正常上网了。
+
+然后，在桥接主机上运行 ss-tproxy，此时，桥接主机自己能够被正常代理，但是其它内网主机仍然走的直连，没有走透明代理。为什么呢？因为默认情况下，经过网桥的流量不会被 iptables 处理。所以我们必须让网桥上的流量经过 iptables 处理，首先，执行命令 `modprobe br_netfilter` 以加载 br_netfilter 内核模块，然后修改 /etc/sysctl.conf，添加：
+```bash
+net.ipv4.conf.all.rp_filter = 0
+net.ipv4.conf.default.rp_filter = 0
+
+net.ipv4.conf.all.route_localnet = 1
+net.ipv4.conf.default.route_localnet = 1
+
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-arptables = 1
+```
+执行 `sysctl -p` 来让这些内核参数生效。
+
+但这还不够，我们还需要设置 ebtables 规则，首先，安装 ebtables，如 `yum -y install ebtables`，然后执行：
+```bash
+ebtables -t broute -A BROUTING -p IPv4 -i lan --ip-proto tcp -j redirect --redirect-target DROP
+ebtables -t broute -A BROUTING -p IPv4 -i wan --ip-proto tcp -j redirect --redirect-target DROP
+ebtables -t broute -A BROUTING -p IPv4 -i lan --ip-proto udp --ip-dport ! 53 -j redirect --redirect-target DROP
+ebtables -t broute -A BROUTING -p IPv4 -i wan --ip-proto udp --ip-sport ! 53 -j redirect --redirect-target DROP
+```
+
+如果 `proxy_tproxy` 为 false，那么你还需要修改 ss-tproxy 里面的 iptables 规则，将 REDIRECT 改为 DNAT，如：
+```bash
+# old
+iptables -t nat -A TCPCHAIN -p tcp -j REDIRECT --to-ports $proxy_tcport
+# new
+iptables -t nat -A TCPCHAIN -p tcp -j DNAT --to-destination 127.0.0.1:$proxy_tcport
+```
+
+如果没出什么意外的话，那么现在桥接主机和其它内网主机的 TCP 和 UDP 流量都是能够被 ss-tproxy 透明代理的。
+
 **自启**（Systemd）
 - `mv -f ss-tproxy.service /etc/systemd/system`
 - `systemctl daemon-reload`
