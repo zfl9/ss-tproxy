@@ -202,7 +202,7 @@ net.bridge.bridge-nf-call-iptables = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-arptables = 1
 ```
-执行 `sysctl -p` 来让这些内核参数生效。
+保存退出，然后执行 `sysctl -p` 来让这些内核参数生效。
 
 但这还不够，我们还需要设置 ebtables 规则，首先，安装 ebtables，如 `yum -y install ebtables`，然后执行：
 ```bash
