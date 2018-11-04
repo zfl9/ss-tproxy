@@ -220,7 +220,8 @@ iptables -t nat -A TCPCHAIN -p tcp -j REDIRECT --to-ports $proxy_tcport
 iptables -t nat -A TCPCHAIN -p tcp -j DNAT --to-destination 127.0.0.1:$proxy_tcport
 ```
 
-如果没出什么意外的话，那么现在桥接主机和其它内网主机的 TCP 和 UDP 流量都是能够被 ss-tproxy 透明代理的。
+如果没出什么意外的话，现在桥接主机和其它内网主机的 TCP 和 UDP 流量应该都是能够被 ss-tproxy 给透明代理的。<br>
+差点忘了，请将 `/etc/ss-tproxy/ss-tproxy.conf` 里面的 `ipts_non_snat` 选项改为 true，因为不需要 SNAT 规则。
 
 **自启**（Systemd）
 - `mv -f ss-tproxy.service /etc/systemd/system`
