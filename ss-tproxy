@@ -380,6 +380,7 @@ EOF
 }
 
 function start {
+    [ "$(type -t pre_start)" = 'function' ] && pre_start
     if [ "$dns_modify" = 'false' ]; then
         while umount /etc/resolv.conf; do :; done &>/dev/null
     else
@@ -392,9 +393,12 @@ function start {
     start_iptables
     start_dnsproxy
     rm -f $temp_chnroute_txt &>/dev/null
+    [ "$(type -t post_start)" = 'function' ] && post_start
 }
 
 function stop {
+    [ "$(type -t pre_stop)" = 'function' ] && pre_stop
+
     if [ "$dns_modify" = 'false' ]; then
         while umount /etc/resolv.conf; do :; done &>/dev/null
     else
@@ -431,6 +435,8 @@ function stop {
     eval "$proxy_kilcmd" &>/dev/null
     kill -9 $(pidof 'chinadns') &>/dev/null
     netstat -lnpu | awk -F/ '/:53\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
+
+    [ "$(type -t post_stop)" = 'function' ] && post_stop
 }
 
 function status {
