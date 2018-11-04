@@ -61,7 +61,7 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 - `iptables_intranet` 为要代理的内网的网段，默认为 192.168.0.0/16，根据需要修改
 - 如需配置 gfwlist 扩展列表，请编辑 `/etc/ss-tproxy/gfwlist.ext`，然后重启脚本生效
 
-`proxy` 配置段中的 `proxy_server` 是代理服务器的地址，可以填域名也可以填 IP，不作要求（但并不是说这个选项就能随便写，你必须保证 `proxy_server` 的地址与 `proxy_runcmd` 里面的服务器地址保持一致，否则 iptables 规则将会出现死循环）；`proxy_runcmd` 是用来启动代理软件的命令，此命令不可以占用前台，否则 `ss-tproxy start` 将被阻塞；`proxy_kilcmd` 是用来停止代理软件的命令。常见的写法：
+`proxy` 配置段中的 `proxy_server` 是代理服务器的地址，可以填域名也可以填 IP，不作要求（但并不是说这个选项就能随便写，你必须保证 `proxy_server` 的地址与 `proxy_runcmd` 里面的服务器地址保持一致，否则 iptables 规则将会出现死循环）；`proxy_runcmd` 是用来启动代理软件的命令，此命令不可以占用前台（意思是说这个命令必须能够立即返回），否则 `ss-tproxy start` 将被阻塞；`proxy_kilcmd` 是用来停止代理软件的命令。常见的写法有：
 ```bash
 # runcmd
 command <args...>
@@ -125,8 +125,10 @@ systemctl start ssr-redir
 # 用户密码:   passwd.ss.net
 # 监听地址:   127.0.0.1
 # 监听端口:   60080
-# 那么 proxy_runcmd 就为:
+# proxy_runcmd 如下:
 (ss-redir -s ss.net -p 8080 -m aes-128-gcm -k passwd.ss.net -b 127.0.0.1 -l 60080 -u --reuse-port --no-delay --fast-open </dev/null &>>/var/log/ss-redir.log &)
+# proxy_kilcmd 如下:
+kill -9 $(pidof ss-redir)
 
 # ssr-libev 透明代理
 # 假设服务器信息如下:
@@ -140,15 +142,19 @@ systemctl start ssr-redir
 # 混淆参数:   www.bing.com
 # 监听地址:   127.0.0.1
 # 监听端口:   60080
-# 那么 proxy_runcmd 就为:
+# proxy_runcmd 如下:
 # 如果没有协议参数、混淆参数，则去掉 -G、-g 选项
 (ssr-redir -s ss.net -p 8080 -m aes-128-cfb -k passwd.ss.net -O auth_chain_a -G 2333:protocol_param -o http_simple -g www.bing.com -u </dev/null &>>/var/log/ssr-redir.log &)
+# proxy_kilcmd 如下:
+kill -9 $(pidof ssr-redir)
 
 # v2ray 透明代理:
-# 对于 Systemd，则 proxy_runcmd 为:
-systemctl start v2ray
-# 对于 SysVinit，则 proxy_runcmd 为:
-service v2ray start
+# 对于 Systemd 发行版
+proxy_runcmd='systemctl start v2ray'
+proxy_kilcmd='systemctl stop  v2ray'
+# 对于 SysVinit 发行版
+proxy_runcmd='service v2ray start'
+proxy_kilcmd='service v2ray stop'
 ```
 对于 ss-libev、ssr-libev，也可以将相关配置信息写入 json 文件，然后使用选项 `-c /path/to/config.json` 来运行它。
 
