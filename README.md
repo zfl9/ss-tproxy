@@ -123,10 +123,10 @@ systemctl start ssr-redir
 # 服务器端口: 8080
 # 加密方式:   aes-128-gcm
 # 用户密码:   passwd.ss.net
-# 监听地址:   127.0.0.1
+# 监听地址:   0.0.0.0
 # 监听端口:   60080
 # proxy_runcmd 如下:
-(ss-redir -s ss.net -p 8080 -m aes-128-gcm -k passwd.ss.net -b 127.0.0.1 -l 60080 -u --reuse-port --no-delay --fast-open </dev/null &>>/var/log/ss-redir.log &)
+(ss-redir -s ss.net -p 8080 -m aes-128-gcm -k passwd.ss.net -b 0.0.0.0 -l 60080 -u --reuse-port --no-delay --fast-open </dev/null &>>/var/log/ss-redir.log &)
 # proxy_kilcmd 如下:
 kill -9 $(pidof ss-redir)
 
@@ -140,11 +140,11 @@ kill -9 $(pidof ss-redir)
 # 协议参数:   2333:protocol_param
 # 混淆插件:   http_simple
 # 混淆参数:   www.bing.com
-# 监听地址:   127.0.0.1
+# 监听地址:   0.0.0.0
 # 监听端口:   60080
 # proxy_runcmd 如下:
 # 如果没有协议参数、混淆参数，则去掉 -G、-g 选项
-(ssr-redir -s ss.net -p 8080 -m aes-128-cfb -k passwd.ss.net -O auth_chain_a -G 2333:protocol_param -o http_simple -g www.bing.com -u </dev/null &>>/var/log/ssr-redir.log &)
+(ssr-redir -s ss.net -p 8080 -m aes-128-cfb -k passwd.ss.net -O auth_chain_a -G 2333:protocol_param -o http_simple -g www.bing.com -b 0.0.0.0 -l 60080 -u </dev/null &>>/var/log/ssr-redir.log &)
 # proxy_kilcmd 如下:
 kill -9 $(pidof ssr-redir)
 
@@ -156,7 +156,8 @@ proxy_kilcmd='systemctl stop  v2ray'
 proxy_runcmd='service v2ray start'
 proxy_kilcmd='service v2ray stop'
 ```
-对于 ss-libev、ssr-libev，也可以将相关配置信息写入 json 文件，然后使用选项 `-c /path/to/config.json` 来运行它。
+对于 ss-libev、ssr-libev，也可以将相关配置信息写入 json 文件，然后使用选项 `-c /path/to/config.json` 来运行。
+特别注意，ss-redir、ssr-redir 的监听地址必须要设置为 0.0.0.0（即 `-b 0.0.0.0`），不能为 127.0.0.1，也不能省略。
 
 如果使用 v2ray（只介绍 REDIRECT + TPROXY 方式），你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，如：
 ```javascript
