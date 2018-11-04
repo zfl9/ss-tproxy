@@ -156,7 +156,7 @@ proxy_kilcmd='systemctl stop  v2ray'
 proxy_runcmd='service v2ray start'
 proxy_kilcmd='service v2ray stop'
 ```
-对于 ss-libev、ssr-libev，也可以将相关配置信息写入 json 文件，然后使用选项 `-c /path/to/config.json` 来运行。
+对于 ss-libev、ssr-libev，也可以将相关配置信息写入 json 文件，然后使用选项 `-c /path/to/config.json` 来运行。<br>
 特别注意，ss-redir、ssr-redir 的监听地址必须要设置为 0.0.0.0（即 `-b 0.0.0.0`），不能为 127.0.0.1，也不能省略。
 
 如果使用 v2ray（只介绍 REDIRECT + TPROXY 方式），你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，如：
