@@ -184,7 +184,7 @@ proxy_kilcmd='service v2ray stop'
 
 如果使用 chnonly 模式（国外翻进国内），请选择 `gfwlist` mode，chnonly 模式下，你必须修改 ss-tproxy.conf 中的 `dns_remote` 为国内的 DNS，如 `dns_remote='114.114.114.114:53'`，并将 `dns_direct` 改为本地 DNS（国外的），如 `dns_direct='8.8.8.8'`；因为 chnonly 模式与 gfwlist 模式共享 gfwlist.txt、gfwlist.ext 文件，所以在第一次使用时你必须先运行 `ss-tproxy update-chnonly` 将默认的 gfwlist.txt 内容替换为大陆域名（更新列表时，也应使用 `ss-tproxy update-chnonly`），并且注释掉 gfwlist.ext 中的 Telegram IP 段，因为这是为正常翻墙设置的。要恢复 gfwlist 模式的话，请进行相反的步骤。
 
-`dns_modify='boolean_value'` 选项：如果值为 false（默认），那么 ss-tproxy 在修改 /etc/resolv.conf 文件时，会采用 `mount -o bind` 方式（不修改原文件，而是“覆盖”，stop 时会自动恢复为原来的文件）；如果值为 true，则直接使用 I/O 重定向来修改 /etc/resolv.conf 文件。一般情况下你不用理会这个选项，但如果 ss-tproxy 主机的网络需要经常变更，那么系统可能会修改 resolv.conf 文件，在这种情况下，当你执行 `ss-tproxy stop` 之后，主机可能会无法正常上网（因为刚才系统修改的文件其实是 `mount -o bind` 上去的，而不是“底层”的那个 resolv.conf）。
+`dns_modify='boolean_value'`：如果值为 false（默认），则 ss-tproxy 在修改 /etc/resolv.conf 文件时，会采用 `mount -o bind` 方式（不直接修改原文件，而是“覆盖”它，在 stop 之后会自动恢复为原文件）；如果值为 true，则直接使用 I/O 重定向来修改 /etc/resolv.conf 文件。一般情况下保持默认就行，但某些时候将其设为 true 可能会好一些（具体什么时候，我也不太好讲，需要具体情况具体分析）。
 
 **端口映射**
 
