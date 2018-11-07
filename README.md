@@ -215,9 +215,7 @@ net.bridge.bridge-nf-call-arptables = 1
 但这还不够，我们还需要设置 ebtables 规则，首先，安装 ebtables，如 `yum -y install ebtables`，然后执行：
 ```bash
 ebtables -t broute -A BROUTING -p IPv4 -i lan --ip-proto tcp -j redirect --redirect-target DROP
-ebtables -t broute -A BROUTING -p IPv4 -i wan --ip-proto tcp -j redirect --redirect-target DROP
 ebtables -t broute -A BROUTING -p IPv4 -i lan --ip-proto udp --ip-dport ! 53 -j redirect --redirect-target DROP
-ebtables -t broute -A BROUTING -p IPv4 -i wan --ip-proto udp --ip-sport ! 53 -j redirect --redirect-target DROP
 ```
 
 如果 `proxy_tproxy` 为 false，那么你还需要修改 ss-tproxy 里面的 iptables 规则，将 REDIRECT 改为 DNAT，如：
