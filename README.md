@@ -18,10 +18,14 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 - gfwlist 模式：iproute2、TPROXY、dnsmasq、perl、ipset
 - chnroute 模式：iproute2、TPROXY、dnsmasq、chinadns、ipset
 
+> 注意：`ss-tproxy v3` 版本只依赖 `iproute2` 软件包的 `ip` 命令。
+
 ## 端口占用
 - global 模式：dnsmasq:53@tcp+udp
 - gfwlist 模式：dnsmasq:53@tcp+udp
 - chnroute 模式：dnsmasq:53@tcp+udp、chinadns:65353@udp
+
+> 如果系统已经运行了 dnsmasq（如 openwrt），只需要将系统运行的 dnsmasq 的 dns 功能关闭即可（选项 `port = 0`）。
 
 ## 脚本用法
 **安装**
