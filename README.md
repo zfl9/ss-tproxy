@@ -163,26 +163,46 @@ proxy_kilcmd='service v2ray stop'
 对于 ss-libev、ssr-libev，也可以将相关配置信息写入 json 文件，然后使用选项 `-c /path/to/config.json` 来运行。<br>
 特别注意，ss-redir、ssr-redir 的监听地址必须要设置为 0.0.0.0（即 `-b 0.0.0.0`），不能为 127.0.0.1，也不能省略。
 
-如果使用 v2ray（只介绍 REDIRECT + TPROXY 方式），你必须配置 v2ray 客户端的 `dokodemo-door` 传入协议，如：
+如果你使用的是 v2ray（此处的配置仅适用于 `2018.11.05 v4.1` 版本之后的 v2ray-core，包含 v4.1 版本），那么你需要像下面这样配置 v2ray 客户端的 config.json（只需关注 `inbounds` 配置段，其它配置与 ss-tproxy 的使用无关），在下面这个例子中，代理方式为 REDIRECT + TPROXY（ss-tproxy 默认代理方式），如果你需要使用纯 TPROXY 代理方式，请将 `"tproxy": "redirect"` 这行注释掉，然后取消 `"tproxy": "tproxy"` 这行的注释，并且将 ss-tproxy.conf 里面的 `proxy_tproxy` 选项改为 true。
 ```javascript
 {
-    "inbound": { ... },
-    "inboundDetour": [
-        // as ss-redir
-        {
-            "port": 60080,
-            "protocol": "dokodemo-door",
-            "settings": {
-                "network": "tcp,udp",
-                "followRedirect": true,
-                "domainOverride": ["quic"]
-            }
-        },
-        ...
-    ],
-    "outbound": { ... },
-    "outboundDetour": [ ... ],
-    "routing": { ... }
+  "log": {
+    "access": "/var/log/v2ray/access.log",
+    "error": "/var/log/v2ray/error.log",
+    "loglevel": "warning"
+  },
+
+  "inbounds": [
+    {
+      "protocol": "dokodemo-door",
+      "listen": "0.0.0.0",
+      "port": 60080,
+      "settings": {
+        "network": "tcp,udp",
+        "followRedirect": true
+      },
+      "streamSettings": {
+        //"tproxy": "tproxy" // tproxy + tproxy
+        "tproxy": "redirect" // redirect + tproxy
+      }
+    }
+  ],
+
+  "outbounds": [
+    {
+      "protocol": "shadowsocks",
+      "settings": {
+        "servers": [
+          {
+            "address": "node.proxy.net",
+            "port": 12345,
+            "method": "aes-128-gcm",
+            "password": "password"
+          }
+        ]
+      }
+    }
+  ]
 }
 ```
 
