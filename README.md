@@ -194,13 +194,88 @@ proxy_kilcmd='service v2ray stop'
       "settings": {
         "servers": [
           {
-            "address": "node.proxy.net",
-            "port": 12345,
-            "method": "aes-128-gcm",
-            "password": "password"
+            "address": "node.proxy.net", // server addr
+            "port": 12345,               // server port
+            "method": "aes-128-gcm",     // server method
+            "password": "password"       // server passwd
           }
         ]
       }
+    }
+  ]
+}
+```
+
+有人反馈 v2ray 透明代理无法成功，请务必检查 v2ray 客户端和服务端的配置。这是我测试用的 v2ray 配置：
+
+**config.json for client**
+```javascript
+{
+  "log": {
+    "access": "/var/log/v2ray/access.log",
+    "error": "/var/log/v2ray/error.log",
+    "loglevel": "warning"
+  },
+
+  "inbounds": [
+    {
+      "protocol": "dokodemo-door",
+      "listen": "0.0.0.0",
+      "port": 60080,
+      "settings": {
+        "network": "tcp,udp",
+        "followRedirect": true
+      },
+      "streamSettings": {
+        //"tproxy": "tproxy" // tproxy + tproxy
+        "tproxy": "redirect" // redirect + tproxy
+      }
+    }
+  ],
+
+  "outbounds": [
+    {
+      "protocol": "shadowsocks",
+      "settings": {
+        "servers": [
+          {
+            "address": "node.proxy.net", // VPS 地址
+            "port": 12345,               // VPS 端口
+            "method": "aes-128-gcm",     // 加密方式
+            "password": "password"       // 用户密码
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**config.json for server**
+```javascript
+{
+  "log": {
+    "access": "/var/log/v2ray/access.log",
+    "error": "/var/log/v2ray/error.log",
+    "loglevel": "warning"
+  },
+
+  "inbounds": [
+    {
+      "protocol": "shadowsocks",
+      "address": "0.0.0.0",      // 监听地址
+      "port": 12345,             // 监听端口
+      "settings": {
+        "method": "aes-128-gcm", // 加密方式
+        "password": "password",  // 用户密码
+        "network": "tcp,udp"
+      }
+    }
+  ],
+
+  "outbounds": [
+    {
+      "protocol": "freedom"
     }
   ]
 }
