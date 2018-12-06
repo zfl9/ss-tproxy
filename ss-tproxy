@@ -68,7 +68,7 @@ function start_proxy {
 
 function start_resolver {
     if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$proxy_server") -eq 0 ]; then
-        proxy_server_addr=$(ping -nq -c1 -t1 $proxy_server | head -n1 | awk -F'[()]' '{print $2}')
+        proxy_server_addr=$(ping -nqc1 $proxy_server | head -n1 | awk -F'[()]' '{print $2}')
     fi
 case "$mode" in
 global)
