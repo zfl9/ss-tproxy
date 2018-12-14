@@ -25,6 +25,8 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 - gfwlist 模式：dnsmasq:60053@tcp+udp
 - chnroute 模式：dnsmasq:60053@tcp+udp、chinadns:65353@udp
 
+> 注意：即使系统已经运行了 dnsmasq 进程，也没有影响，因为端口不同。
+
 ## 脚本用法
 **安装**
 ```bash
