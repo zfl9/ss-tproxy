@@ -381,3 +381,6 @@ function post_stop {
 
 - dnsmasq：`/var/log/dnsmasq.log`
 - chinadns：`/var/log/chinadns.log`
+
+**FAQ**
+[ss-tproxy 常见问题解答](https://www.zfl9.com/ss-redir.html#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
