@@ -355,7 +355,34 @@ function post_stop {
 - `chmod +x /etc/rc.d/rc.local`
 - `echo '/usr/local/bin/ss-tproxy start' >>/etc/rc.d/rc.local`
 
-注意，上述自启方式并不完美，ss-tproxy 可能会自启失败，主要是因为 ss-tproxy 可能会在网络还未完全准备好的情况下先运行，如果 ss-tproxy.conf 中的 `proxy_server` 为域名（即使是 IP 形式，也可能会失败，因为某些代理软件需要在有网的情况下才能启动成功），那么就会出现域名解析失败的错误，然后导致代理软件启动失败、iptables 规则配置失败等等。缓解方法有：将 `proxy_server` 改为 IP 形式（如果允许的话）；或者将 `proxy_server` 中的域名添加到主机的 `/etc/hosts` 文件；或者使用各种方式让 ss-tproxy 在网络完全启动后再启动。如果你使用的是 ArchLinux，那么最好的自启方式是利用 netctl 的 hook 脚本来启动 ss-tproxy（如拨号成功后再启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)。
+注意，上述自启方式并不完美，ss-tproxy 可能会自启失败，主要是因为 ss-tproxy 可能会在网络还未完全准备好的情况下先运行，如果 ss-tproxy.conf 中的 `proxy_server` 为域名（即使是 IP 形式，也可能会失败，因为某些代理软件需要在有网的情况下才能启动成功），那么就会出现域名解析失败的错误，然后导致代理软件启动失败、iptables 规则配置失败等等。缓解方法有：将 `proxy_server` 改为 IP 形式（如果允许的话）；或者将 `proxy_server` 中的域名添加到主机的 `/etc/hosts` 文件；或者使用各种方式让 ss-tproxy 在网络完全启动后再启动。如果你使用的是 ArchLinux，那么最好的自启方式是利用 netctl 的 hook 脚本来启动 ss-tproxy（如拨号成功后再启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)，当然官方文档说的不是很详细，那我就来详细说明一下，如何在 ArchLinux 上利用 netctl 的 hook 来 start|stop ss-tproxy 脚本（其它系统应该也有类似的 hook，因为我自己用的是 Arch，所以就拿这个做例子）。
+
+假设你的网卡配置文件为 `/etc/netctl/eth0`（如果有多张网卡，那就选择“外网网卡”，也就是通过哪张网卡上网就选哪张网卡），则进入 `/etc/netctl/hooks` 目录，创建一个空文件（即钩子脚本，本质是 shell 脚本），然后给这个文件加上可执行权限（没有可执行权限的钩子脚本不会被 netctl 执行），比如我就创建一个名为 eth0.hooks 的文件（后缀名随便写，可以没有后缀）：
+```bash
+cd /etc/netctl/hooks
+touch eth0.hooks
+chmod +x eth0.hooks
+```
+然后使用你喜欢的文本编辑器打开 eth0.hooks 文件，添加以下内容：
+```bash
+#!/bin/bash
+
+if [ "$Profile" = 'eth0' ]; then
+    function onStart {
+        /usr/local/bin/ss-tproxy start
+        return 0
+    }
+
+    function onStop {
+        /usr/local/bin/ss-tproxy stop
+        return 0
+    }
+
+    ExecUpPost='onStart'
+    ExecDownPre='onStop'
+fi
+```
+脚本内容本身具有很好的自我解释性，我就不详细解释了，需要注意的是 `"$Profile" = 'eth0'`，因为默认情况下任何一张网卡的启动和停止都会搜寻 `/etc/netctl/hooks` 下的可执行钩子脚本，而我们实际上只需要关心 `/etc/netctl/eth0` 网卡的启动事件和关闭事件，所以就做了一下这个判断。编辑完之后保存退出，然后 reboot 测试一下是否能够正常自启动（当然你的 `/etc/netctl/eth0` 要配置自启动，即 `netctl enable eth0`）。
 
 **用法**
 - `ss-tproxy help`：查看帮助
