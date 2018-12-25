@@ -379,7 +379,7 @@ fi
 ```
 脚本内容本身具有很好的自我解释性，我就不详细解释了，需要注意的是 `"$Profile" = 'eth0'`，因为默认情况下任何一张网卡的启动和停止都会搜寻 `/etc/netctl/hooks` 下的可执行钩子脚本，而我们实际上只需要关心 `/etc/netctl/eth0` 网卡的启动事件和关闭事件，所以就做了一下这个判断。编辑完之后保存退出，然后 reboot 测试一下是否能够正常自启动（当然你的 `/etc/netctl/eth0` 要配置自启动，即 `netctl enable eth0`）。
 
-最后再啰嗦几句，如果你使用 `systemctl enable ss-tproxy.service` 方式配置了 ss-tproxy 的开机自启，那么应该避免直接使用 `ss-tproxy start|stop|restart` 这几个命令（当然除了这几个命令外，其它命令都是可以执行的，比如 `ss-tproxy status`、`ss-tproxy update-gfwlist`），为什么呢？因为 systemctl 启动一个脚本之后，systemctl 会在内部保存一个状态，即脚本已经 running，然后只有当你下次使用 systemctl 停止该脚本的时候，systemctl 内部才会将这个状态改为 stopped。所以配置 ss-tproxy 开机自启后，这个服务的状态就是 running，如果你执行 `ss-tproxy stop` 来停止脚本，那么这个服务状态是不会变的，依旧是 running，但实际上它已经 stopped 了，而当你执行 `systemctl start ss-tproxy` 来启动脚本时，systemctl 并不会在内部执行 `ss-tproxy start`，因为这个服务的状态是 running，说明已经启动了，就不会再次启动了。这样一来就完全混乱了，你以为执行完毕后 ss-tproxy 就启动了，然而实际上，执行 `ss-tproxy status` 看下还是 stopped 的。所以我说如果配置了 service 方式的开机自启，就不要使用 `ss-tproxy start|stop|restart` 这 3 个命令了！应使用 `systemctl start|stop|restart ss-tproxy`。
+注意，如果你使用 `systemctl enable ss-tproxy.service` 方式配置了 ss-tproxy 的开机自启，那么应该避免直接使用 `ss-tproxy start|stop|restart` 这几个命令（当然除了这几个命令外，其它命令都是可以执行的，比如 `ss-tproxy status`、`ss-tproxy update-gfwlist`），为什么呢？因为 systemctl 启动一个脚本之后，systemctl 会在内部保存一个状态，即脚本已经 running，然后只有当你下次使用 systemctl 停止该脚本的时候，systemctl 内部才会将这个状态改为 stopped。所以配置 ss-tproxy 开机自启后，这个服务的状态就是 running，如果你执行 `ss-tproxy stop` 来停止脚本，那么这个服务状态是不会变的，依旧是 running，但实际上它已经 stopped 了，而当你执行 `systemctl start ss-tproxy` 来启动脚本时，systemctl 并不会在内部执行 `ss-tproxy start`，因为这个服务的状态是 running，说明已经启动了，就不会再次启动了。这样一来就完全混乱了，你以为执行完毕后 ss-tproxy 就启动了，然而实际上，执行 `ss-tproxy status` 看下还是 stopped 的。所以我说如果配置了 service 方式的开机自启，就不要使用 `ss-tproxy start|stop|restart` 这 3 个命令了！应使用 `systemctl start|stop|restart ss-tproxy`。
 
 **用法**
 - `ss-tproxy help`：查看帮助
