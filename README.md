@@ -345,17 +345,12 @@ function post_stop {
 }
 ```
 
-**自启**（Systemd）
+**自启**
 - `mv -f ss-tproxy.service /etc/systemd/system`
 - `systemctl daemon-reload`
 - `systemctl enable ss-tproxy.service`
 
-**自启**（SysVinit）
-- `touch /etc/rc.d/rc.local`
-- `chmod +x /etc/rc.d/rc.local`
-- `echo '/usr/local/bin/ss-tproxy start' >>/etc/rc.d/rc.local`
-
-注意，上述自启方式并不完美，ss-tproxy 可能会自启失败，主要是因为 ss-tproxy 可能会在网络还未完全准备好的情况下先运行，如果 ss-tproxy.conf 中的 `proxy_server` 为域名（即使是 IP 形式，也可能会失败，因为某些代理软件需要在有网的情况下才能启动成功），那么就会出现域名解析失败的错误，然后导致代理软件启动失败、iptables 规则配置失败等等。缓解方法有：将 `proxy_server` 改为 IP 形式（如果允许的话）；或者将 `proxy_server` 中的域名添加到主机的 `/etc/hosts` 文件；或者使用各种方式让 ss-tproxy 在网络完全启动后再启动。如果你使用的是 ArchLinux，那么最好的自启方式是利用 netctl 的 hook 脚本来启动 ss-tproxy（如拨号成功后再启动 ss-tproxy），具体配置可参考 [Arch 官方文档](https://wiki.archlinux.org/index.php/netctl#Using_hooks)，当然官方文档说的不是很详细，那我就来详细说明一下，如何在 ArchLinux 上利用 netctl 的 hook 来 start|stop ss-tproxy 脚本（其它系统应该也有类似的 hook，因为我自己用的是 Arch，所以就拿这个做例子）。
+关于自启我要多说几句，之前的开机自启是有问题的，有一定几率会失败，不过现在已经解决了这个问题，其实说起来解决方法也很简单，就是在启动之前先 ping 114.114.114.114，直到 ping 成功了才会执行 `ss-tproxy start`。经过测试，加了这个 ping 命令后，自启就没有问题了，可以确保在网络准备好之后再启动 ss-tproxy 脚本。当然，如果你使用的是 ArchLinux，也可以利用 netctl 的 hook 脚本来启动 ss-tproxy，具体做法如下：
 
 假设你的网卡配置文件为 `/etc/netctl/eth0`（如果有多张网卡，那就选择“外网网卡”，也就是通过哪张网卡上网就选哪张网卡），进入 `/etc/netctl/hooks` 目录，创建一个空文件（即钩子文件，本质是 shell 脚本），然后给这个文件加上可执行权限（没有执行权限的钩子不会被 netctl 执行），比如我就创建一个名为 eth0.hooks 的文件（文件名随便，无要求）：
 ```bash
@@ -383,6 +378,8 @@ if [ "$Profile" = 'eth0' ]; then
 fi
 ```
 脚本内容本身具有很好的自我解释性，我就不详细解释了，需要注意的是 `"$Profile" = 'eth0'`，因为默认情况下任何一张网卡的启动和停止都会搜寻 `/etc/netctl/hooks` 下的可执行钩子脚本，而我们实际上只需要关心 `/etc/netctl/eth0` 网卡的启动事件和关闭事件，所以就做了一下这个判断。编辑完之后保存退出，然后 reboot 测试一下是否能够正常自启动（当然你的 `/etc/netctl/eth0` 要配置自启动，即 `netctl enable eth0`）。
+
+最后再啰嗦几句，如果你使用 `systemctl enable ss-tproxy.service` 方式配置了 ss-tproxy 的开机自启，那么应该避免直接使用 `ss-tproxy start|stop|restart` 这几个命令（当然除了这几个命令外，其它命令都是可以执行的，比如 `ss-tproxy status`、`ss-tproxy update-gfwlist`），为什么呢？因为 systemctl 启动一个脚本之后，systemctl 会在内部保存一个状态，即脚本已经 running，然后只有当你下次使用 systemctl 停止该脚本的时候，systemctl 内部才会将这个状态改为 stopped。所以配置 ss-tproxy 开机自启后，这个服务的状态就是 running，如果你执行 `ss-tproxy stop` 来停止脚本，那么这个服务状态是不会变的，依旧是 running，但实际上它已经 stopped 了，而当你执行 `systemctl start ss-tproxy` 来启动脚本时，systemctl 并不会在内部执行 `ss-tproxy start`，因为这个服务的状态是 running，说明已经启动了，就不会再次启动了。这样一来就完全混乱了，你以为执行完毕后 ss-tproxy 就启动了，然而实际上，执行 `ss-tproxy status` 看下还是 stopped 的。所以我说如果配置了 service 方式的开机自启，就不要使用 `ss-tproxy start|stop|restart` 这 3 个命令！
 
 **用法**
 - `ss-tproxy help`：查看帮助
