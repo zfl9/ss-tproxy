@@ -9,7 +9,6 @@ RemainAfterExit=yes
 ExecStartPre=/bin/bash -c "until ping -nq -c1 -W1 114.114.114.114 &>/dev/null; do :; done"
 ExecStart=/usr/local/bin/ss-tproxy start
 ExecStop=/usr/local/bin/ss-tproxy stop
-ExecReload=/usr/local/bin/ss-tproxy restart
 
 [Install]
 WantedBy=multi-user.target
