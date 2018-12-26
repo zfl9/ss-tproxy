@@ -66,9 +66,11 @@ function start_proxy {
 }
 
 function start_resolver {
-    if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$proxy_server") -eq 0 ]; then
-        proxy_server_addr=$(ping -nq -c1 -t1 -W1 $proxy_server | head -n1 | awk -F'[()]' '{print $2}')
-    fi
+    for server in "${proxy_server[@]}"; do
+        if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server") -eq 0 ]; then
+            server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | awk -F'[()]' '{print $2}')")
+        fi
+    done
 case "$mode" in
 global)
     dnsmasq -C <(cat <<EOF
@@ -82,7 +84,7 @@ no-negcache
 no-resolv
 port = 60053
 server = ${dns_remote/:/#}
-$([ -n "$proxy_server_addr" ] && echo "address = /$proxy_server/$proxy_server_addr")
+$(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
 EOF
 )
     ;;
@@ -98,7 +100,7 @@ no-negcache
 no-resolv
 port = 60053
 server = $dns_direct
-$([ -n "$proxy_server_addr" ] && echo "address = /$proxy_server/$proxy_server_addr")
+$(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
 $(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $file_gfwlist_txt <(
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext
 ))
@@ -127,7 +129,7 @@ no-negcache
 no-resolv
 port = 60053
 server = 127.0.0.1#65353
-$([ -n "$proxy_server_addr" ] && echo "address = /$proxy_server/$proxy_server_addr")
+$(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
 EOF
 )
     ;;
@@ -135,7 +137,7 @@ esac
 }
 
 function start_iptables {
-    [ $(sysctl net.ipv4.ip_forward | awk '{print $3}') -ne 1 ] && sysctl -w net.ipv4.ip_forward=1 &>/dev/null
+    sysctl -w net.ipv4.ip_forward=1 &>/dev/null
 
     function dec2bin {
         for ((n = $1; n > 0; n >>= 1)); do bit="$((n & 1))$bit"; done
@@ -201,7 +203,9 @@ global|chnroute)
     done
     iptables -t mangle -A SETMARK -d 224/4 -j RETURN
     iptables -t mangle -A SETMARK -d 240/4 -j RETURN
-    iptables -t mangle -A SETMARK -d $proxy_server -j RETURN
+    for server in "${proxy_server[@]}"; do
+        iptables -t mangle -A SETMARK -d $server -j RETURN
+    done
     if [ "$mode" = chnroute ]; then
         ipset -X chnroute &>/dev/null
         ipset -R <$file_chnroute_set
@@ -275,7 +279,9 @@ global|chnroute)
     done
     iptables -t nat -A TCPCHAIN -d 224/4 -j RETURN
     iptables -t nat -A TCPCHAIN -d 240/4 -j RETURN
-    iptables -t nat -A TCPCHAIN -d $proxy_server -j RETURN
+    for server in "${proxy_server[@]}"; do
+        iptables -t nat -A TCPCHAIN -d $server -j RETURN
+    done
     if [ "$mode" = chnroute ]; then
         ipset -X chnroute &>/dev/null
         ipset -R <$file_chnroute_set
@@ -295,7 +301,9 @@ global|chnroute)
     done
     iptables -t mangle -A UDPCHAIN -d 224/4 -j RETURN
     iptables -t mangle -A UDPCHAIN -d 240/4 -j RETURN
-    iptables -t mangle -A UDPCHAIN -d $proxy_server -j RETURN
+    for server in "${proxy_server[@]}"; do
+        iptables -t mangle -A UDPCHAIN -d $server -j RETURN
+    done
     if [ "$mode" = chnroute ]; then
         iptables -t mangle -A UDPCHAIN -m set --match-set chnroute dst -j RETURN
     fi
