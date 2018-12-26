@@ -139,6 +139,14 @@ esac
 function start_iptables {
     sysctl -w net.ipv4.ip_forward=1 &>/dev/null
 
+    function check_snat_rule {
+        if [ "$ipts_non_snat" != 'true' ]; then
+            if ! iptables -t nat -C POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE &>/dev/null; then
+                iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+            fi
+        fi
+    }
+
     function dec2bin {
         for ((n = $1; n > 0; n >>= 1)); do bit="$((n & 1))$bit"; done
         printf "%08d\n" "$bit"
@@ -181,7 +189,7 @@ gfwlist)
         iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
         iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
 
-        [ "$ipts_non_snat" != 'true' ] && iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+        check_snat_rule
     done
 
     iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
@@ -224,7 +232,7 @@ global|chnroute)
         iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
         iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
 
-        [ "$ipts_non_snat" != 'true' ] && iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+        check_snat_rule
     done
 
     iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
@@ -258,7 +266,7 @@ gfwlist)
         iptables -t nat    -A PREROUTING -p tcp -s $intranet                                -j TCPCHAIN
         iptables -t mangle -A PREROUTING -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
 
-        [ "$ipts_non_snat" != 'true' ] && iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+        check_snat_rule
     done
 
     iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
@@ -320,7 +328,7 @@ global|chnroute)
         iptables -t nat    -A PREROUTING -p tcp -s $intranet                                -j TCPCHAIN
         iptables -t mangle -A PREROUTING -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
 
-        [ "$ipts_non_snat" != 'true' ] && iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+        check_snat_rule
     done
 
     iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
@@ -395,9 +403,10 @@ function stop {
     iptables -t mangle -X SETMARK &>/dev/null
 
     if [ "$ipts_non_snat" != 'true' ]; then
-        iptables -t nat -F POSTROUTING 
         for intranet in "${ipts_intranet[@]}"; do
-            iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+            if ! iptables -t nat -C POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE &>/dev/null; then
+                iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+            fi
         done
     fi
 
