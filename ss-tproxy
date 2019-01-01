@@ -211,9 +211,16 @@ global|chnroute)
     done
     iptables -t mangle -A SETMARK -d 224/4 -j RETURN
     iptables -t mangle -A SETMARK -d 240/4 -j RETURN
-    for server in "${proxy_server[@]}"; do
-        iptables -t mangle -A SETMARK -d $server -j RETURN
-    done
+    if ! [ "$proxy_dports" ]; then
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -j RETURN
+        done
+    else
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -p tcp -m multiport --dports $proxy_dports -j RETURN
+            iptables -t mangle -A SETMARK -d $server -p udp -m multiport --dports $proxy_dports -j RETURN
+        done
+    fi
     if [ "$mode" = chnroute ]; then
         ipset -X chnroute &>/dev/null
         ipset -R <$file_chnroute_set
@@ -288,7 +295,7 @@ global|chnroute)
     iptables -t nat -A TCPCHAIN -d 224/4 -j RETURN
     iptables -t nat -A TCPCHAIN -d 240/4 -j RETURN
     for server in "${proxy_server[@]}"; do
-        iptables -t nat -A TCPCHAIN -d $server -j RETURN
+        iptables -t nat -A TCPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p tcp -m multiport --dports $proxy_dports") -j RETURN
     done
     if [ "$mode" = chnroute ]; then
         ipset -X chnroute &>/dev/null
@@ -310,7 +317,7 @@ global|chnroute)
     iptables -t mangle -A UDPCHAIN -d 224/4 -j RETURN
     iptables -t mangle -A UDPCHAIN -d 240/4 -j RETURN
     for server in "${proxy_server[@]}"; do
-        iptables -t mangle -A UDPCHAIN -d $server -j RETURN
+        iptables -t mangle -A UDPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p udp -m multiport --dports $proxy_dports") -j RETURN
     done
     if [ "$mode" = chnroute ]; then
         iptables -t mangle -A UDPCHAIN -m set --match-set chnroute dst -j RETURN
