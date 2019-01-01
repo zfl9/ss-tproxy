@@ -69,6 +69,8 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 
 为了解决这个问题，我将 `proxy_server` 改了一下，让它支持填写多个地址（空格隔开），那么支持填写多个服务器地址又有什么用呢？又是如何解决上述问题的呢？还是以上面的例子为例，我现在将 A、B 两台服务器的地址都填写到 proxy_server 中，默认先使用 A 服务器，然后执行 `ss-tproxy start` 启动代理；那么现在要切换为 B 服务器该如何做呢？很简单，你只需要停止之前的 A 服务器代理进程（假设为 ss-redir，且假设使用 systemctl 管理），即 `systemctl stop ss-redir@A`、`systemctl start ss-redir@B`，就行了，你不需要操作 ss-tproxy 的任何东西，就完成了代理服务器的切换。同理，如果有 5 个常用服务器，也都可以写到 proxy_server 里面，这样 ss-tproxy 启动后基本就不用去管它了，随意切换代理。
 
+`proxy_dports` 用来填写要放行的服务器端口，默认为空，表示所有服务器端口都放行。如果你需要修改此配置，请记得将当前使用的服务器端口给放行（也就是 ss、ssr、v2ray 服务器的监听端口），否则会出现死循环。这个选项也是最近才添加的，原先版本中，默认也是将所有服务器端口都放行，但我最近使用 scp 向 vps 传输文件的时候总是会被 gfw 干扰（没几秒就显示 `stalled`），烦的很，所以就加了这个选项。这个选项的值会被作为 iptables multiport 模块的参数，所以格式为：`port[,port:port,port...]`（方括号和 `...` 不要输进去，这只是格式说明）。比如我的 ss 监听端口为 443，那么就可以写 `proxy_dports='443'`；又比如我的 v2ray 监听端口为 1000:2000（动态端口范围），并且我还想放行 80 和 443 端口，就可以这样写：`proxy_dports='80,443,1000:2000'`。
+
 `proxy_runcmd` 是用来启动代理软件的命令，此命令不可以占用前台（意思是说这个命令必须能够立即返回），否则 `ss-tproxy start` 将被阻塞；`proxy_kilcmd` 是用来停止代理软件的命令。`proxy_runcmd` 和 `proxy_kilcmd` 的常见的写法有：
 ```bash
 # runcmd
