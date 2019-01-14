@@ -58,7 +58,7 @@ function update_chnroute {
 }
 
 function flush_dnscache {
-    netstat -lnpu | grep -E ':60053\s.+dnsmasq' | awk -F/ '{print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -HUP &>/dev/null
+    netstat -lnpu | awk -F/ '/:60053\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -HUP &>/dev/null
 }
 
 function start_proxy {
@@ -424,7 +424,7 @@ function stop {
 
     eval "$proxy_kilcmd" &>/dev/null
     kill -9 $(pidof 'chinadns') &>/dev/null
-    netstat -lnpu | grep -E ':60053\s.+dnsmasq' | awk -F/ '{print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
+    netstat -lnpu | awk -F/ '/:60053\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
 
     [ "$(type -t post_stop)" = 'function' ] && post_stop
 }
