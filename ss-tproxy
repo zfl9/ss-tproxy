@@ -52,13 +52,13 @@ function update_gfwlist {
 }
 
 function update_chnroute {
-    chnroute_url="https://github.com/17mon/china_ip_list/raw/master/china_ip_list.txt"
-    { curl -4sSkL "$chnroute_url"; echo; } | grep -Ev '^\s*$|^\s*#' >$file_chnroute_txt
+    chnroute_url="https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt"
+    { curl -4sSkL "$chnroute_url"; echo; } | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
     echo '-N chnroute hash:net' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
 }
 
 function flush_dnscache {
-    netstat -lnpu | awk -F/ '/:60053\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -HUP &>/dev/null
+    netstat -lnpu | awk -F/ '/:60053[ \t].+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -HUP &>/dev/null
 }
 
 function start_proxy {
@@ -168,6 +168,19 @@ function start_iptables {
         ipts_intranet_nonstd+=($cidr)
     done
 
+    iptables -t mangle -N SSTP_OUT
+    iptables -t mangle -N SSTP_PRE
+    iptables -t nat    -N SSTP_OUT
+    iptables -t nat    -N SSTP_PRE
+
+    iptables -t mangle -A OUTPUT     -j SSTP_OUT
+    iptables -t mangle -A PREROUTING -j SSTP_PRE
+    iptables -t nat    -A OUTPUT     -j SSTP_OUT
+    iptables -t nat    -A PREROUTING -j SSTP_PRE
+
+    ip route add local 0/0 dev lo     table $ipts_rt_tab
+    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+
 if [ "$proxy_tproxy" = 'true' ]; then
 case "$mode" in
 gfwlist)
@@ -178,25 +191,22 @@ gfwlist)
     iptables -t mangle -A SETMARK -p udp -d ${dns_remote%:*}     -j MARK --set-mark $ipts_rt_mark
     iptables -t mangle -A SETMARK -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
 
-    iptables -t mangle -A OUTPUT -p tcp -j SETMARK
-    iptables -t mangle -A OUTPUT -p udp -j SETMARK
-    iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
+    iptables -t mangle -A SSTP_OUT -p tcp -j SETMARK
+    iptables -t mangle -A SSTP_OUT -p udp -j SETMARK
+    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
     for intranet in "${ipts_intranet[@]}"; do
-        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
+        iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
 
-        iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
-        iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
+        iptables -t mangle -A SSTP_PRE -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
 
         check_snat_rule
     done
 
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-
-    ip route add local 0/0 dev lo     table $ipts_rt_tab
-    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
+    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
     ;;
 global|chnroute)
     iptables -t mangle -N SETMARK
@@ -228,25 +238,22 @@ global|chnroute)
     fi
     iptables -t mangle -A SETMARK -j MARK --set-mark $ipts_rt_mark
 
-    iptables -t mangle -A OUTPUT -p tcp -j SETMARK
-    iptables -t mangle -A OUTPUT -p udp -j SETMARK
-    iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
+    iptables -t mangle -A SSTP_OUT -p tcp -j SETMARK
+    iptables -t mangle -A SSTP_OUT -p udp -j SETMARK
+    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
     for intranet in "${ipts_intranet[@]}"; do
-        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
+        iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
 
-        iptables -t mangle -A PREROUTING -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
-        iptables -t mangle -A PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
+        iptables -t mangle -A SSTP_PRE -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
 
         check_snat_rule
     done
 
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-
-    ip route add local 0/0 dev lo     table $ipts_rt_tab
-    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
+    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
     ;;
 esac
 else
@@ -262,24 +269,21 @@ gfwlist)
     iptables -t mangle -A UDPCHAIN -d ${dns_remote%:*}            -j MARK --set-mark $ipts_rt_mark
     iptables -t mangle -A UDPCHAIN -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
 
-    iptables -t nat    -A OUTPUT -p tcp -j TCPCHAIN
-    iptables -t mangle -A OUTPUT -p udp -j UDPCHAIN
-    iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
+    iptables -t nat    -A SSTP_OUT -p tcp -j TCPCHAIN
+    iptables -t mangle -A SSTP_OUT -p udp -j UDPCHAIN
+    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
     for intranet in "${ipts_intranet[@]}"; do
-        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
+        iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
 
-        iptables -t nat    -A PREROUTING -p tcp -s $intranet                                -j TCPCHAIN
-        iptables -t mangle -A PREROUTING -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
+        iptables -t nat    -A SSTP_PRE -p tcp -s $intranet                                -j TCPCHAIN
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
 
         check_snat_rule
     done
 
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-
-    ip route add local 0/0 dev lo     table $ipts_rt_tab
-    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
     ;;
 global|chnroute)
     iptables -t nat -N TCPCHAIN
@@ -324,24 +328,21 @@ global|chnroute)
     fi
     iptables -t mangle -A UDPCHAIN -j MARK --set-mark $ipts_rt_mark
 
-    iptables -t nat    -A OUTPUT -p tcp -j TCPCHAIN
-    iptables -t mangle -A OUTPUT -p udp -j UDPCHAIN
-    iptables -t nat    -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
+    iptables -t nat    -A SSTP_OUT -p tcp -j TCPCHAIN
+    iptables -t mangle -A SSTP_OUT -p udp -j UDPCHAIN
+    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
     for intranet in "${ipts_intranet[@]}"; do
-        iptables -t mangle -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
+        iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
 
-        iptables -t nat    -A PREROUTING -p tcp -s $intranet                                -j TCPCHAIN
-        iptables -t mangle -A PREROUTING -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
+        iptables -t nat    -A SSTP_PRE -p tcp -s $intranet                                -j TCPCHAIN
+        iptables -t mangle -A SSTP_PRE -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
 
         check_snat_rule
     done
 
-    iptables -t mangle -A PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-
-    ip route add local 0/0 dev lo     table $ipts_rt_tab
-    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
     ;;
 esac
 fi
@@ -394,20 +395,26 @@ function stop {
         echo "nameserver $dns_direct" >>/etc/resolv.conf
     fi
 
-    iptables -t nat -F OUTPUT
-    iptables -t nat -F PREROUTING
+    iptables -t mangle -D OUTPUT     -j SSTP_OUT &>/dev/null
+    iptables -t mangle -D PREROUTING -j SSTP_PRE &>/dev/null
+    iptables -t nat    -D OUTPUT     -j SSTP_OUT &>/dev/null
+    iptables -t nat    -D PREROUTING -j SSTP_PRE &>/dev/null
 
-    iptables -t mangle -F OUTPUT
-    iptables -t mangle -F PREROUTING
+    iptables -t mangle -F SSTP_OUT &>/dev/null
+    iptables -t mangle -X SSTP_OUT &>/dev/null
+    iptables -t mangle -F SSTP_PRE &>/dev/null
+    iptables -t mangle -X SSTP_PRE &>/dev/null
+    iptables -t nat    -F SSTP_OUT &>/dev/null
+    iptables -t nat    -X SSTP_OUT &>/dev/null
+    iptables -t nat    -F SSTP_PRE &>/dev/null
+    iptables -t nat    -X SSTP_PRE &>/dev/null
 
-    iptables -t nat -F TCPCHAIN &>/dev/null
-    iptables -t nat -X TCPCHAIN &>/dev/null
-
+    iptables -t mangle -F SETMARK  &>/dev/null
+    iptables -t mangle -X SETMARK  &>/dev/null
+    iptables -t nat    -F TCPCHAIN &>/dev/null
+    iptables -t nat    -X TCPCHAIN &>/dev/null
     iptables -t mangle -F UDPCHAIN &>/dev/null
     iptables -t mangle -X UDPCHAIN &>/dev/null
-
-    iptables -t mangle -F SETMARK &>/dev/null
-    iptables -t mangle -X SETMARK &>/dev/null
 
     if [ "$ipts_non_snat" != 'true' ]; then
         for intranet in "${ipts_intranet[@]}"; do
@@ -424,7 +431,7 @@ function stop {
 
     eval "$proxy_kilcmd" &>/dev/null
     kill -9 $(pidof 'chinadns') &>/dev/null
-    netstat -lnpu | awk -F/ '/:60053\s.+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
+    netstat -lnpu | awk -F/ '/:60053[ \t].+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
 
     [ "$(type -t post_stop)" = 'function' ] && post_stop
 }
@@ -433,22 +440,22 @@ function status {
 case "$mode" in
     global)
         echo "mode:     global"
-        [ $(netstat -lnpt | grep -E ":$proxy_tcport\s"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
-        [ $(netstat -lnpu | grep -E ":$proxy_udport\s"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
-        [ $(netstat -lnpu | grep -E ":60053\s.+dnsmasq"  | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpt | grep -E ":$proxy_tcport[ \t]"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":$proxy_udport[ \t]"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":60053[ \t].+dnsmasq"  | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
         ;;
     gfwlist)
         echo "mode:     gfwlist"
-        [ $(netstat -lnpt | grep -E ":$proxy_tcport\s"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
-        [ $(netstat -lnpu | grep -E ":$proxy_udport\s"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
-        [ $(netstat -lnpu | grep -E ":60053\s.+dnsmasq"  | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpt | grep -E ":$proxy_tcport[ \t]"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":$proxy_udport[ \t]"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":60053[ \t].+dnsmasq"  | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
         ;;
     chnroute)
         echo "mode:     chnroute"
-        [ $(netstat -lnpt | grep -E ":$proxy_tcport\s"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
-        [ $(netstat -lnpu | grep -E ":$proxy_udport\s"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
-        [ $(netstat -lnpu | grep -E ":60053\s.+dnsmasq"  | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
-        [ $(netstat -lnpu | grep -E ":65353\s.+chinadns" | wc -l) -ne 0 ] && echo -e "chinadns: \e[32m[running]\e[0m" || echo -e "chinadns: \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpt | grep -E ":$proxy_tcport[ \t]"   | wc -l) -ne 0 ] && echo -e "pxy/tcp:  \e[32m[running]\e[0m" || echo -e "pxy/tcp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":$proxy_udport[ \t]"   | wc -l) -ne 0 ] && echo -e "pxy/udp:  \e[32m[running]\e[0m" || echo -e "pxy/udp:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":60053[ \t].+dnsmasq"  | wc -l) -ne 0 ] && echo -e "dnsmasq:  \e[32m[running]\e[0m" || echo -e "dnsmasq:  \e[35m[stopped]\e[0m"
+        [ $(netstat -lnpu | grep -E ":65353[ \t].+chinadns" | wc -l) -ne 0 ] && echo -e "chinadns: \e[32m[running]\e[0m" || echo -e "chinadns: \e[35m[stopped]\e[0m"
         ;;
 esac
 }
