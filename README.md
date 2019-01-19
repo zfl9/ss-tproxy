@@ -4,7 +4,7 @@ ss-tproxy v3 是 ss-tproxy v2 的精简优化版，v3 版本去掉了很多不�
 
 v3 版本仍然实现了 global、gfwlist、chnonly、chnroute 四种分流模式；global 是指全部流量都走代理；gfwlist 是指 gfwlist.txt 与 gfwlist.ext 列表中的地址走代理，其余走直连；chnonly 本质与 gfwlist 没区别，只是 gfwlist.txt 与 gfwlist.ext 列表中的域名为大陆域名，所以 chnonly 是国外翻回国内的专用模式；chnroute 则是从 v1 版本开始就有的模式，也就是大家熟知的绕过局域网和大陆地址段模式，所以只要是发往国外地址的流量都会走代理出去，这也是 ss-tproxy v3 的默认模式。
 
-ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境中，可以透明代理 ss-tproxy 主机本身以及所有网关指向 ss-tproxy 主机的其它主机的 TCP 与 UDP 流量。即使 ss-tproxy 不是运行在 Linux 软路由/网关上，但通过某些"技巧"，ss-tproxy 依旧能够透明代理其它主机的 TCP 与 UDP 流量。比如你在某台内网主机（假设 IP 地址为 192.168.0.100）中运行 ss-tproxy，那么你只要将该内网中的其它主机的网关以及 DNS 服务器设为 192.168.0.100，那么这些内网主机的 TCP 和 UDP 就会被透明代理。当然这台内网主机也可以是一个 Linux 虚拟机（网络要设为桥接模式，只需要一张网卡，已在多种虚拟机环境中测试通过）。
+ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境中，可以透明代理 ss-tproxy 主机本身以及所有网关指向 ss-tproxy 主机的其它主机的 TCP 与 UDP 流量。即使 ss-tproxy 不是运行在 Linux 软路由/网关上，但通过某些"技巧"，ss-tproxy 依旧能够透明代理其它主机的 TCP 与 UDP 流量。比如你在某台内网主机（假设 IP 地址为 192.168.0.100）中运行 ss-tproxy，那么你只要将该内网中的其它主机的网关以及 DNS 服务器设为 192.168.0.100，那么这些内网主机的 TCP 和 UDP 就会被透明代理。当然这台内网主机也可以是一个 Linux 虚拟机（网络要设为桥接模式，只需要一张网卡）。
 
 ## 脚本依赖
 - [ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
@@ -61,7 +61,7 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 
 为了解决这个问题，我将 `proxy_server` 改了一下，让它支持填写多个地址（空格隔开），那么支持填写多个服务器地址又有什么用呢？又是如何解决上述问题的呢？还是以上面的例子为例，我现在将 A、B 两台服务器的地址都填写到 proxy_server 中，默认先使用 A 服务器，然后执行 `ss-tproxy start` 启动代理；那么现在要切换为 B 服务器该如何做呢？很简单，你只需要停止之前的 A 服务器代理进程（假设为 ss-redir，且假设使用 systemctl 管理），即 `systemctl stop ss-redir@A`、`systemctl start ss-redir@B`，就行了，你不需要操作 ss-tproxy 的任何东西，就完成了代理服务器的切换。同理，如果有 5 个常用服务器，也都可以写到 proxy_server 里面，这样 ss-tproxy 启动后基本就不用去管它了，随意切换代理。
 
-`proxy_dports` 用来填写要放行的服务器端口，默认为空，表示所有服务器端口都放行。如果你需要修改此配置，请记得将当前使用的服务器端口给放行（也就是 ss、ssr、v2ray 服务器的监听端口），否则会出现死循环。这个选项也是最近才添加的，原先版本中，默认也是将所有服务器端口都放行，但我最近使用 scp 向 vps 传输文件的时候总是会被 gfw 干扰（没几秒就显示 `stalled`），烦的很，所以就加了这个选项。这个选项的值会被作为 iptables multiport 模块的参数，所以格式为：`port[,port:port,port...]`（方括号和 `...` 不要输进去，这只是格式说明）。比如我的 ss 监听端口为 443，就写 `proxy_dports='443'`；又比如我的 v2ray 监听端口为 1000:2000（动态端口范围），并且我还想放行 80 和 443 端口，就写：`proxy_dports='80,443,1000:2000'`。注意，这个选项对 gfwlist 分流模式是没有效果的，别问我为什么。
+`proxy_dports` 用来填写要放行的服务器端口，默认为空，表示所有服务器端口都放行。如果你需要修改此配置，请记得将当前使用的服务器端口给放行（也就是 ss、ssr、v2ray 服务器的监听端口），否则会出现死循环。这个选项也是最近才添加的，原先版本中，默认也是将所有服务器端口都放行，但我最近使用 scp 向 vps 传输文件的时候总是会被 gfw 干扰（没几秒就显示 `stalled`），烦的很，所以就加了这个选项。这个选项的值会被作为 iptables multiport 模块的参数，所以格式为：`port[,port:port,port...]`（方括号和 `...` 不要输进去，这只是格式说明）。比如我的 ss 监听端口为 443，就写 `proxy_dports='443'`；又比如我的 v2ray 监听端口为 1000:2000（动态端口范围），并且我还想放行 80 和 443 端口，就写：`proxy_dports='80,443,1000:2000'`。另外注意，这个选项对 gfwlist 分流模式是没有效果的。
 
 `proxy_runcmd` 是用来启动代理软件的命令，此命令不可以占用前台（意思是说这个命令必须能够立即返回），否则 `ss-tproxy start` 将被阻塞；`proxy_kilcmd` 是用来停止代理软件的命令。`proxy_runcmd` 和 `proxy_kilcmd` 的常见的写法有：
 ```bash
@@ -281,11 +281,11 @@ proxy_kilcmd='service v2ray stop'
 
 如果使用 chnonly 模式（国外翻进国内），请选择 `gfwlist` mode，chnonly 模式下，你必须修改 ss-tproxy.conf 中的 `dns_remote` 为国内的 DNS，如 `dns_remote='114.114.114.114:53'`，并将 `dns_direct` 改为本地 DNS（国外的），如 `dns_direct='8.8.8.8'`；因为 chnonly 模式与 gfwlist 模式共享 gfwlist.txt、gfwlist.ext 文件，所以在第一次使用时你必须先运行 `ss-tproxy update-chnonly` 将默认的 gfwlist.txt 内容替换为大陆域名（更新列表时，也应使用 `ss-tproxy update-chnonly`），并且注释掉 gfwlist.ext 中的 Telegram IP 段，因为这是为正常翻墙设置的。要恢复 gfwlist 模式的话，请进行相反的步骤。
 
-`dns_modify='boolean_value'`：如果值为 false（默认），则 ss-tproxy 在修改 /etc/resolv.conf 文件时，会采用 `mount -o bind` 方式（不直接修改原文件，而是“覆盖”它，在 stop 之后会自动恢复为原文件）；如果值为 true，则直接使用 I/O 重定向来修改 /etc/resolv.conf 文件。一般情况下保持默认就行，但某些时候将其设为 true 可能会好一些（具体什么时候，我也不太好讲，需要具体情况具体分析）。
+`dns_modify='boolean_value'`：如果值为 false（默认），则 ss-tproxy 在修改 /etc/resolv.conf 文件时，会采用 `mount -o bind` 方式（不直接修改原文件，而是“覆盖”它，在 stop 之后会自动恢复为原文件）；如果值为 true，则直接使用 I/O 重定向来修改 /etc/resolv.conf 文件。一般情况下保持默认就行，但某些时候将其设为 true 可能会好一些（具体什么时候我也不太好讲，需要具体情况具体分析，比如你使用默认的 mount 方式出现了问题，那就换为重定向方式）。
 
 **端口映射**
 
-前面提到，如果 ss-tproxy 运行在“代理网关”，最好将 `ipts_non_snat` 设为 true，否则端口映射必定失败（好吧，即使将其设为 true，在某些情况下端口映射依旧会失败）。我们先来简要分析一下，为什么设为 false 会导致端口映射失败。假设拨号网关为 192.168.1.1，代理网关为 192.168.1.2，内网主机为 192.168.1.100；在拨号网关上设置端口映射规则，将外网端口 8443 映射到内网主机 192.168.1.100 的 8443 端口；在代理网关上运行 ss-tproxy（假定分流模式为 gfwlist），然后将内网主机 192.168.1.100 的网关和 DNS 设为 192.168.1.2；此时代理网关以及内网主机均可透过代理来上网。
+如果 ss-tproxy 运行在“代理网关”，最好将 `ipts_non_snat` 设为 true，否则端口映射必定失败（好吧，即使将其设为 true，在某些情况下端口映射依旧会失败）。我们先来简要分析一下，为什么设为 false 会导致端口映射失败。假设拨号网关为 192.168.1.1，代理网关为 192.168.1.2，内网主机为 192.168.1.100；在拨号网关上设置端口映射规则，将外网端口 8443 映射到内网主机 192.168.1.100 的 8443 端口；在代理网关上运行 ss-tproxy（假定分流模式为 gfwlist），然后将内网主机 192.168.1.100 的网关和 DNS 设为 192.168.1.2；此时代理网关以及内网主机均可透过代理来上网。
 
 在内网主机 192.168.1.100 上运行端口为 8443 的服务进程，然后我们从其它外网主机（假设 IP 为 2.2.2.2）连接此端口上的服务。首先，外网主机向拨号网关的 8443 端口发起连接（假设 IP 为 1.1.1.1），即 `2.2.2.2:2333 -> 1.1.1.1:8443`，然后拨号网关查询到对应的端口映射规则，于是做 DNAT 转换，变为 `2.2.2.2:2333 -> 192.168.1.100:8443`，然后通过内网网卡送到了 192.168.1.100 主机的 8443 端口（SYN 握手请求成功到达）；然后服务进程会发送 SYN+ACK 握手响应包，即 `192.168.1.100:8443 -> 2.2.2.2:2333`，因为内网主机的网关为 192.168.1.2，所以 SYN+ACK 包将被送到代理网关上，因为目的地址 2.2.2.2 并没有在 gfwlist 列表中，所以放行，经过 FORWARD 链，到达 POSTROUTING 链，问题来了，ss-tproxy 已经在 POSTROUTING 链的 nat 表上设置了 SNAT 规则（`ipts_non_snat` 为 false），所以将被转换为 `192.168.1.2:6666 -> 2.2.2.2:2333`，而当这个数据包到达拨号网关时，拨号网关检查发现这个源地址并不是 192.168.1.100:8443，所以并不会按照端口映射规则将其转换为 `1.1.1.1:8443 -> 2.2.2.2:2333`，而是将其映射为一个随机端口，如 62333，所以外网主机接收到的 SYN+ACK 包的源地址是 1.1.1.1:62333，这显然是无法成功建立 TCP 连接的。
 
@@ -326,7 +326,7 @@ iptables -t nat -A TCPCHAIN -p tcp -j DNAT --to-destination 127.0.0.1:$proxy_tcp
 ```
 
 没出什么意外的话，现在桥接主机和其它内网主机的 TCP 和 UDP 流量应该都是能够被 ss-tproxy 给透明代理的。<br>
-差点忘了，请将 `/etc/ss-tproxy/ss-tproxy.conf` 里面的 `ipts_non_snat` 选项改为 true，因为不需要 SNAT 规则。
+还有一点，请将 `/etc/ss-tproxy/ss-tproxy.conf` 里面的 `ipts_non_snat` 选项改为 true，因为不需要 SNAT 规则。
 
 **钩子函数**
 
@@ -396,7 +396,7 @@ fi
 - `ss-tproxy show-iptables`：查看 iptables 的 mangle、nat 表
 - `ss-tproxy flush-iptables`：清空 raw、mangle、nat、filter 表
 
-`ss-tproxy flush-gfwlist` 的作用：因为 `gfwlist` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会清空 `ipset-gfwlist` 列表，所以如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或者修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致奇怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能还需要清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
+`ss-tproxy flush-gfwlist` 的作用：因为 `gfwlist` 模式下 `ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会清空 `ipset-gfwlist` 列表，所以如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnonly` 操作，或者修改了 `/etc/tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 ipset-gfwlist 列表导致各种奇怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能还需要清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
 
 如果需要修改 `proxy_kilcmd`（比如将 ss 改为 ssr），请先执行 `ss-tproxy stop` 后再修改 `/etc/ss-tproxy/ss-tproxy.conf` 配置文件，否则之前的代理进程不会被 kill（因为 ss-tproxy 不可能再知道之前的 kill 命令是什么，毕竟 ss-tproxy 只是一个 shell 脚本，无法维持状态），这可能会造成端口冲突。当然也有一种取巧的办法，那就是在 proxy_kilcmd 中 kill 所有可能使用到的代理进程，如你经常需要切换从 ss 切换为 ssr（或者从 ssr 切换为 ss），那么可以将 proxy_kilcmd 写为 `kill -9 $(pidof ss-redir) $(pidof ssr-redir)`，这样你就不需要先 stop 再改配置再 start 了，而是直接改好配置然后 restart。
 
