@@ -299,6 +299,8 @@ proxy_kilcmd='service v2ray stop'
 
 所以，对于 gfwlist 模式，只需要将 `ipts_non_snat` 设为 true，端口映射基本上就能正常工作。而对于 chnroute 模式，即使将 `ipts_non_snat` 设为了 true，在某些情况下依旧会失败，怎么说呢？比如你在 IP 为非 chnroute list 的外网主机上连接拨号网关上的映射端口，SYN 包没问题，会成功到达内网主机，但是 SYN+ACK 包在经过代理网关时，因为这个目的 IP 并不位于 chnroute list，所以会被送到代理网关上的代理进程（比如 ss-redir），也就是说这个 SYN+ACK 包会走代理出去，这显然会握手失败。如果你要让它握手成功，就必须将对应的目的 IP 放行，或者改用 gfwlist 模式。而 global 模式就不用说了，无论目的 IP 是国内还是国外，通通走代理，所以全都会握手失败，解决方法和 chnroute 模式一样，要么放行，要么用 gfwlist 模式。
 
+但实际上，如果内网主机需要映射到外网，那么它们通常也不需要设置什么代理（即不用将网关和 dns 指向 ss-tproxy 主机），而不更改这些主机的 gateway 和 dns 自然就不会出现上述端口映射问题，因为根本不会经过 ss-tproxy，无论去程还是回程。
+
 **桥接模式**
 ![桥接模式 - 网络拓扑](https://user-images.githubusercontent.com/22726048/47959326-e07fa280-e01b-11e8-95e5-32953cdbc803.png)
 上图由 [@myjsqmail](https://github.com/myjsqmail) 提供，他的想法是，在不改变原网络的情况下，让 ss-tproxy 透明代理内网中的所有 TCP、UDP 流量。为了达到这个目的，他在“拨号路由”下面接了一个“桥接主机”，桥接主机有两个网口，一个连接出口路由（假设为 wan），一个连接内网总线（假设为 lan），然后将这两张网卡进行桥接，得到一个逻辑网卡（假设为 br0），在桥接主机上开启“软路由功能”，即执行 `sysctl -w net.ipv4.ip_forward=1`，然后通过 DHCP 方式，获取出口路由上分配的 IP 信息，此时，桥接主机和其它内网主机已经能够正常上网了。
