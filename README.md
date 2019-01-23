@@ -285,6 +285,8 @@ proxy_kilcmd='service v2ray stop'
 
 `opts_ss_netstat='auto|netstat|ss'` 选项的意思是，在检测 tcp/udp 端口时，应该使用哪个检测命令，默认为 auto，表示自动选择（如果有 ss 就使用 ss，否则使用 netstat），设为 netstat 表示使用 netstat 命令来检测，设为 ss 表示使用 ss 命令来检测。之所以添加这个选项，是因为某些系统的 ss 命令有问题，检测不到 udp 的监听端口，导致用户误以为 udp 端口没有起来。如果你也遇到了这个问题，请将该选项改为 netstat。
 
+`ipts_non_snat='true|false'` 选项的意思是，是否需要设置 SNAT/MASQUERADE 规则，如果为 true 则表示不设置 SNAT/MASQUERADE 规则，如果为 false 则表示要设置 SNAT/MASQUERADE 规则（默认值）。如果你使用“代理网关”或者“透明桥接”模式，请将该选项改为 true，因为不需要 SNAT/MASQUERADE 规则，只有当你在“出口路由”位置运行 ss-tproxy 时才需要配置 SNAT/MASQUERADE 规则（所谓出口路由位置就是至少有两张网卡，一张连接外网，一张连接内网）。
+
 **端口映射**
 
 如果 ss-tproxy 运行在“代理网关”，最好将 `ipts_non_snat` 设为 true，否则端口映射必定失败（好吧，即使将其设为 true，在某些情况下端口映射依旧会失败）。我们先来简要分析一下，为什么设为 false 会导致端口映射失败。假设拨号网关为 192.168.1.1，代理网关为 192.168.1.2，内网主机为 192.168.1.100；在拨号网关上设置端口映射规则，将外网端口 8443 映射到内网主机 192.168.1.100 的 8443 端口；在代理网关上运行 ss-tproxy（假定分流模式为 gfwlist），然后将内网主机 192.168.1.100 的网关和 DNS 设为 192.168.1.2；此时代理网关以及内网主机均可透过代理来上网。
