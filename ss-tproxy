@@ -145,6 +145,8 @@ esac
 
 function start_iptables {
     sysctl -w net.ipv4.ip_forward=1 &>/dev/null
+    sysctl -w net.ipv4.conf.all.send_redirects=0 &>/dev/null
+    sysctl -w net.ipv4.conf.default.send_redirects=0 &>/dev/null
 
     function check_snat_rule {
         if [ "$ipts_non_snat" != 'true' ]; then
