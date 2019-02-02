@@ -180,8 +180,10 @@ proxy_kilcmd='service v2ray stop'
         "followRedirect": true
       },
       "streamSettings": {
-        //"tproxy": "tproxy" // tproxy + tproxy
-        "tproxy": "redirect" // redirect + tproxy
+        "sockopt": {
+          //"tproxy": "tproxy" // tproxy + tproxy
+          "tproxy": "redirect" // redirect + tproxy
+        }
       }
     }
   ],
@@ -225,8 +227,10 @@ proxy_kilcmd='service v2ray stop'
         "followRedirect": true
       },
       "streamSettings": {
-        //"tproxy": "tproxy" // tproxy + tproxy
-        "tproxy": "redirect" // redirect + tproxy
+        "sockopt": {
+          //"tproxy": "tproxy" // tproxy + tproxy
+          "tproxy": "redirect" // redirect + tproxy
+        }
       }
     }
   ],
