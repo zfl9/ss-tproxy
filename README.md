@@ -66,14 +66,14 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 `proxy_runcmd` 是用来启动代理软件的命令，此命令不可以占用前台（意思是说这个命令必须能够立即返回），否则 `ss-tproxy start` 将被阻塞；`proxy_kilcmd` 是用来停止代理软件的命令。`proxy_runcmd` 和 `proxy_kilcmd` 的常见的写法有：
 ```bash
 # runcmd
-command <args...>
+command args...
 service srvname start
 systemctl start srvname
 /path/to/start.proxy.script
-(command <args...> </dev/null &>>/var/log/proc.log &)
-setsid command <args...> </dev/null &>>/var/log/proc.log
-nohup command <args...> </dev/null &>>/var/log/proc.log &
-command <args...> </dev/null &>>/var/log/proc.log & disown
+(command args... </dev/null &>>/var/log/proc.log &)
+setsid command args... </dev/null &>>/var/log/proc.log
+nohup command args... </dev/null &>>/var/log/proc.log &
+command args... </dev/null &>>/var/log/proc.log & disown
 
 # kilcmd
 pkill -9 command
@@ -86,8 +86,8 @@ service v2ray start
 systemctl start v2ray
 systemctl start ss-redir
 systemctl start ssr-redir
-(ss-redir <args...> </dev/null &>>/var/log/ss-redir.log &)
-(ssr-redir <args...> </dev/null &>>/var/log/ssr-redir.log &)
+(ss-redir args... </dev/null &>>/var/log/ss-redir.log &)
+(ssr-redir args... </dev/null &>>/var/log/ssr-redir.log &)
 
 # ss-redir args
 -s <server_addr>    # 服务器地址
