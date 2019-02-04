@@ -1,32 +1,33 @@
 #!/bin/bash
 
-main_conf='/etc/ss-tproxy/ss-tproxy.conf'
-[ -f $main_conf ] && source $main_conf || { echo "[ERR] No such file or directory: '$main_conf'" 1>&2; exit 1; }
-
+export PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
+[ ! -f "$ss_tproxy_config"  ] && { echo "[ERR] No such file or directory: '$ss_tproxy_config'"  1>&2; exit 1; }
 [ ! -f "$file_gfwlist_txt"  ] && { echo "[ERR] No such file or directory: '$file_gfwlist_txt'"  1>&2; exit 1; }
 [ ! -f "$file_gfwlist_ext"  ] && { echo "[ERR] No such file or directory: '$file_gfwlist_ext'"  1>&2; exit 1; }
 [ ! -f "$file_chnroute_txt" ] && { echo "[ERR] No such file or directory: '$file_chnroute_txt'" 1>&2; exit 1; }
 [ ! -f "$file_chnroute_set" ] && { echo "[ERR] No such file or directory: '$file_chnroute_set'" 1>&2; exit 1; }
+source "$ss_tproxy_config"
 
 function check_command {
     [ "$opts_ss_netstat" = "auto"    ] && { command -v ss &>/dev/null && netstat="ss" || netstat="netstat"; }
     [ "$opts_ss_netstat" = "netstat" ] && netstat="netstat"
     [ "$opts_ss_netstat" = "ss"      ] && netstat="ss"
 
-    command -v ip      &>/dev/null || { echo "[ERR] Require command not found: 'ip'"      1>&2; exit 1; }
-    command -v dnsmasq &>/dev/null || { echo "[ERR] Require command not found: 'dnsmasq'" 1>&2; exit 1; }
+    command -v ip      &>/dev/null || { echo "[ERR] Command not found: 'ip'"      1>&2; exit 1; }
+    command -v dnsmasq &>/dev/null || { echo "[ERR] Command not found: 'dnsmasq'" 1>&2; exit 1; }
 
     case "$mode" in
         gfwlist)
-            command -v curl   &>/dev/null || { echo "[WRN]: Updater command not found: 'curl'"   1>&2;         }
-            command -v base64 &>/dev/null || { echo "[WRN]: Updater command not found: 'base64'" 1>&2;         }
-            command -v ipset  &>/dev/null || { echo "[ERR]: Require command not found: 'ipset'"  1>&2; exit 1; }
-            command -v perl   &>/dev/null || { echo "[ERR]: Require command not found: 'perl'"   1>&2; exit 1; }
+            command -v curl   &>/dev/null || { echo "[WRN] Command not found: 'curl'"   1>&2;         }
+            command -v base64 &>/dev/null || { echo "[WRN] Command not found: 'base64'" 1>&2;         }
+            command -v ipset  &>/dev/null || { echo "[ERR] Command not found: 'ipset'"  1>&2; exit 1; }
+            command -v perl   &>/dev/null || { echo "[ERR] Command not found: 'perl'"   1>&2; exit 1; }
             ;;
         chnroute)
-            command -v curl     &>/dev/null || { echo "[WRN]: Updater command not found: 'curl'"     1>&2;         }
-            command -v ipset    &>/dev/null || { echo "[ERR]: Require command not found: 'ipset'"    1>&2; exit 1; }
-            command -v chinadns &>/dev/null || { echo "[ERR]: Require command not found: 'chinadns'" 1>&2; exit 1; }
+            command -v curl     &>/dev/null || { echo "[WRN] Command not found: 'curl'"     1>&2;         }
+            command -v ipset    &>/dev/null || { echo "[ERR] Command not found: 'ipset'"    1>&2; exit 1; }
+            command -v chinadns &>/dev/null || { echo "[ERR] Command not found: 'chinadns'" 1>&2; exit 1; }
             ;;
     esac
 }
