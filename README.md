@@ -354,7 +354,7 @@ function post_stop {
 ```
 
 **自启**
-- `mv -f ss-tproxy.service /etc/systemd/system`
+- `cp -af ss-tproxy.service /etc/systemd/system`
 - `systemctl daemon-reload`
 - `systemctl enable ss-tproxy.service`
 
