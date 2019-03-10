@@ -47,6 +47,7 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 - `gfwlist.ext`：gfwlsit 黑名单文件，可配置
 - `chnroute.set`：chnroute for ipset，不可配置
 - `chnroute.txt`：chnroute for chinadns，不可配置
+- `hosts`: 自定义hosts文件，可配置
 
 **配置**
 - 脚本配置文件为 `/etc/ss-tproxy/ss-tproxy.conf`，修改后重启脚本才能生效
@@ -56,6 +57,7 @@ rm -fr /etc/ss-tproxy /usr/local/bin/ss-tproxy
 - `dns_direct` 为直连 DNS 服务器（走直连），默认为 114 公共DNS，根据需要修改
 - `iptables_intranet` 为要代理的内网的网段，默认为 192.168.0.0/16，根据需要修改
 - 如需配置 gfwlist 扩展列表，请编辑 `/etc/ss-tproxy/gfwlist.ext`，然后重启脚本生效
+- `proxy_ipv6` 目前只支持 `false` ，原理是通过 `DNS` 返回中丢弃 `AAAA` 记录
 
 `proxy_server` 用来填写服务器的地址，可以是域名也可以是 IP，支持填写多个服务器的地址，使用空格隔开就行。这里解释一下多个服务器地址的作用，其实这个功能是最近才加上去的，也是受到了某位热心网友的启发，在这之前，proxy_server 只能填写一个地址，但是有些时候我们经常需要切换代理服务器，比如现在我手中有 A、B 两台服务器，目前用的是 A 服务器做代理，但是因为某些不可抗拒的因素，A 服务器出了点问题，我需要切换到 B 服务器来上网，那么必须修改 ss-tproxy.conf 里面的 proxy_server，然后修改对应的启动命令以及关闭命令，最后才能执行 `ss-tproxy restart` 来生效，然后过了段时间，发现 A 服务器好了，因为 A 服务器的线路比 B 服务器的好，所以我又想切换回 A 服务器，这时候又要重复上述步骤，改完配置文件再重启 ss-tproxy，非常麻烦。
 
