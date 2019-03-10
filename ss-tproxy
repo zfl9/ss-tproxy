@@ -111,7 +111,7 @@ no-resolv
 port = 60053
 server = $dns_direct
 $(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
-$(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\n$([ "$proxy_ipv6" = 'false' ] && echo 'address=/$&/::')\nipset=/$&/gfwlist@" $file_gfwlist_txt <(
+$(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $file_gfwlist_txt <(
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext
 ))
 EOF
@@ -192,7 +192,7 @@ function start_iptables {
     iptables -t mangle -A PREROUTING -j SSTP_PRE
     iptables -t nat    -A OUTPUT     -j SSTP_OUT
     iptables -t nat    -A PREROUTING -j SSTP_PRE
-    iptables -t raw    -A OUTPUT   -j SSTP_OUT
+    iptables -t raw    -A OUTPUT     -j SSTP_OUT
 
     ip route add local 0/0 dev lo     table $ipts_rt_tab
     ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
@@ -223,6 +223,8 @@ gfwlist)
 
     iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
     iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
+
+    [ "$proxy_ipv6" = 'false' ] && iptables -t raw -A SSTP_OUT -p udp -d ${dns_remote%:*} --dport ${dns_remote#*:} -m string --hex-string "|00001c|" --algo bm -j DROP
     ;;
 global|chnroute)
     iptables -t mangle -N SETMARK
@@ -302,6 +304,8 @@ gfwlist)
     done
 
     iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
+
+    [ "$proxy_ipv6" = 'false' ] && iptables -t raw -A SSTP_OUT -p udp -d ${dns_remote%:*} --dport ${dns_remote#*:} -m string --hex-string "|00001c|" --algo bm -j DROP
     ;;
 global|chnroute)
     iptables -t nat -N TCPCHAIN
@@ -419,6 +423,7 @@ function stop {
     iptables -t mangle -D PREROUTING -j SSTP_PRE &>/dev/null
     iptables -t nat    -D OUTPUT     -j SSTP_OUT &>/dev/null
     iptables -t nat    -D PREROUTING -j SSTP_PRE &>/dev/null
+    iptables -t raw    -D OUTPUT     -j SSTP_OUT &>/dev/null
 
     iptables -t mangle -F SSTP_OUT &>/dev/null
     iptables -t mangle -X SSTP_OUT &>/dev/null
@@ -428,6 +433,8 @@ function stop {
     iptables -t nat    -X SSTP_OUT &>/dev/null
     iptables -t nat    -F SSTP_PRE &>/dev/null
     iptables -t nat    -X SSTP_PRE &>/dev/null
+    iptables -t raw    -F SSTP_OUT &>/dev/null
+    iptables -t raw    -X SSTP_OUT &>/dev/null
 
     iptables -t mangle -F SETMARK  &>/dev/null
     iptables -t mangle -X SETMARK  &>/dev/null
