@@ -33,11 +33,15 @@ function check_command {
 }
 
 function update_chnonly {
-    curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$file_gfwlist_txt
+    data="$(curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf)"
+    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+    echo "$data" | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$file_gfwlist_txt
 }
 
 function update_gfwlist {
-    curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt | base64 --decode | { perl -pe '
+    data="$(curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt)"
+    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+    echo "$data" | base64 --decode | { perl -pe '
     if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
     s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
     s@^\|\|?|\|$@@;
@@ -56,8 +60,9 @@ function update_gfwlist {
 }
 
 function update_chnroute {
-    chnroute_url="https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt"
-    { curl -4sSkL "$chnroute_url"; echo; } | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
+    data="$(curl -4sSkL https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt)"
+    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+    echo "$data" | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
     echo '-N chnroute hash:net' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
 }
 
