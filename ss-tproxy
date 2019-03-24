@@ -64,6 +64,8 @@ function update_chnroute {
     [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
     echo "$data" | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
     echo '-N chnroute hash:net' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
+    reserved_address=('0.0.0.0/8' '10.0.0.0/8' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
+    for addr in "${reserved_address[@]}"; do echo "$addr" >>$file_chnroute_txt; done
 }
 
 function flush_dnscache {
@@ -124,6 +126,7 @@ chnroute)
     temp_chnroute_txt=$(mktemp)
     cat $file_chnroute_txt >$temp_chnroute_txt
     echo "$dns_direct/32" >>$temp_chnroute_txt
+    for intranet in "${ipts_intranet[@]}"; do echo "$intranet" >>$temp_chnroute_txt; done
 
     chinadns_params="-b 0.0.0.0 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
