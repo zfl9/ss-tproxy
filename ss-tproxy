@@ -128,7 +128,7 @@ chnroute)
     echo "$dns_direct/32" >>$temp_chnroute_txt
     for intranet in "${ipts_intranet[@]}"; do echo "$intranet" >>$temp_chnroute_txt; done
 
-    chinadns_params="-b 0.0.0.0 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt"
+    chinadns_params="-b 0.0.0.0 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt -y 0"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
     [ "$chinadns_verbose"  = 'true' ] && chinadns_params+=' -v'
 
