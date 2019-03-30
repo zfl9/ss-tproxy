@@ -207,6 +207,16 @@ gfwlist)
     perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
 
     iptables -t mangle -N SETMARK
+    if ! [ "$proxy_dports" ]; then
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -j RETURN
+        done
+    else
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -p tcp -m multiport --dports $proxy_dports -j RETURN
+            iptables -t mangle -A SETMARK -d $server -p udp -m multiport --dports $proxy_dports -j RETURN
+        done
+    fi
     iptables -t mangle -A SETMARK -p udp -d ${dns_remote%:*}     -j MARK --set-mark $ipts_rt_mark
     iptables -t mangle -A SETMARK -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
 
@@ -282,9 +292,15 @@ gfwlist)
     perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
 
     iptables -t nat -N TCPCHAIN
+    for server in "${proxy_server[@]}"; do
+        iptables -t nat -A TCPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p tcp -m multiport --dports $proxy_dports") -j RETURN
+    done
     iptables -t nat -A TCPCHAIN -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports $proxy_tcport
 
     iptables -t mangle -N UDPCHAIN
+    for server in "${proxy_server[@]}"; do
+        iptables -t mangle -A UDPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p udp -m multiport --dports $proxy_dports") -j RETURN
+    done
     iptables -t mangle -A UDPCHAIN -d ${dns_remote%:*}            -j MARK --set-mark $ipts_rt_mark
     iptables -t mangle -A UDPCHAIN -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
 
