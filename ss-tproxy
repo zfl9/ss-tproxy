@@ -41,7 +41,10 @@ function update_chnonly {
 function update_gfwlist {
     data="$(curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt)"
     [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
-    echo "$data" | base64 --decode | { perl -pe '
+    base64 -d       </dev/null &>/dev/null && base64='base64 -d'
+    base64 --decode </dev/null &>/dev/null && base64='base64 --decode'
+    [ "$base64" ] || { echo "[ERR] Command not found: 'base64'" 1>&2; exit 1; }
+    echo "$data" | $base64 | { perl -pe '
     if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
     s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
     s@^\|\|?|\|$@@;
