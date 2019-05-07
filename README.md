@@ -8,6 +8,7 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 
 ## Todo List
 - [ ] ipv6 透明代理支持
+- [ ] 内网主机黑白名单支持(实验性)
 - [ ] 开发新版 chinadns，尝试解决原版遗留问题
 
 ## 脚本依赖
