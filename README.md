@@ -29,12 +29,10 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 ```bash
 git clone https://github.com/zfl9/ss-tproxy
 cd ss-tproxy
+chmod +x ss-tproxy
 cp -af ss-tproxy /usr/local/bin
-chmod 0755 /usr/local/bin/ss-tproxy
-chown root:root /usr/local/bin/ss-tproxy
-mkdir -m 0755 -p /etc/ss-tproxy
+mkdir -p /etc/ss-tproxy
 cp -af ss-tproxy.conf gfwlist.* chnroute.* /etc/ss-tproxy
-chmod 0644 /etc/ss-tproxy/* && chown -R root:root /etc/ss-tproxy
 ```
 
 **删除**
