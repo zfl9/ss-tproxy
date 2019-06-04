@@ -396,6 +396,7 @@ fi
 
 **用法**
 - `ss-tproxy help`：查看帮助
+- `ss-tproxy version`：版本号
 - `ss-tproxy start`：启动代理
 - `ss-tproxy stop`：关闭代理
 - `ss-tproxy restart`：重启代理
