@@ -538,6 +538,7 @@ COMMAND := {
     update-gfwlist      update gfwlist
     update-chnroute     update chnroute
     check-command       check commands
+    version             show version and exit
     help                show help and exit
 }
 Issues or Bug report: zfl9.com@gmail.com (Otokaze)
@@ -558,6 +559,7 @@ case $1 in
     update-gfwlist)     check_command; update_gfwlist;;
     update-chnroute)    check_command; update_chnroute;;
     c*)                 check_command;;
+    v*)                 echo "ss-tproxy v3.0.0";;
     h*)                 help;;
     *)                  help; exit 1;;
 esac
