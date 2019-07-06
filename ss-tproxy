@@ -33,11 +33,18 @@ function check_command {
 }
 
 function update_chnonly {
-    curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$file_gfwlist_txt
+    data="$(curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf)"
+    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+    echo "$data" | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$file_gfwlist_txt
 }
 
 function update_gfwlist {
-    curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt | base64 -d | { perl -pe '
+    data="$(curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt)"
+    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+    base64 -d       </dev/null &>/dev/null && base64='base64 -d'
+    base64 --decode </dev/null &>/dev/null && base64='base64 --decode'
+    [ "$base64" ] || { echo "[ERR] Command not found: 'base64'" 1>&2; exit 1; }
+    echo "$data" | $base64 | { perl -pe '
     if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
     s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
     s@^\|\|?|\|$@@;
@@ -56,9 +63,12 @@ function update_gfwlist {
 }
 
 function update_chnroute {
-    chnroute_url="https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt"
-    { curl -4sSkL "$chnroute_url"; echo; } | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
+    data="$(curl -4sSkL https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt)"
+    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+    echo "$data" | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
     echo '-N chnroute hash:net' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
+    reserved_address=('0.0.0.0/8' '10.0.0.0/8' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
+    for addr in "${reserved_address[@]}"; do echo "$addr" >>$file_chnroute_txt; done
 }
 
 function flush_dnscache {
@@ -119,8 +129,9 @@ chnroute)
     temp_chnroute_txt=$(mktemp)
     cat $file_chnroute_txt >$temp_chnroute_txt
     echo "$dns_direct/32" >>$temp_chnroute_txt
+    for intranet in "${ipts_intranet[@]}"; do echo "$intranet" >>$temp_chnroute_txt; done
 
-    chinadns_params="-b 0.0.0.0 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt"
+    chinadns_params="-b 0.0.0.0 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt -y 0"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
     [ "$chinadns_verbose"  = 'true' ] && chinadns_params+=' -v'
 
@@ -199,6 +210,16 @@ gfwlist)
     perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
 
     iptables -t mangle -N SETMARK
+    if ! [ "$proxy_dports" ]; then
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -j RETURN
+        done
+    else
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -p tcp -m multiport --dports $proxy_dports -j RETURN
+            iptables -t mangle -A SETMARK -d $server -p udp -m multiport --dports $proxy_dports -j RETURN
+        done
+    fi
     iptables -t mangle -A SETMARK -p udp -d ${dns_remote%:*}     -j MARK --set-mark $ipts_rt_mark
     iptables -t mangle -A SETMARK -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
 
@@ -274,9 +295,15 @@ gfwlist)
     perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
 
     iptables -t nat -N TCPCHAIN
+    for server in "${proxy_server[@]}"; do
+        iptables -t nat -A TCPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p tcp -m multiport --dports $proxy_dports") -j RETURN
+    done
     iptables -t nat -A TCPCHAIN -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports $proxy_tcport
 
     iptables -t mangle -N UDPCHAIN
+    for server in "${proxy_server[@]}"; do
+        iptables -t mangle -A UDPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p udp -m multiport --dports $proxy_dports") -j RETURN
+    done
     iptables -t mangle -A UDPCHAIN -d ${dns_remote%:*}            -j MARK --set-mark $ipts_rt_mark
     iptables -t mangle -A UDPCHAIN -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
 
@@ -511,6 +538,7 @@ COMMAND := {
     update-gfwlist      update gfwlist
     update-chnroute     update chnroute
     check-command       check commands
+    version             show version and exit
     help                show help and exit
 }
 Issues or Bug report: zfl9.com@gmail.com (Otokaze)
@@ -531,6 +559,7 @@ case $1 in
     update-gfwlist)     check_command; update_gfwlist;;
     update-chnroute)    check_command; update_chnroute;;
     c*)                 check_command;;
+    v*)                 echo "ss-tproxy v3.0.0";;
     h*)                 help;;
     *)                  help; exit 1;;
 esac
