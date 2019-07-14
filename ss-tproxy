@@ -91,7 +91,7 @@ update_chnonly() {
     echo "$data" | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$file_gfwlist_txt
 }
 
-function update_gfwlist {
+update_gfwlist() {
     local data="$(curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt)"
     [ "$data" ] || log_error "update failed, please check the error output of curl"
     base64 -d       </dev/null &>/dev/null && local base64_decode='base64 -d'
@@ -211,7 +211,7 @@ start_iptables() {
         sysctl -w net.ipv4.conf.$dir.send_redirects=0 &>/dev/null
     done
 
-    function check_snat_rule {
+    check_snat_rule() {
         if [ "$ipts_non_snat" != 'true' ]; then
             if ! iptables -t nat -C POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE &>/dev/null; then
                 iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
@@ -219,12 +219,12 @@ start_iptables() {
         fi
     }
 
-    function dec2bin {
+    dec2bin() {
         for ((n = $1; n > 0; n >>= 1)); do bit="$((n & 1))$bit"; done
         printf "%08d\n" "$bit"
     }
 
-    function net2bin {
+    net2bin() {
         net=$(awk -F/ '{print $1}' <<<$1)
         len=$(awk -F/ '{print $2}' <<<$1)
         IFS='.' read -ra bytes <<<"$net"
