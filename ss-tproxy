@@ -1,50 +1,103 @@
 #!/bin/bash
+set -o nounset
+set -o errexit
+set -o pipefail
+
+font_bold() {
+    echo -e "\e[1m$@\e[0m"
+}
+
+color_red() {
+    echo -e "\e[35m$@\e[0m"
+}
+
+color_green() {
+    echo -e "\e[32m$@\e[0m"
+}
+
+color_yellow() {
+    echo -e "\e[31m$@\e[0m"
+}
+
+log_warn() {
+    echo "$(font_bold $(color_red '[WARNING]')) $@" 1>&2
+}
+
+log_error() {
+    echo "$(font_bold $(color_yellow '[ERROR]')) $@" 1>&2
+    exit 1
+}
+
+file_is_exists() {
+    [ -f "$1" ]
+}
+
+command_is_exists() {
+    command -v "$1" &>/dev/null
+}
 
 ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-[ ! -f "$ss_tproxy_config"  ] && { echo "[ERR] No such file or directory: '$ss_tproxy_config'"  1>&2; exit 1; } || source "$ss_tproxy_config"
-[ ! -f "$file_gfwlist_txt"  ] && { echo "[ERR] No such file or directory: '$file_gfwlist_txt'"  1>&2; exit 1; }
-[ ! -f "$file_gfwlist_ext"  ] && { echo "[ERR] No such file or directory: '$file_gfwlist_ext'"  1>&2; exit 1; }
-[ ! -f "$file_chnroute_txt" ] && { echo "[ERR] No such file or directory: '$file_chnroute_txt'" 1>&2; exit 1; }
-[ ! -f "$file_chnroute_set" ] && { echo "[ERR] No such file or directory: '$file_chnroute_set'" 1>&2; exit 1; }
+file_is_exists "$ss_tproxy_config"  || log_error "file not exist: '$ss_tproxy_config'" && source "$ss_tproxy_config"
+file_is_exists "$file_gfwlist_txt"  || log_error "file not exist: '$file_gfwlist_txt'"
+file_is_exists "$file_gfwlist_ext"  || log_error "file not exist: '$file_gfwlist_ext'"
+file_is_exists "$file_chnroute_txt" || log_error "file not exist: '$file_chnroute_txt'"
+file_is_exists "$file_chnroute_set" || log_error "file not exist: '$file_chnroute_set'"
 
-function check_command {
-    [ "$opts_ss_netstat" = "auto"    ] && { command -v ss &>/dev/null && netstat="ss" || netstat="netstat"; }
-    [ "$opts_ss_netstat" = "netstat" ] && netstat="netstat"
-    [ "$opts_ss_netstat" = "ss"      ] && netstat="ss"
+case "$opts_ss_netstat" in
+    auto)
+        if command_is_exists 'ss'; then
+            netstat='ss'
+        elif command_is_exists 'netstat'; then
+            netstat='netstat'
+        else
+            log_error "command not found: ss/netstat"
+        fi
+        ;;
+    ss)
+        command_is_exists 'ss' && netstat='ss' || log_error "command not found: ss"
+        ;;
+    netstat)
+        command_is_exists 'netstat' && netstat='netstat' || log_error "command not found: netstat"
+        ;;
+    *)
+        log_error "opts_ss_netstat option value is invalid: $opts_ss_netstat"
+        ;;
+esac
 
-    command -v ip      &>/dev/null || { echo "[ERR] Command not found: 'ip'"      1>&2; exit 1; }
-    command -v dnsmasq &>/dev/null || { echo "[ERR] Command not found: 'dnsmasq'" 1>&2; exit 1; }
+check_command() {
+    command_is_exists 'ip'      || log_error "command not found: ip"
+    command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
 
     case "$mode" in
         gfwlist)
-            command -v curl   &>/dev/null || { echo "[WRN] Command not found: 'curl'"   1>&2;         }
-            command -v base64 &>/dev/null || { echo "[WRN] Command not found: 'base64'" 1>&2;         }
-            command -v ipset  &>/dev/null || { echo "[ERR] Command not found: 'ipset'"  1>&2; exit 1; }
-            command -v perl   &>/dev/null || { echo "[ERR] Command not found: 'perl'"   1>&2; exit 1; }
+            command_is_exists 'curl'   || log_warn  "command not found: curl"
+            command_is_exists 'base64' || log_warn  "command not found: base64"
+            command_is_exists 'ipset'  || log_error "command not found: ipset"
+            command_is_exists 'perl'   || log_error "command not found: perl"
             ;;
         chnroute)
-            command -v curl     &>/dev/null || { echo "[WRN] Command not found: 'curl'"     1>&2;         }
-            command -v ipset    &>/dev/null || { echo "[ERR] Command not found: 'ipset'"    1>&2; exit 1; }
-            command -v chinadns &>/dev/null || { echo "[ERR] Command not found: 'chinadns'" 1>&2; exit 1; }
+            command_is_exists 'curl'     || log_warn  "command not found: curl"
+            command_is_exists 'ipset'    || log_error "command not found: ipset"
+            command_is_exists 'chinadns' || log_error "command not found: chinadns"
             ;;
     esac
 }
 
-function update_chnonly {
-    data="$(curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf)"
-    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+update_chnonly() {
+    local data="$(curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf)"
+    [ "$data" ] || log_error "update failed, please check the error output of curl"
     echo "$data" | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$file_gfwlist_txt
 }
 
 function update_gfwlist {
-    data="$(curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt)"
-    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
-    base64 -d       </dev/null &>/dev/null && base64='base64 -d'
-    base64 --decode </dev/null &>/dev/null && base64='base64 --decode'
-    [ "$base64" ] || { echo "[ERR] Command not found: 'base64'" 1>&2; exit 1; }
-    echo "$data" | $base64 | { perl -pe '
+    local data="$(curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt)"
+    [ "$data" ] || log_error "update failed, please check the error output of curl"
+    base64 -d       </dev/null &>/dev/null && local base64_decode='base64 -d'
+    base64 --decode </dev/null &>/dev/null && local base64_decode='base64 --decode'
+    [ "$base64" ] || log_error "command args is not support: base64"
+    echo "$data" | $base64_decode | { perl -pe '
     if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
     s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
     s@^\|\|?|\|$@@;
@@ -62,28 +115,25 @@ function update_gfwlist {
     } | sort | uniq >$file_gfwlist_txt
 }
 
-function update_chnroute {
-    data="$(curl -4sSkL https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt)"
-    [ "$data" ] || { echo "update failed, please check the error output of curl"; exit 1; }
+update_chnroute() {
+    local data="$(curl -4sSkL https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt)"
+    [ "$data" ] || log_error "update failed, please check the error output of curl"
     echo "$data" | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
     echo '-N chnroute hash:net' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
-    reserved_address=('0.0.0.0/8' '10.0.0.0/8' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
+    local reserved_address=('0.0.0.0/8' '10.0.0.0/8' '100.64.0.0/10' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
     for addr in "${reserved_address[@]}"; do echo "$addr" >>$file_chnroute_txt; done
 }
 
-function flush_dnscache {
-    if [ "$opts_ss_netstat" != "netstat" -a "$(command -v ss &>/dev/null && echo 'true')" ]; then
-        ss -lnpu | awk -F, '/:60053[ \t].+"dnsmasq"/ {print $(NF-1)}' | awk -F= '{print $2}' | sort | uniq | xargs kill -HUP &>/dev/null
-    else
-        netstat -lnpu | awk -F/ '/:60053[ \t].+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -HUP &>/dev/null
-    fi
+flush_dnscache() {
+    file_is_exists "$file_dnsmasq_pidfile" || log_error "dnsmasq pidfile not found: $file_dnsmasq_pidfile"
+    xargs kill -HUP <$file_dnsmasq_pidfile &>/dev/null || true
 }
 
-function start_proxy {
-    eval "$proxy_runcmd"
+start_proxy() {
+    eval "$proxy_runcmd" || log_error "failed to exec proxy_runcmd: $proxy_runcmd"
 }
 
-function start_resolver {
+start_resolver() {
     for server in "${proxy_server[@]}"; do
         if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server") -eq 0 ]; then
             server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | awk -F'[()]' '{print $2}')")
