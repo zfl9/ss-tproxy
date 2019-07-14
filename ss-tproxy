@@ -96,7 +96,7 @@ function update_gfwlist {
     [ "$data" ] || log_error "update failed, please check the error output of curl"
     base64 -d       </dev/null &>/dev/null && local base64_decode='base64 -d'
     base64 --decode </dev/null &>/dev/null && local base64_decode='base64 --decode'
-    [ "$base64" ] || log_error "command args is not support: base64"
+    [ "$base64_decode" ] || log_error "command args is not support: base64"
     echo "$data" | $base64_decode | { perl -pe '
     if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
     s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
@@ -205,7 +205,7 @@ EOF
 esac
 }
 
-function start_iptables {
+start_iptables() {
     sysctl -w net.ipv4.ip_forward=1 &>/dev/null
     for dir in $(ls /proc/sys/net/ipv4/conf); do
         sysctl -w net.ipv4.conf.$dir.send_redirects=0 &>/dev/null
@@ -436,7 +436,7 @@ esac
 fi
 }
 
-function start_dnsproxy {
+start_dnsproxy() {
     if [ "$dns_modify" = 'false' ]; then
         while umount /etc/resolv.conf; do :; done &>/dev/null
         resolv=$(mktemp)
@@ -453,7 +453,7 @@ EOF
     fi
 }
 
-function start {
+start() {
     [ "$(type -t pre_start)" = 'function' ] && pre_start
 
     if [ "$dns_modify" = 'false' ]; then
@@ -473,7 +473,7 @@ function start {
     [ "$(type -t post_start)" = 'function' ] && post_start
 }
 
-function stop {
+stop() {
     [ "$(type -t pre_stop)" = 'function' ] && pre_stop
 
     if [ "$dns_modify" = 'false' ]; then
@@ -529,7 +529,7 @@ function stop {
     [ "$(type -t post_stop)" = 'function' ] && post_stop
 }
 
-function status {
+status() {
 case "$mode" in
     global)
         echo "mode:     global"
@@ -553,7 +553,7 @@ case "$mode" in
 esac
 }
 
-function show_iptables {
+show_iptables() {
     echo -e "\e[36;1m==> mangle <==\e[0m"
     iptables -t mangle -nvL --line-numbers
     echo
@@ -561,7 +561,7 @@ function show_iptables {
     iptables -t nat -nvL --line-numbers
 }
 
-function flush_iptables {
+flush_iptables() {
     iptables -t raw -F
     iptables -t raw -X
     iptables -t mangle -F
@@ -572,7 +572,7 @@ function flush_iptables {
     iptables -t filter -X
 }
 
-function help {
+help() {
 cat <<EOF
 Usage: ss-tproxy <COMMAND>
 COMMAND := {
