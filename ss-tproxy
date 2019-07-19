@@ -19,8 +19,12 @@ color_yellow() {
     printf "\e[31m$*\e[0m"
 }
 
+log_info() {
+    echo "$(font_bold $(color_green '[INFO]')) $*"
+}
+
 log_warn() {
-    echo "$(font_bold $(color_red '[WARNING]')) $*" 1>&2
+    echo "$(font_bold $(color_red '[WARN]')) $*" 1>&2
 }
 
 log_error() {
@@ -78,8 +82,8 @@ check_command() {
         gfwlist)
             command_is_exists 'curl'   || log_warn  "command not found: curl"
             command_is_exists 'base64' || log_warn  "command not found: base64"
+            command_is_exists 'perl'   || log_warn  "command not found: perl"
             command_is_exists 'ipset'  || log_error "command not found: ipset"
-            command_is_exists 'perl'   || log_error "command not found: perl"
             ;;
         chnroute)
             command_is_exists 'curl'     || log_warn  "command not found: curl"
@@ -92,7 +96,7 @@ check_command() {
 update_chnonly() {
     local data="$(curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf)"
     [ "$data" ] || log_error "update failed, please check the error output of curl"
-    echo "$data" | perl -ne 'm@/\K.+(?=/)@; print "$&\n"' >$file_gfwlist_txt
+    echo "$data" | gawk -F/ '{print $2}' >$file_gfwlist_txt
 }
 
 update_gfwlist() {
@@ -113,9 +117,9 @@ update_gfwlist() {
     s@(?=[^0-9a-zA-Z.-]).*+$@@;
     s@^\d+\.\d+\.\d+\.\d+(?::\d+)?$@@;
     s@^\s*+$@@'
-    echo 'twimg.edgesuite.net'
-    echo -e 'blogspot.ae\nblogspot.al\nblogspot.am\nblogspot.ba\nblogspot.be\nblogspot.bg\nblogspot.bj\nblogspot.ca\nblogspot.cat\nblogspot.cf\nblogspot.ch\nblogspot.cl\nblogspot.co.at\nblogspot.co.id\nblogspot.co.il\nblogspot.co.ke\nblogspot.com\nblogspot.com.ar\nblogspot.com.au\nblogspot.com.br\nblogspot.com.by\nblogspot.com.co\nblogspot.com.cy\nblogspot.com.ee\nblogspot.com.eg\nblogspot.com.es\nblogspot.com.mt\nblogspot.com.ng\nblogspot.com.tr\nblogspot.com.uy\nblogspot.co.nz\nblogspot.co.uk\nblogspot.co.za\nblogspot.cv\nblogspot.cz\nblogspot.de\nblogspot.dk\nblogspot.fi\nblogspot.fr\nblogspot.gr\nblogspot.hk\nblogspot.hr\nblogspot.hu\nblogspot.ie\nblogspot.in\nblogspot.is\nblogspot.it\nblogspot.jp\nblogspot.kr\nblogspot.li\nblogspot.lt\nblogspot.lu\nblogspot.md\nblogspot.mk\nblogspot.mr\nblogspot.mx\nblogspot.my\nblogspot.nl\nblogspot.no\nblogspot.pe\nblogspot.pt\nblogspot.qa\nblogspot.re\nblogspot.ro\nblogspot.rs\nblogspot.ru\nblogspot.se\nblogspot.sg\nblogspot.si\nblogspot.sk\nblogspot.sn\nblogspot.td\nblogspot.tw\nblogspot.ug\nblogspot.vn'
-    echo -e 'google.ac\ngoogle.ad\ngoogle.ae\ngoogle.al\ngoogle.am\ngoogle.as\ngoogle.at\ngoogle.az\ngoogle.ba\ngoogle.be\ngoogle.bf\ngoogle.bg\ngoogle.bi\ngoogle.bj\ngoogle.bs\ngoogle.bt\ngoogle.by\ngoogle.ca\ngoogle.cat\ngoogle.cc\ngoogle.cd\ngoogle.cf\ngoogle.cg\ngoogle.ch\ngoogle.ci\ngoogle.cl\ngoogle.cm\ngoogle.cn\ngoogle.co.ao\ngoogle.co.bw\ngoogle.co.ck\ngoogle.co.cr\ngoogle.co.id\ngoogle.co.il\ngoogle.co.in\ngoogle.co.jp\ngoogle.co.ke\ngoogle.co.kr\ngoogle.co.ls\ngoogle.com\ngoogle.co.ma\ngoogle.com.af\ngoogle.com.ag\ngoogle.com.ai\ngoogle.com.ar\ngoogle.com.au\ngoogle.com.bd\ngoogle.com.bh\ngoogle.com.bn\ngoogle.com.bo\ngoogle.com.br\ngoogle.com.bz\ngoogle.com.co\ngoogle.com.cu\ngoogle.com.cy\ngoogle.com.do\ngoogle.com.ec\ngoogle.com.eg\ngoogle.com.et\ngoogle.com.fj\ngoogle.com.gh\ngoogle.com.gi\ngoogle.com.gt\ngoogle.com.hk\ngoogle.com.jm\ngoogle.com.kh\ngoogle.com.kw\ngoogle.com.lb\ngoogle.com.lc\ngoogle.com.ly\ngoogle.com.mm\ngoogle.com.mt\ngoogle.com.mx\ngoogle.com.my\ngoogle.com.na\ngoogle.com.nf\ngoogle.com.ng\ngoogle.com.ni\ngoogle.com.np\ngoogle.com.om\ngoogle.com.pa\ngoogle.com.pe\ngoogle.com.pg\ngoogle.com.ph\ngoogle.com.pk\ngoogle.com.pr\ngoogle.com.py\ngoogle.com.qa\ngoogle.com.sa\ngoogle.com.sb\ngoogle.com.sg\ngoogle.com.sl\ngoogle.com.sv\ngoogle.com.tj\ngoogle.com.tr\ngoogle.com.tw\ngoogle.com.ua\ngoogle.com.uy\ngoogle.com.vc\ngoogle.com.vn\ngoogle.co.mz\ngoogle.co.nz\ngoogle.co.th\ngoogle.co.tz\ngoogle.co.ug\ngoogle.co.uk\ngoogle.co.uz\ngoogle.co.ve\ngoogle.co.vi\ngoogle.co.za\ngoogle.co.zm\ngoogle.co.zw\ngoogle.cv\ngoogle.cz\ngoogle.de\ngoogle.dj\ngoogle.dk\ngoogle.dm\ngoogle.dz\ngoogle.ee\ngoogle.es\ngoogle.fi\ngoogle.fm\ngoogle.fr\ngoogle.ga\ngoogle.ge\ngoogle.gf\ngoogle.gg\ngoogle.gl\ngoogle.gm\ngoogle.gp\ngoogle.gr\ngoogle.gy\ngoogle.hn\ngoogle.hr\ngoogle.ht\ngoogle.hu\ngoogle.ie\ngoogle.im\ngoogle.io\ngoogle.iq\ngoogle.is\ngoogle.it\ngoogle.je\ngoogle.jo\ngoogle.kg\ngoogle.ki\ngoogle.kz\ngoogle.la\ngoogle.li\ngoogle.lk\ngoogle.lt\ngoogle.lu\ngoogle.lv\ngoogle.md\ngoogle.me\ngoogle.mg\ngoogle.mk\ngoogle.ml\ngoogle.mn\ngoogle.ms\ngoogle.mu\ngoogle.mv\ngoogle.mw\ngoogle.ne\ngoogle.net\ngoogle.nl\ngoogle.no\ngoogle.nr\ngoogle.nu\ngoogle.org\ngoogle.pl\ngoogle.pn\ngoogle.ps\ngoogle.pt\ngoogle.ro\ngoogle.rs\ngoogle.ru\ngoogle.rw\ngoogle.sc\ngoogle.se\ngoogle.sh\ngoogle.si\ngoogle.sk\ngoogle.sm\ngoogle.sn\ngoogle.so\ngoogle.sr\ngoogle.st\ngoogle.td\ngoogle.tg\ngoogle.tk\ngoogle.tl\ngoogle.tm\ngoogle.tn\ngoogle.to\ngoogle.tt\ngoogle.vg\ngoogle.vu\ngoogle.ws'
+    printf 'twimg.edgesuite.net\n'
+    printf 'blogspot.ae\nblogspot.al\nblogspot.am\nblogspot.ba\nblogspot.be\nblogspot.bg\nblogspot.bj\nblogspot.ca\nblogspot.cat\nblogspot.cf\nblogspot.ch\nblogspot.cl\nblogspot.co.at\nblogspot.co.id\nblogspot.co.il\nblogspot.co.ke\nblogspot.com\nblogspot.com.ar\nblogspot.com.au\nblogspot.com.br\nblogspot.com.by\nblogspot.com.co\nblogspot.com.cy\nblogspot.com.ee\nblogspot.com.eg\nblogspot.com.es\nblogspot.com.mt\nblogspot.com.ng\nblogspot.com.tr\nblogspot.com.uy\nblogspot.co.nz\nblogspot.co.uk\nblogspot.co.za\nblogspot.cv\nblogspot.cz\nblogspot.de\nblogspot.dk\nblogspot.fi\nblogspot.fr\nblogspot.gr\nblogspot.hk\nblogspot.hr\nblogspot.hu\nblogspot.ie\nblogspot.in\nblogspot.is\nblogspot.it\nblogspot.jp\nblogspot.kr\nblogspot.li\nblogspot.lt\nblogspot.lu\nblogspot.md\nblogspot.mk\nblogspot.mr\nblogspot.mx\nblogspot.my\nblogspot.nl\nblogspot.no\nblogspot.pe\nblogspot.pt\nblogspot.qa\nblogspot.re\nblogspot.ro\nblogspot.rs\nblogspot.ru\nblogspot.se\nblogspot.sg\nblogspot.si\nblogspot.sk\nblogspot.sn\nblogspot.td\nblogspot.tw\nblogspot.ug\nblogspot.vn\n'
+    printf 'google.ac\ngoogle.ad\ngoogle.ae\ngoogle.al\ngoogle.am\ngoogle.as\ngoogle.at\ngoogle.az\ngoogle.ba\ngoogle.be\ngoogle.bf\ngoogle.bg\ngoogle.bi\ngoogle.bj\ngoogle.bs\ngoogle.bt\ngoogle.by\ngoogle.ca\ngoogle.cat\ngoogle.cc\ngoogle.cd\ngoogle.cf\ngoogle.cg\ngoogle.ch\ngoogle.ci\ngoogle.cl\ngoogle.cm\ngoogle.cn\ngoogle.co.ao\ngoogle.co.bw\ngoogle.co.ck\ngoogle.co.cr\ngoogle.co.id\ngoogle.co.il\ngoogle.co.in\ngoogle.co.jp\ngoogle.co.ke\ngoogle.co.kr\ngoogle.co.ls\ngoogle.com\ngoogle.co.ma\ngoogle.com.af\ngoogle.com.ag\ngoogle.com.ai\ngoogle.com.ar\ngoogle.com.au\ngoogle.com.bd\ngoogle.com.bh\ngoogle.com.bn\ngoogle.com.bo\ngoogle.com.br\ngoogle.com.bz\ngoogle.com.co\ngoogle.com.cu\ngoogle.com.cy\ngoogle.com.do\ngoogle.com.ec\ngoogle.com.eg\ngoogle.com.et\ngoogle.com.fj\ngoogle.com.gh\ngoogle.com.gi\ngoogle.com.gt\ngoogle.com.hk\ngoogle.com.jm\ngoogle.com.kh\ngoogle.com.kw\ngoogle.com.lb\ngoogle.com.lc\ngoogle.com.ly\ngoogle.com.mm\ngoogle.com.mt\ngoogle.com.mx\ngoogle.com.my\ngoogle.com.na\ngoogle.com.nf\ngoogle.com.ng\ngoogle.com.ni\ngoogle.com.np\ngoogle.com.om\ngoogle.com.pa\ngoogle.com.pe\ngoogle.com.pg\ngoogle.com.ph\ngoogle.com.pk\ngoogle.com.pr\ngoogle.com.py\ngoogle.com.qa\ngoogle.com.sa\ngoogle.com.sb\ngoogle.com.sg\ngoogle.com.sl\ngoogle.com.sv\ngoogle.com.tj\ngoogle.com.tr\ngoogle.com.tw\ngoogle.com.ua\ngoogle.com.uy\ngoogle.com.vc\ngoogle.com.vn\ngoogle.co.mz\ngoogle.co.nz\ngoogle.co.th\ngoogle.co.tz\ngoogle.co.ug\ngoogle.co.uk\ngoogle.co.uz\ngoogle.co.ve\ngoogle.co.vi\ngoogle.co.za\ngoogle.co.zm\ngoogle.co.zw\ngoogle.cv\ngoogle.cz\ngoogle.de\ngoogle.dj\ngoogle.dk\ngoogle.dm\ngoogle.dz\ngoogle.ee\ngoogle.es\ngoogle.fi\ngoogle.fm\ngoogle.fr\ngoogle.ga\ngoogle.ge\ngoogle.gf\ngoogle.gg\ngoogle.gl\ngoogle.gm\ngoogle.gp\ngoogle.gr\ngoogle.gy\ngoogle.hn\ngoogle.hr\ngoogle.ht\ngoogle.hu\ngoogle.ie\ngoogle.im\ngoogle.io\ngoogle.iq\ngoogle.is\ngoogle.it\ngoogle.je\ngoogle.jo\ngoogle.kg\ngoogle.ki\ngoogle.kz\ngoogle.la\ngoogle.li\ngoogle.lk\ngoogle.lt\ngoogle.lu\ngoogle.lv\ngoogle.md\ngoogle.me\ngoogle.mg\ngoogle.mk\ngoogle.ml\ngoogle.mn\ngoogle.ms\ngoogle.mu\ngoogle.mv\ngoogle.mw\ngoogle.ne\ngoogle.net\ngoogle.nl\ngoogle.no\ngoogle.nr\ngoogle.nu\ngoogle.org\ngoogle.pl\ngoogle.pn\ngoogle.ps\ngoogle.pt\ngoogle.ro\ngoogle.rs\ngoogle.ru\ngoogle.rw\ngoogle.sc\ngoogle.se\ngoogle.sh\ngoogle.si\ngoogle.sk\ngoogle.sm\ngoogle.sn\ngoogle.so\ngoogle.sr\ngoogle.st\ngoogle.td\ngoogle.tg\ngoogle.tk\ngoogle.tl\ngoogle.tm\ngoogle.tn\ngoogle.to\ngoogle.tt\ngoogle.vg\ngoogle.vu\ngoogle.ws\n'
     } | sort | uniq >$file_gfwlist_txt
 }
 
@@ -128,24 +132,18 @@ update_chnroute() {
     for addr in "${reserved_address[@]}"; do echo "$addr" >>$file_chnroute_txt; done
 }
 
-flush_dnscache() {
-    file_is_exists "$file_dnsmasq_pidfile" || log_error "dnsmasq pidfile not found: $file_dnsmasq_pidfile"
-    xargs kill -HUP <$file_dnsmasq_pidfile &>/dev/null || true
-}
+# run as subshell
+flush_dnscache() (
+    file_is_not_empty "$file_sstproxy_status" || { log_info "dnsmasq not running"; exit; } && source "$file_sstproxy_status"
+    [ "$status_dnsmasq_pid" ] || { log_info "dnsmasq not running"; exit; } && kill -HUP "$status_dnsmasq_pid"
+)
 
 start_proxy() {
     eval "$proxy_runcmd" || log_error "failed to exec proxy_runcmd: $proxy_runcmd"
 }
 
-start_resolver() {
-    for server in "${proxy_server[@]}"; do
-        if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server") -eq 0 ]; then
-            server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | awk -F'[()]' '{print $2}')")
-        fi
-    done
-case "$mode" in
-global)
-    dnsmasq -C <(cat <<EOF
+start_resolver_global() {
+    status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file <(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
 log-facility = $dnsmasq_log_file
 log-async = 20
@@ -155,13 +153,14 @@ $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $
 no-negcache
 no-resolv
 port = 60053
-server = ${dns_remote/:/#}
+server = $(tr ':' '#' <<<"$dns_remote")
 $(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
 EOF
-)
-    ;;
-gfwlist)
-    dnsmasq -C <(cat <<EOF
+) </dev/null &>>$dnsmasq_log_file & echo $!)
+}
+
+start_resolver_gfwlist() {
+    status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file <(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
 log-facility = $dnsmasq_log_file
 log-async = 20
@@ -173,25 +172,26 @@ no-resolv
 port = 60053
 server = $dns_direct
 $(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
-$(perl -pe "s@^.*+\$@server=/$&/${dns_remote/:/#}\nipset=/$&/gfwlist@" $file_gfwlist_txt <(
+$(perl -pe "s@^.*+\$@server=/$&/$(tr ':' '#' <<<"$dns_remote")\nipset=/$&/gfwlist@" $file_gfwlist_txt <(
 perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext
 ))
 EOF
-)
-    ;;
-chnroute)
-    temp_chnroute_txt=$(mktemp)
+) </dev/null &>>$dnsmasq_log_file & echo $!)
+}
+
+start_resolver_chnroute() {
+    local temp_chnroute_txt=$(mktemp)
     cat $file_chnroute_txt >$temp_chnroute_txt
     echo "$dns_direct/32" >>$temp_chnroute_txt
     for intranet in "${ipts_intranet[@]}"; do echo "$intranet" >>$temp_chnroute_txt; done
 
-    chinadns_params="-b 0.0.0.0 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt -y 0"
+    local chinadns_params="-b 127.0.0.1 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt -y 0"
     [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
     [ "$chinadns_verbose"  = 'true' ] && chinadns_params+=' -v'
 
-    (chinadns $chinadns_params </dev/null &>>$chinadns_logfile &)
+    status_chinadns_pid=$(chinadns $chinadns_params </dev/null &>>$chinadns_logfile & echo $!)
 
-    dnsmasq -C <(cat <<EOF
+    status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file <(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
 log-facility = $dnsmasq_log_file
 log-async = 20
@@ -204,9 +204,34 @@ port = 60053
 server = 127.0.0.1#65353
 $(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
 EOF
-)
-    ;;
-esac
+) </dev/null &>>$dnsmasq_log_file & echo $!)
+}
+
+show_server_addrs() {
+    for addr in "${server_addrs[@]}"; do
+        echo "$addr"
+    done
+}
+
+start_resolver() {
+    # resolve hostname
+    local server_addrs=()
+    for server in "${proxy_server[@]}"; do
+        if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server") -eq 0 ]; then
+            server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | awk -F'[()]' '{print $2}')") || true
+        fi
+    done
+    case "$mode" in
+        global)
+            start_resolver_global
+            ;;
+        gfwlist)
+            start_resolver_gfwlist
+            ;;
+        chnroute)
+            start_resolver_chnroute
+            ;;
+    esac
 }
 
 start_iptables() {
