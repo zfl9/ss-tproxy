@@ -4,32 +4,36 @@ set -o errexit
 set -o pipefail
 
 font_bold() {
-    echo -e "\e[1m$@\e[0m"
+    printf "\e[1m$*\e[0m"
 }
 
 color_red() {
-    echo -e "\e[35m$@\e[0m"
+    printf "\e[35m$*\e[0m"
 }
 
 color_green() {
-    echo -e "\e[32m$@\e[0m"
+    printf "\e[32m$*\e[0m"
 }
 
 color_yellow() {
-    echo -e "\e[31m$@\e[0m"
+    printf "\e[31m$*\e[0m"
 }
 
 log_warn() {
-    echo "$(font_bold $(color_red '[WARNING]')) $@" 1>&2
+    echo "$(font_bold $(color_red '[WARNING]')) $*" 1>&2
 }
 
 log_error() {
-    echo "$(font_bold $(color_yellow '[ERROR]')) $@" 1>&2
+    echo "$(font_bold $(color_yellow '[ERROR]')) $*" 1>&2
     exit 1
 }
 
 file_is_exists() {
     [ -f "$1" ]
+}
+
+file_is_not_empty() {
+    [ -s "$1" ]
 }
 
 command_is_exists() {
@@ -39,11 +43,11 @@ command_is_exists() {
 ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-file_is_exists "$ss_tproxy_config"  || log_error "file not exist: '$ss_tproxy_config'" && source "$ss_tproxy_config"
-file_is_exists "$file_gfwlist_txt"  || log_error "file not exist: '$file_gfwlist_txt'"
-file_is_exists "$file_gfwlist_ext"  || log_error "file not exist: '$file_gfwlist_ext'"
-file_is_exists "$file_chnroute_txt" || log_error "file not exist: '$file_chnroute_txt'"
-file_is_exists "$file_chnroute_set" || log_error "file not exist: '$file_chnroute_set'"
+file_is_exists "$ss_tproxy_config"  || log_error "file not found: $ss_tproxy_config" && source "$ss_tproxy_config"
+file_is_exists "$file_gfwlist_txt"  || log_error "file not found: $file_gfwlist_txt"
+file_is_exists "$file_gfwlist_ext"  || log_error "file not found: $file_gfwlist_ext"
+file_is_exists "$file_chnroute_txt" || log_error "file not found: $file_chnroute_txt"
+file_is_exists "$file_chnroute_set" || log_error "file not found: $file_chnroute_set"
 
 case "$opts_ss_netstat" in
     auto)
