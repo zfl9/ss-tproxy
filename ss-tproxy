@@ -44,15 +44,38 @@ command_is_exists() {
     command -v "$1" &>/dev/null
 }
 
+process_is_running() {
+    kill -0 "$1" &>/dev/null
+}
+
+sstproxy_is_started() {
+    # simple detection (may not be accurate)
+    iptables -t mangle -L SSTP_OUT &>/dev/null
+}
+
 ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-file_is_exists "$ss_tproxy_config"  || log_error "file not found: $ss_tproxy_config" && source "$ss_tproxy_config"
+# check core file is exists
+file_is_exists "$ss_tproxy_config"  || log_error "file not found: $ss_tproxy_config"
+source "$ss_tproxy_config" || log_error "failed to load config file, exit-code: $?"
 file_is_exists "$file_gfwlist_txt"  || log_error "file not found: $file_gfwlist_txt"
 file_is_exists "$file_gfwlist_ext"  || log_error "file not found: $file_gfwlist_ext"
 file_is_exists "$file_chnroute_txt" || log_error "file not found: $file_chnroute_txt"
 file_is_exists "$file_chnroute_set" || log_error "file not found: $file_chnroute_set"
 
+# check `ss-tproxy-status` file
+if sstproxy_is_started; then
+    if file_is_not_empty "$file_sstproxy_status"; then
+        source "$file_sstproxy_status" || log_error "failed to load status file, exit-code: $?"
+    else
+        log_error "ss-tproxy is already running, but the status file is empty: $file_sstproxy_status"
+    fi
+else
+    rm -fr "$file_sstproxy_status" &>/dev/null || true
+fi
+
+# check `opts_ss_netstat` option
 case "$opts_ss_netstat" in
     auto)
         if command_is_exists 'ss'; then
@@ -74,37 +97,40 @@ case "$opts_ss_netstat" in
         ;;
 esac
 
-check_command() {
-    command_is_exists 'ip'      || log_error "command not found: ip"
-    command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
+# check core command
+command_is_exists 'ip'      || log_error "command not found: ip"
+command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
 
-    case "$mode" in
-        gfwlist)
-            command_is_exists 'curl'   || log_warn  "command not found: curl"
-            command_is_exists 'base64' || log_warn  "command not found: base64"
-            command_is_exists 'perl'   || log_warn  "command not found: perl"
-            command_is_exists 'ipset'  || log_error "command not found: ipset"
-            ;;
-        chnroute)
-            command_is_exists 'curl'     || log_warn  "command not found: curl"
-            command_is_exists 'ipset'    || log_error "command not found: ipset"
-            command_is_exists 'chinadns' || log_error "command not found: chinadns"
-            ;;
-    esac
-}
+# check other command
+case "$mode" in
+    gfwlist)
+        # curl/base64/perl for `update_gfwlist/update_chnonly`
+        command_is_exists 'curl'   || log_warn  "command not found: curl"
+        command_is_exists 'base64' || log_warn  "command not found: base64"
+        command_is_exists 'perl'   || log_warn  "command not found: perl"
+        command_is_exists 'ipset'  || log_error "command not found: ipset"
+        ;;
+    chnroute)
+        # curl for `update_chnroute`
+        command_is_exists 'curl'     || log_warn  "command not found: curl"
+        command_is_exists 'ipset'    || log_error "command not found: ipset"
+        command_is_exists 'chinadns' || log_error "command not found: chinadns"
+        ;;
+esac
 
 update_chnonly() {
-    local data="$(curl -4sSkL https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf)"
-    [ "$data" ] || log_error "update failed, please check the error output of curl"
+    local url='https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
+    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     echo "$data" | gawk -F/ '{print $2}' >$file_gfwlist_txt
 }
 
 update_gfwlist() {
-    local data="$(curl -4sSkL https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt)"
-    [ "$data" ] || log_error "update failed, please check the error output of curl"
-    base64 -d       </dev/null &>/dev/null && local base64_decode='base64 -d'
-    base64 --decode </dev/null &>/dev/null && local base64_decode='base64 --decode'
-    [ "$base64_decode" ] || log_error "command args is not support: base64"
+    local url='https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt'
+    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
+    local base64_decode='' # store `base64 -d/--decode` command
+    base64 -d       </dev/null &>/dev/null && base64_decode='base64 -d'
+    base64 --decode </dev/null &>/dev/null && base64_decode='base64 --decode'
+    [ "$base64_decode" ] || log_error "command args is not support: base64 -d/--decode"
     echo "$data" | $base64_decode | { perl -pe '
     if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
     s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
@@ -123,20 +149,19 @@ update_gfwlist() {
     } | sort | uniq >$file_gfwlist_txt
 }
 
+# TODO ipv6 support
 update_chnroute() {
-    local data="$(curl -4sSkL https://raw.github.com/17mon/china_ip_list/master/china_ip_list.txt)"
-    [ "$data" ] || log_error "update failed, please check the error output of curl"
-    echo "$data" | grep -Ev '^[ \t]*$|^[ \t]*#' >$file_chnroute_txt
-    echo '-N chnroute hash:net' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
-    local reserved_address=('0.0.0.0/8' '10.0.0.0/8' '100.64.0.0/10' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
-    for addr in "${reserved_address[@]}"; do echo "$addr" >>$file_chnroute_txt; done
+    local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
+    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
+    echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("%s/%d\n", $4, 32-log($5)/log(2))}' >$file_chnroute_txt
+    echo '-N chnroute hash:net family inet' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
+    local addrs=('0.0.0.0/8' '10.0.0.0/8' '100.64.0.0/10' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
+    for reserved_addr in "${addrs[@]}"; do echo "$reserved_addr" >>$file_chnroute_txt; done # append the ipv4 reserved address to the chnroute.txt file
 }
 
-# run as subshell
-flush_dnscache() (
-    file_is_not_empty "$file_sstproxy_status" || { log_info "dnsmasq not running"; exit; } && source "$file_sstproxy_status"
-    [ "$status_dnsmasq_pid" ] || { log_info "dnsmasq not running"; exit; } && kill -HUP "$status_dnsmasq_pid"
-)
+flush_dnscache() {
+    sstproxy_is_started || { log_info "ss-tproxy not running"; return; } && kill -HUP "$status_dnsmasq_pid"
+}
 
 start_proxy() {
     eval "$proxy_runcmd" || log_error "failed to exec proxy_runcmd: $proxy_runcmd"
@@ -207,18 +232,12 @@ EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
-show_server_addrs() {
-    for addr in "${server_addrs[@]}"; do
-        echo "$addr"
-    done
-}
-
 start_resolver() {
     # resolve hostname
     local server_addrs=()
     for server in "${proxy_server[@]}"; do
         if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server") -eq 0 ]; then
-            server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | awk -F'[()]' '{print $2}')") || true
+            server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | gawk -F'[()]' '{print $2}')") || true
         fi
     done
     case "$mode" in
@@ -254,8 +273,8 @@ start_iptables() {
     }
 
     net2bin() {
-        net=$(awk -F/ '{print $1}' <<<$1)
-        len=$(awk -F/ '{print $2}' <<<$1)
+        net=$(gawk -F/ '{print $1}' <<<$1)
+        len=$(gawk -F/ '{print $2}' <<<$1)
         IFS='.' read -ra bytes <<<"$net"
         for byte in "${bytes[@]}"; do result+="$(dec2bin $byte)"; done
         echo "${result:0:len}"
@@ -543,16 +562,16 @@ stop() {
 
     ipset -X chnroute &>/dev/null
 
-    ip rule show | grep "fwmark $ipts_rt_mark" | awk -F: '{print $1}' | xargs -n1 ip rule del pref &>/dev/null
+    ip rule show | grep "fwmark $ipts_rt_mark" | gawk -F: '{print $1}' | xargs -n1 ip rule del pref &>/dev/null
     ip route flush table $ipts_rt_tab &>/dev/null
 
     eval "$proxy_kilcmd" &>/dev/null
     kill -9 $(pidof 'chinadns') &>/dev/null
 
     if [ "$opts_ss_netstat" != "netstat" -a "$(command -v ss &>/dev/null && echo 'true')" ]; then
-        ss -lnpu | awk -F, '/:60053[ \t].+"dnsmasq"/ {print $(NF-1)}' | awk -F= '{print $2}' | sort | uniq | xargs kill -9 &>/dev/null
+        ss -lnpu | gawk -F, '/:60053[ \t].+"dnsmasq"/ {print $(NF-1)}' | gawk -F= '{print $2}' | sort | uniq | xargs kill -9 &>/dev/null
     else
-        netstat -lnpu | awk -F/ '/:60053[ \t].+dnsmasq/ {print $(NF-1)}' | awk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
+        netstat -lnpu | gawk -F/ '/:60053[ \t].+dnsmasq/ {print $(NF-1)}' | gawk '{print $NF}' | sort | uniq | xargs kill -9 &>/dev/null
     fi
 
     [ "$(type -t post_stop)" = 'function' ] && post_stop
