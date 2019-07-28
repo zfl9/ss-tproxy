@@ -85,13 +85,6 @@ case "$opts_ss_netstat" in
         ;;
 esac
 
-# load `ss-tproxy.status` file
-if sstproxy_is_started; then
-    source "$file_sstproxy_status" || log_error "failed to load status file, exit-code: $?"
-else
-    rm -fr "$file_sstproxy_status" &>/dev/null
-fi
-
 # ipv4 reserved ipaddrs
 ipv4_reserved_ipaddrs=(
     0.0.0.0/8
@@ -129,6 +122,14 @@ ipv6_reserved_ipaddrs=(
     ff00::/8
 )
 
+# load `ss-tproxy.status` file
+if sstproxy_is_started; then
+    source "$file_sstproxy_status" || log_error "failed to load status file, exit-code: $?"
+else
+    rm -fr "$file_sstproxy_status" &>/dev/null
+fi
+
+# check if the relevant command exists
 check_command() {
     command_is_exists 'ip' || log_error "command not found: ip"
     command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
@@ -155,12 +156,14 @@ check_command() {
 }
 check_command
 
+# update chnonly domain name list
 update_chnonly() {
     local url='https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     echo "$data" | gawk -F/ '{print $2}' >$file_gfwlist_txt
 }
 
+# update gfwlist domain name list
 update_gfwlist() {
     local url='https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
@@ -186,6 +189,7 @@ update_gfwlist() {
     } | sort | uniq >$file_gfwlist_txt
 }
 
+# update chnroute ipaddr/net list
 update_chnroute() {
     # download delegated apnic file
     local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
@@ -202,14 +206,17 @@ update_chnroute() {
     echo "$data" | grep CN | grep ipv6 | gawk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}' >>$file_chnroute6_set
 }
 
+# flush dnsmasq dns cache
 flush_dnscache() {
     kill -HUP "$status_dnsmasq_pid" &>/dev/null
 }
 
+# execute `proxy_runcmd`
 start_proxy() {
     eval "$proxy_runcmd" || log_error "failed to exec proxy_runcmd: $proxy_runcmd"
 }
 
+# start dns-server for global mode
 start_resolver_global() {
     status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file=<(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
@@ -227,6 +234,7 @@ EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
+# start dns-server for gfwlist mode
 start_resolver_gfwlist() {
     status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file=<(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
@@ -251,6 +259,7 @@ EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
+# start dns-server for chnroute mode
 start_resolver_chnroute() {
     if [ "$chinadnsng_enable" = 'true' ]; then
         status_chinadnsng_pid=$(chinadns-ng $([ "$chinadnsng_verbose" = 'true' ] && echo "--verbose") </dev/null &>>$chinadnsng_logfile & echo $!)
@@ -283,6 +292,7 @@ EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
+# start local dns-server
 start_resolver() {
     # resolve hostname
     local server_addrs=()
@@ -304,78 +314,17 @@ start_resolver() {
     esac
 }
 
-start_iptables() {
-    sysctl -w net.ipv4.ip_forward=1 &>/dev/null
-    for dir in $(ls /proc/sys/net/ipv4/conf); do
-        sysctl -w net.ipv4.conf.$dir.send_redirects=0 &>/dev/null
-    done
-
-    check_snat_rule() {
-        if [ "$ipts_non_snat" != 'true' ]; then
-            if ! iptables -t nat -C POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE &>/dev/null; then
-                iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
-            fi
+# check the snat iptables rule
+check_snat_rule() {
+    if [ "$ipts_non_snat" = 'false' ]; then
+        if ! iptables -t nat -C POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE &>/dev/null; then
+            iptables -t nat -A POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
         fi
-    }
-
-    dec2bin() {
-        for ((n = $1; n > 0; n >>= 1)); do bit="$((n & 1))$bit"; done
-        printf "%08d\n" "$bit"
-    }
-
-    net2bin() {
-        net=$(gawk -F/ '{print $1}' <<<$1)
-        len=$(gawk -F/ '{print $2}' <<<$1)
-        IFS='.' read -ra bytes <<<"$net"
-        for byte in "${bytes[@]}"; do result+="$(dec2bin $byte)"; done
-        echo "${result:0:len}"
-    }
-
-    for cidr in "${ipts_intranet[@]}"; do
-        curnet=$(net2bin $cidr)
-        for stdnet in 00001010 101011000001 1010100111111110 1100000010101000; do
-            [[ "$curnet" == "$stdnet"* ]] && continue 2
-        done
-        ipts_intranet_nonstd+=($cidr)
-    done
-
-    iptables -t mangle -N SSTP_OUT
-    iptables -t mangle -N SSTP_PRE
-    iptables -t nat    -N SSTP_OUT
-    iptables -t nat    -N SSTP_PRE
-
-    iptables -t mangle -A OUTPUT     -j SSTP_OUT
-    iptables -t mangle -A PREROUTING -j SSTP_PRE
-    iptables -t nat    -A OUTPUT     -j SSTP_OUT
-    iptables -t nat    -A PREROUTING -j SSTP_PRE
-
-    ip route add local 0/0 dev lo     table $ipts_rt_tab
-    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
-
-if [ "$proxy_tproxy" = 'true' ]; then
-case "$mode" in
-gfwlist)
-    ipset -N gfwlist hash:net &>/dev/null
-    perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
-
-    iptables -t mangle -N SETMARK
-    if ! [ "$proxy_dports" ]; then
-        for server in "${proxy_server[@]}"; do
-            iptables -t mangle -A SETMARK -d $server -j RETURN
-        done
-    else
-        for server in "${proxy_server[@]}"; do
-            iptables -t mangle -A SETMARK -d $server -p tcp -m multiport --dports $proxy_dports -j RETURN
-            iptables -t mangle -A SETMARK -d $server -p udp -m multiport --dports $proxy_dports -j RETURN
-        done
     fi
-    iptables -t mangle -A SETMARK -p udp -d ${dns_remote%:*}     -j MARK --set-mark $ipts_rt_mark
-    iptables -t mangle -A SETMARK -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
+}
 
-    iptables -t mangle -A SSTP_OUT -p tcp -j SETMARK
-    iptables -t mangle -A SSTP_OUT -p udp -j SETMARK
-    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
-
+# tproxy mode common rules
+tproxy_common_rule() {
     for intranet in "${ipts_intranet[@]}"; do
         iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
         iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
@@ -388,8 +337,10 @@ gfwlist)
 
     iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
     iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-    ;;
-global|chnroute)
+}
+
+# tproxy & global mode
+start_iptables_tproxy_global() {
     iptables -t mangle -N SETMARK
     iptables -t mangle -A SETMARK -d 0/8        -j RETURN
     iptables -t mangle -A SETMARK -d 10/8       -j RETURN
@@ -423,43 +374,72 @@ global|chnroute)
     iptables -t mangle -A SSTP_OUT -p udp -j SETMARK
     iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
-    for intranet in "${ipts_intranet[@]}"; do
-        iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+    tproxy_common_rule
+}
 
-        iptables -t mangle -A SSTP_PRE -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
-        iptables -t mangle -A SSTP_PRE -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SETMARK
-
-        check_snat_rule
-    done
-
-    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_tcport
-    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-    ;;
-esac
-else
-case "$mode" in
-gfwlist)
+start_iptables_tproxy_gfwlist() {
     ipset -N gfwlist hash:net &>/dev/null
     perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
 
-    iptables -t nat -N TCPCHAIN
-    for server in "${proxy_server[@]}"; do
-        iptables -t nat -A TCPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p tcp -m multiport --dports $proxy_dports") -j RETURN
-    done
-    iptables -t nat -A TCPCHAIN -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports $proxy_tcport
+    iptables -t mangle -N SETMARK
+    if ! [ "$proxy_dports" ]; then
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -j RETURN
+        done
+    else
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -p tcp -m multiport --dports $proxy_dports -j RETURN
+            iptables -t mangle -A SETMARK -d $server -p udp -m multiport --dports $proxy_dports -j RETURN
+        done
+    fi
+    iptables -t mangle -A SETMARK -p udp -d ${dns_remote%:*}     -j MARK --set-mark $ipts_rt_mark
+    iptables -t mangle -A SETMARK -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
 
-    iptables -t mangle -N UDPCHAIN
-    for server in "${proxy_server[@]}"; do
-        iptables -t mangle -A UDPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p udp -m multiport --dports $proxy_dports") -j RETURN
-    done
-    iptables -t mangle -A UDPCHAIN -d ${dns_remote%:*}            -j MARK --set-mark $ipts_rt_mark
-    iptables -t mangle -A UDPCHAIN -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
-
-    iptables -t nat    -A SSTP_OUT -p tcp -j TCPCHAIN
-    iptables -t mangle -A SSTP_OUT -p udp -j UDPCHAIN
+    iptables -t mangle -A SSTP_OUT -p tcp -j SETMARK
+    iptables -t mangle -A SSTP_OUT -p udp -j SETMARK
     iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
+    tproxy_common_rule
+}
+
+start_iptables_tproxy_chnroute() {
+    iptables -t mangle -N SETMARK
+    iptables -t mangle -A SETMARK -d 0/8        -j RETURN
+    iptables -t mangle -A SETMARK -d 10/8       -j RETURN
+    iptables -t mangle -A SETMARK -d 127/8      -j RETURN
+    iptables -t mangle -A SETMARK -d 169.254/16 -j RETURN
+    iptables -t mangle -A SETMARK -d 172.16/12  -j RETURN
+    iptables -t mangle -A SETMARK -d 192.168/16 -j RETURN
+    for cidr in "${ipts_intranet_nonstd[@]}"; do
+        iptables -t mangle -A SETMARK -d $cidr -j RETURN
+    done
+    iptables -t mangle -A SETMARK -d 224/4 -j RETURN
+    iptables -t mangle -A SETMARK -d 240/4 -j RETURN
+    if ! [ "$proxy_dports" ]; then
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -j RETURN
+        done
+    else
+        for server in "${proxy_server[@]}"; do
+            iptables -t mangle -A SETMARK -d $server -p tcp -m multiport --dports $proxy_dports -j RETURN
+            iptables -t mangle -A SETMARK -d $server -p udp -m multiport --dports $proxy_dports -j RETURN
+        done
+    fi
+    if [ "$mode" = chnroute ]; then
+        ipset -X chnroute &>/dev/null
+        ipset -R <$file_chnroute_set
+        iptables -t mangle -A SETMARK -m set --match-set chnroute dst -j RETURN
+    fi
+    iptables -t mangle -A SETMARK -j MARK --set-mark $ipts_rt_mark
+
+    iptables -t mangle -A SSTP_OUT -p tcp -j SETMARK
+    iptables -t mangle -A SSTP_OUT -p udp -j SETMARK
+    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
+
+    tproxy_common_rule
+}
+
+redirect_common_rule() {
     for intranet in "${ipts_intranet[@]}"; do
         iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
         iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
@@ -471,8 +451,9 @@ gfwlist)
     done
 
     iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-    ;;
-global|chnroute)
+}
+
+start_iptables_redirect_global() {
     iptables -t nat -N TCPCHAIN
     iptables -t nat -A TCPCHAIN -d 0/8        -j RETURN
     iptables -t nat -A TCPCHAIN -d 10/8       -j RETURN
@@ -519,20 +500,127 @@ global|chnroute)
     iptables -t mangle -A SSTP_OUT -p udp -j UDPCHAIN
     iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
 
-    for intranet in "${ipts_intranet[@]}"; do
-        iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        iptables -t nat    -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports 60053
+    redirect_common_rule
+}
 
-        iptables -t nat    -A SSTP_PRE -p tcp -s $intranet                                -j TCPCHAIN
-        iptables -t mangle -A SSTP_PRE -p udp -s $intranet -m mark ! --mark $ipts_rt_mark -j UDPCHAIN
+start_iptables_redirect_gfwlist() {
+    ipset -N gfwlist hash:net &>/dev/null
+    perl -ne 'print if m@^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext | xargs -n1 ipset -A gfwlist &>/dev/null
 
-        check_snat_rule
+    iptables -t nat -N TCPCHAIN
+    for server in "${proxy_server[@]}"; do
+        iptables -t nat -A TCPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p tcp -m multiport --dports $proxy_dports") -j RETURN
+    done
+    iptables -t nat -A TCPCHAIN -p tcp -m set --match-set gfwlist dst -j REDIRECT --to-ports $proxy_tcport
+
+    iptables -t mangle -N UDPCHAIN
+    for server in "${proxy_server[@]}"; do
+        iptables -t mangle -A UDPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p udp -m multiport --dports $proxy_dports") -j RETURN
+    done
+    iptables -t mangle -A UDPCHAIN -d ${dns_remote%:*}            -j MARK --set-mark $ipts_rt_mark
+    iptables -t mangle -A UDPCHAIN -m set --match-set gfwlist dst -j MARK --set-mark $ipts_rt_mark
+
+    iptables -t nat    -A SSTP_OUT -p tcp -j TCPCHAIN
+    iptables -t mangle -A SSTP_OUT -p udp -j UDPCHAIN
+    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
+
+    redirect_common_rule
+}
+
+start_iptables_redirect_chnroute() {
+    iptables -t nat -N TCPCHAIN
+    iptables -t nat -A TCPCHAIN -d 0/8        -j RETURN
+    iptables -t nat -A TCPCHAIN -d 10/8       -j RETURN
+    iptables -t nat -A TCPCHAIN -d 127/8      -j RETURN
+    iptables -t nat -A TCPCHAIN -d 169.254/16 -j RETURN
+    iptables -t nat -A TCPCHAIN -d 172.16/12  -j RETURN
+    iptables -t nat -A TCPCHAIN -d 192.168/16 -j RETURN
+    for cidr in "${ipts_intranet_nonstd[@]}"; do
+        iptables -t nat -A TCPCHAIN -d $cidr -j RETURN
+    done
+    iptables -t nat -A TCPCHAIN -d 224/4 -j RETURN
+    iptables -t nat -A TCPCHAIN -d 240/4 -j RETURN
+    for server in "${proxy_server[@]}"; do
+        iptables -t nat -A TCPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p tcp -m multiport --dports $proxy_dports") -j RETURN
+    done
+    if [ "$mode" = chnroute ]; then
+        ipset -X chnroute &>/dev/null
+        ipset -R <$file_chnroute_set
+        iptables -t nat -A TCPCHAIN -m set --match-set chnroute dst -j RETURN
+    fi
+    iptables -t nat -A TCPCHAIN -p tcp -j REDIRECT --to-ports $proxy_tcport
+
+    iptables -t mangle -N UDPCHAIN
+    iptables -t mangle -A UDPCHAIN -d 0/8        -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 10/8       -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 127/8      -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 169.254/16 -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 172.16/12  -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 192.168/16 -j RETURN
+    for cidr in "${ipts_intranet_nonstd[@]}"; do
+        iptables -t mangle -A UDPCHAIN -d $cidr -j RETURN
+    done
+    iptables -t mangle -A UDPCHAIN -d 224/4 -j RETURN
+    iptables -t mangle -A UDPCHAIN -d 240/4 -j RETURN
+    for server in "${proxy_server[@]}"; do
+        iptables -t mangle -A UDPCHAIN -d $server $([ "$proxy_dports" ] && echo "-p udp -m multiport --dports $proxy_dports") -j RETURN
+    done
+    if [ "$mode" = chnroute ]; then
+        iptables -t mangle -A UDPCHAIN -m set --match-set chnroute dst -j RETURN
+    fi
+    iptables -t mangle -A UDPCHAIN -j MARK --set-mark $ipts_rt_mark
+
+    iptables -t nat    -A SSTP_OUT -p tcp -j TCPCHAIN
+    iptables -t mangle -A SSTP_OUT -p udp -j UDPCHAIN
+    iptables -t nat    -A SSTP_OUT -p udp -d 127.0.0.1 --dport 53 -j REDIRECT --to-ports 60053
+
+    redirect_common_rule
+}
+
+start_iptables() {
+    sysctl -w net.ipv4.ip_forward=1 &>/dev/null
+    for dir in $(ls /proc/sys/net/ipv4/conf); do
+        sysctl -w net.ipv4.conf.$dir.send_redirects=0 &>/dev/null
     done
 
-    iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
-    ;;
-esac
-fi
+    iptables -t mangle -N SSTP_OUT
+    iptables -t mangle -N SSTP_PRE
+    iptables -t nat    -N SSTP_OUT
+    iptables -t nat    -N SSTP_PRE
+
+    iptables -t mangle -A OUTPUT     -j SSTP_OUT
+    iptables -t mangle -A PREROUTING -j SSTP_PRE
+    iptables -t nat    -A OUTPUT     -j SSTP_OUT
+    iptables -t nat    -A PREROUTING -j SSTP_PRE
+
+    ip route add local 0/0 dev lo     table $ipts_rt_tab
+    ip rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+
+    if [ "$proxy_tproxy" = 'true' ]; then
+        case "$mode" in
+            global)
+                start_iptables_tproxy_global
+                ;;
+            gfwlist)
+                start_iptables_tproxy_gfwlist
+                ;;
+            global|chnroute)
+                start_iptables_tproxy_chnroute
+                ;;
+        esac
+    else
+        case "$mode" in
+            global)
+                start_iptables_redirect_global
+                ;;
+            gfwlist)
+                start_iptables_redirect_gfwlist
+                ;;
+            chnroute)
+                start_iptables_redirect_chnroute
+                ;;
+        esac
+    fi
 }
 
 start_dnsproxy() {
