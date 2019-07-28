@@ -250,20 +250,23 @@ EOF
 }
 
 start_resolver_chnroute() {
-    local temp_chnroute_txt=$(mktemp)
-    cat $file_chnroute_txt >$temp_chnroute_txt
-    echo "$dns_direct/32" >>$temp_chnroute_txt
-    for intranet in "${ipts_intranet[@]}"; do echo "$intranet" >>$temp_chnroute_txt; done
+    if [ "$chinadnsng_enable" = 'true' ]; then
+        status_chinadnsng_pid=$(chinadns-ng $([ "$chinadnsng_verbose" = 'true' ] && echo "--verbose") </dev/null &>>$chinadnsng_logfile & echo $!)
+    else
+        local temp_chnroute_txt=$(mktemp)
+        cat $file_chnroute_txt >$temp_chnroute_txt
+        echo "$dns_direct/32" >>$temp_chnroute_txt
+        for intranet in "${ipts_intranet[@]}"; do echo "$intranet" >>$temp_chnroute_txt; done
 
-    local chinadns_params="-b 127.0.0.1 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt -y 0"
-    [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
-    [ "$chinadns_verbose"  = 'true' ] && chinadns_params+=' -v'
+        local chinadns_params="-b 127.0.0.1 -p 65353 -s $dns_direct,$dns_remote -c $temp_chnroute_txt -y 0"
+        [ "$chinadns_mutation" = 'true' ] && chinadns_params+=' -m'
+        [ "$chinadns_verbose"  = 'true' ] && chinadns_params+=' -v'
 
-    status_chinadns_pid=$(chinadns $chinadns_params </dev/null &>>$chinadns_logfile & echo $!)
+        status_chinadns_pid=$(chinadns $chinadns_params </dev/null &>>$chinadns_logfile & echo $!)
+    fi
 
-    status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file <(cat <<EOF
+    status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file=<(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
-log-facility = $dnsmasq_log_file
 log-async = 20
 domain-needed
 cache-size = $dnsmasq_cache_size
@@ -282,7 +285,7 @@ start_resolver() {
     local server_addrs=()
     for server in "${proxy_server[@]}"; do
         if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server") -eq 0 ]; then
-            server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | gawk -F'[()]' '{print $2}')") || true
+            server_addrs+=("/$server/$(ping -nq -c1 -t1 -W1 $server | head -n1 | gawk -F'[()]' '{print $2}')")
         fi
     done
     case "$mode" in
