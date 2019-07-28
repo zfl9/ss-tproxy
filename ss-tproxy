@@ -238,9 +238,13 @@ no-resolv
 port = 60053
 server = $dns_direct
 $(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
-$(perl -pe "s@^.*+\$@server=/$&/$(tr ':' '#' <<<"$dns_remote")\nipset=/$&/gfwlist@" $file_gfwlist_txt <(
-perl -ne 'print unless m@^\s|\s\n$|^#|^\d++\.\d++\.\d++\.\d++(?:/\d++)?$@' $file_gfwlist_ext
-))
+$(
+dns_server=$(tr ':' '#' <<<"$dns_remote")
+{ cat $file_gfwlist_txt; grep -v '/' $file_gfwlist_ext; } | while read domain_name; do
+  echo "server = /$domain_name/$dns_server"
+  echo "ipset = /$domain_name/gfwlist,gfwlist6"
+done
+)
 EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
