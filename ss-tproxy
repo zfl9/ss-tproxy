@@ -222,6 +222,7 @@ no-resolv
 port = 60053
 server = $(tr ':' '#' <<<"$dns_remote")
 $(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
+$([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
 EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
@@ -245,6 +246,7 @@ dns_server=$(tr ':' '#' <<<"$dns_remote")
   echo "ipset = /$domain_name/gfwlist,gfwlist6"
 done
 )
+$([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
 EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
@@ -276,6 +278,7 @@ no-resolv
 port = 60053
 server = 127.0.0.1#65353
 $(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
+$([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
 EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
