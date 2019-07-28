@@ -9,16 +9,8 @@ color_red() {
     printf "\e[35m$*\e[0m"
 }
 
-color_green() {
-    printf "\e[32m$*\e[0m"
-}
-
 color_yellow() {
     printf "\e[31m$*\e[0m"
-}
-
-log_info() {
-    echo "$(font_bold $(color_green '[INFO]')) $*"
 }
 
 log_warn() {
@@ -34,10 +26,6 @@ file_is_exists() {
     [ -f "$1" ]
 }
 
-file_is_not_empty() {
-    [ -s "$1" ]
-}
-
 command_is_exists() {
     command -v "$1" &>/dev/null
 }
@@ -47,14 +35,12 @@ process_is_running() {
 }
 
 sstproxy_is_started() {
-    # simple detection (may not be accurate)
     iptables -t mangle -L SSTP_OUT &>/dev/null
 }
 
 ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-# check core file is exists
 file_is_exists "$ss_tproxy_config"   || log_error "file not found: $ss_tproxy_config"
 source "$ss_tproxy_config" || log_error "failed to load config file, exit-code: $?"
 file_is_exists "$file_gfwlist_txt"   || log_error "file not found: $file_gfwlist_txt"
@@ -63,7 +49,6 @@ file_is_exists "$file_chnroute_txt"  || log_error "file not found: $file_chnrout
 file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
 file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
 
-# check `opts_ss_netstat` option
 case "$opts_ss_netstat" in
     auto)
         if command_is_exists 'ss'; then
@@ -85,7 +70,6 @@ case "$opts_ss_netstat" in
         ;;
 esac
 
-# ipv4 reserved ipaddrs
 ipv4_reserved_ipaddrs=(
     0.0.0.0/8
     10.0.0.0/8
@@ -105,7 +89,6 @@ ipv4_reserved_ipaddrs=(
     255.255.255.255/32
 )
 
-# ipv6 reserved ipaddrs
 ipv6_reserved_ipaddrs=(
     ::/128
     ::1/128
@@ -122,14 +105,12 @@ ipv6_reserved_ipaddrs=(
     ff00::/8
 )
 
-# load `ss-tproxy.status` file
 if sstproxy_is_started; then
     source "$file_sstproxy_status" || log_error "failed to load status file, exit-code: $?"
 else
     rm -fr "$file_sstproxy_status" &>/dev/null
 fi
 
-# check if the relevant command exists
 check_command() {
     command_is_exists 'ip' || log_error "command not found: ip"
     command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
@@ -156,18 +137,16 @@ check_command() {
 }
 check_command
 
-# update chnonly domain name list
 update_chnonly() {
     local url='https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     echo "$data" | gawk -F/ '{print $2}' >$file_gfwlist_txt
 }
 
-# update gfwlist domain name list
 update_gfwlist() {
     local url='https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
-    local base64_decode='' # store `base64 -d/--decode` command
+    local base64_decode=''
     base64 -d       </dev/null &>/dev/null && base64_decode='base64 -d'
     base64 --decode </dev/null &>/dev/null && base64_decode='base64 --decode'
     [ "$base64_decode" ] || log_error "command args is not support: base64 -d/--decode"
@@ -189,34 +168,27 @@ update_gfwlist() {
     } | sort | uniq >$file_gfwlist_txt
 }
 
-# update chnroute ipaddr/net list
 update_chnroute() {
-    # download delegated apnic file
     local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
 
-    # update chnroute (chinadns only support ipv4)
     for reserved_addr in "${ipv4_reserved_ipaddrs[@]}"; do echo "$reserved_addr"; done >$file_chnroute_txt
     echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("%s/%d\n", $4, 32-log($5)/log(2))}' >>$file_chnroute_txt
     echo 'create chnroute hash:net family inet' >$file_chnroute_set; sed -r 's/^.+$/add chnroute &/' $file_chnroute_txt >>$file_chnroute_set
 
-    # update chnroute6 (chinadns-ng support ipv4/ipv6)
     echo 'create chnroute6 hash:net family inet6' >$file_chnroute6_set
     for reserved_addr in "${ipv6_reserved_ipaddrs[@]}"; do echo "add chnroute6 $reserved_addr"; done >>$file_chnroute6_set
     echo "$data" | grep CN | grep ipv6 | gawk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}' >>$file_chnroute6_set
 }
 
-# flush dnsmasq dns cache
 flush_dnscache() {
     kill -HUP "$status_dnsmasq_pid" &>/dev/null
 }
 
-# execute `proxy_runcmd`
 start_proxy() {
     eval "$proxy_runcmd" || log_error "failed to exec proxy_runcmd: $proxy_runcmd"
 }
 
-# start dns-server for global mode
 start_resolver_global() {
     status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file=<(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
@@ -234,7 +206,6 @@ EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
-# start dns-server for gfwlist mode
 start_resolver_gfwlist() {
     status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file=<(cat <<EOF
 $([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
@@ -292,9 +263,7 @@ EOF
 ) </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
-# start local dns-server
 start_resolver() {
-    # resolve hostname
     local server_addrs=()
     for server in "${proxy_server[@]}"; do
         if [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$server") -eq 0 ]; then
@@ -314,7 +283,6 @@ start_resolver() {
     esac
 }
 
-# check the snat iptables rule
 check_snat_rule() {
     if [ "$ipts_non_snat" = 'false' ]; then
         if ! iptables -t nat -C POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE &>/dev/null; then
@@ -323,7 +291,6 @@ check_snat_rule() {
     fi
 }
 
-# tproxy mode common rules
 tproxy_common_rule() {
     for intranet in "${ipts_intranet[@]}"; do
         iptables -t mangle -A SSTP_PRE -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
@@ -339,7 +306,6 @@ tproxy_common_rule() {
     iptables -t mangle -A SSTP_PRE -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $proxy_udport
 }
 
-# tproxy & global mode
 start_iptables_tproxy_global() {
     iptables -t mangle -N SETMARK
     iptables -t mangle -A SETMARK -d 0/8        -j RETURN
