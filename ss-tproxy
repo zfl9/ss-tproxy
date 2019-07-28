@@ -92,6 +92,43 @@ else
     rm -fr "$file_sstproxy_status" &>/dev/null
 fi
 
+# ipv4 reserved ipaddrs
+ipv4_reserved_ipaddrs=(
+    0.0.0.0/8
+    10.0.0.0/8
+    100.64.0.0/10
+    127.0.0.0/8
+    169.254.0.0/16
+    172.16.0.0/12
+    192.0.0.0/24
+    192.0.2.0/24
+    192.88.99.0/24
+    192.168.0.0/16
+    198.18.0.0/15
+    198.51.100.0/24
+    203.0.113.0/24
+    224.0.0.0/4
+    240.0.0.0/4
+    255.255.255.255/32
+)
+
+# ipv6 reserved ipaddrs
+ipv6_reserved_ipaddrs=(
+    ::/128
+    ::1/128
+    ::ffff:0:0/96
+    ::ffff:0:0:0/96
+    64:ff9b::/96
+    100::/64
+    2001::/32
+    2001:20::/28
+    2001:db8::/32
+    2002::/16
+    fc00::/7
+    fe80::/10
+    ff00::/8
+)
+
 check_command() {
     command_is_exists 'ip' || log_error "command not found: ip"
     command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
@@ -150,16 +187,23 @@ update_gfwlist() {
 }
 
 update_chnroute() {
+    # download delegated apnic file
     local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
-    echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("%s/%d\n", $4, 32-log($5)/log(2))}' >$file_chnroute_txt
-    echo '-N chnroute hash:net family inet' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
-    local addrs=('0.0.0.0/8' '10.0.0.0/8' '100.64.0.0/10' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
-    for reserved_addr in "${addrs[@]}"; do echo "$reserved_addr" >>$file_chnroute_txt; done
+
+    # update chnroute (chinadns only support ipv4)
+    for reserved_addr in "${ipv4_reserved_ipaddrs[@]}"; do echo "$reserved_addr"; done >$file_chnroute_txt
+    echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("%s/%d\n", $4, 32-log($5)/log(2))}' >>$file_chnroute_txt
+    echo 'create chnroute hash:net family inet' >$file_chnroute_set; sed -r 's/^.+$/add chnroute &/' $file_chnroute_txt >>$file_chnroute_set
+
+    # update chnroute6 (chinadns-ng support ipv4/ipv6)
+    echo 'create chnroute6 hash:net family inet6' >$file_chnroute6_set
+    for reserved_addr in "${ipv6_reserved_ipaddrs[@]}"; do echo "add chnroute6 $reserved_addr"; done >>$file_chnroute6_set
+    echo "$data" | grep CN | grep ipv6 | gawk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}' >>$file_chnroute6_set
 }
 
 flush_dnscache() {
-    sstproxy_is_started || { log_info "ss-tproxy not running"; return; } && kill -HUP "$status_dnsmasq_pid"
+    kill -HUP "$status_dnsmasq_pid" &>/dev/null
 }
 
 start_proxy() {
