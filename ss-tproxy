@@ -1,6 +1,4 @@
 #!/bin/bash
-set -o nounset
-set -o errexit
 set -o pipefail
 
 font_bold() {
@@ -57,23 +55,13 @@ ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 # check core file is exists
-file_is_exists "$ss_tproxy_config"  || log_error "file not found: $ss_tproxy_config"
+file_is_exists "$ss_tproxy_config"   || log_error "file not found: $ss_tproxy_config"
 source "$ss_tproxy_config" || log_error "failed to load config file, exit-code: $?"
-file_is_exists "$file_gfwlist_txt"  || log_error "file not found: $file_gfwlist_txt"
-file_is_exists "$file_gfwlist_ext"  || log_error "file not found: $file_gfwlist_ext"
-file_is_exists "$file_chnroute_txt" || log_error "file not found: $file_chnroute_txt"
-file_is_exists "$file_chnroute_set" || log_error "file not found: $file_chnroute_set"
-
-# check `ss-tproxy-status` file
-if sstproxy_is_started; then
-    if file_is_not_empty "$file_sstproxy_status"; then
-        source "$file_sstproxy_status" || log_error "failed to load status file, exit-code: $?"
-    else
-        log_error "ss-tproxy is already running, but the status file is empty: $file_sstproxy_status"
-    fi
-else
-    rm -fr "$file_sstproxy_status" &>/dev/null || true
-fi
+file_is_exists "$file_gfwlist_txt"   || log_error "file not found: $file_gfwlist_txt"
+file_is_exists "$file_gfwlist_ext"   || log_error "file not found: $file_gfwlist_ext"
+file_is_exists "$file_chnroute_txt"  || log_error "file not found: $file_chnroute_txt"
+file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
+file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
 
 # check `opts_ss_netstat` option
 case "$opts_ss_netstat" in
@@ -97,26 +85,38 @@ case "$opts_ss_netstat" in
         ;;
 esac
 
-# check core command
-command_is_exists 'ip'      || log_error "command not found: ip"
-command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
+# load `ss-tproxy.status` file
+if sstproxy_is_started; then
+    source "$file_sstproxy_status" || log_error "failed to load status file, exit-code: $?"
+else
+    rm -fr "$file_sstproxy_status" &>/dev/null
+fi
 
-# check other command
-case "$mode" in
-    gfwlist)
-        # curl/base64/perl for `update_gfwlist/update_chnonly`
-        command_is_exists 'curl'   || log_warn  "command not found: curl"
-        command_is_exists 'base64' || log_warn  "command not found: base64"
-        command_is_exists 'perl'   || log_warn  "command not found: perl"
-        command_is_exists 'ipset'  || log_error "command not found: ipset"
-        ;;
-    chnroute)
-        # curl for `update_chnroute`
-        command_is_exists 'curl'     || log_warn  "command not found: curl"
-        command_is_exists 'ipset'    || log_error "command not found: ipset"
-        command_is_exists 'chinadns' || log_error "command not found: chinadns"
-        ;;
-esac
+check_command() {
+    command_is_exists 'ip' || log_error "command not found: ip"
+    command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
+    command_is_exists 'iptables' || log_error "command not found: iptables"
+    [ "$ipv6" != 'default' ] && { command_is_exists 'ip6tables' || log_error "command not found: ip6tables"; }
+
+    case "$mode" in
+        gfwlist)
+            command_is_exists 'curl'   || log_warn  "command not found: curl"
+            command_is_exists 'base64' || log_warn  "command not found: base64"
+            command_is_exists 'perl'   || log_warn  "command not found: perl"
+            command_is_exists 'ipset'  || log_error "command not found: ipset"
+            ;;
+        chnroute)
+            command_is_exists 'curl'  || log_warn  "command not found: curl"
+            command_is_exists 'ipset' || log_error "command not found: ipset"
+            if [ "$chinadnsng_enable" = 'false' ]; then
+                command_is_exists 'chinadns' || log_error "command not found: chinadns"
+            else
+                command_is_exists "chinadns-ng" || log_error "command not found: chinadns-ng"
+            fi
+            ;;
+    esac
+}
+check_command
 
 update_chnonly() {
     local url='https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
@@ -149,14 +149,13 @@ update_gfwlist() {
     } | sort | uniq >$file_gfwlist_txt
 }
 
-# TODO ipv6 support
 update_chnroute() {
     local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("%s/%d\n", $4, 32-log($5)/log(2))}' >$file_chnroute_txt
     echo '-N chnroute hash:net family inet' >$file_chnroute_set; sed -r 's/^.+$/-A chnroute &/' $file_chnroute_txt >>$file_chnroute_set
     local addrs=('0.0.0.0/8' '10.0.0.0/8' '100.64.0.0/10' '127.0.0.0/8' '169.254.0.0/16' '172.16.0.0/12' '192.168.0.0/16' '224.0.0.0/4' '240.0.0.0/4')
-    for reserved_addr in "${addrs[@]}"; do echo "$reserved_addr" >>$file_chnroute_txt; done # append the ipv4 reserved address to the chnroute.txt file
+    for reserved_addr in "${addrs[@]}"; do echo "$reserved_addr" >>$file_chnroute_txt; done
 }
 
 flush_dnscache() {
