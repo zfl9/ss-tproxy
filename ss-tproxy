@@ -111,8 +111,16 @@ sstproxy_is_started() {
     iptables -t mangle -nL SSTP_OUTPUT &>/dev/null
 }
 
+is_ipv4_address() {
+    [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$1") -ne 0 ]
+}
+
 is_ipv6_address() {
     [ $(grep -c ':' <<<"$1") -ne 0 ]
+}
+
+is_domain_name() {
+    ! is_ipv4_address "$1" && ! is_ipv6_address "$1"
 }
 
 resolve_hostname() {
@@ -132,7 +140,6 @@ load_config() {
     source "$ss_tproxy_config" || log_error "failed to load the conf file, exit-code: $?"
     file_is_exists "$file_gfwlist_txt"   || log_error "file not found: $file_gfwlist_txt"
     file_is_exists "$file_gfwlist_ext"   || log_error "file not found: $file_gfwlist_ext"
-    file_is_exists "$file_chnroute_txt"  || log_error "file not found: $file_chnroute_txt"
     file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
     file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
 
@@ -165,24 +172,18 @@ load_config() {
 
     for svr in "${proxy_svraddr[@]}"; do
         local svr_ip=$(resolve_hostname "$svr")
-        if is_ipv6_address "$svr_ip" then
+        if is_ipv4_address "$svr_ip" then
+            proxy_svraddr4+=($svr_ip)
+        elif is_ipv6_address "$svr_ip"
             proxy_svraddr6+=($svr_ip)
         else
-            proxy_svraddr4+=($svr_ip)
+            log_error "assertion failed: neither ipv4 address nor ipv6 address: $svr_ip"
         fi
     done
 
     if is_false "$ipv6" && [ "${#proxy_svraddr6[@]}" -ne 0 ]; then
-        log_error "proxy server contains ipv6 addr, but ipv6 is disabled: ${proxy_svraddr6[*]}"
+        log_error "proxy server contains ipv6 addr, but ipv6 is disabled: ${proxy_svraddr6[@]}"
     fi
-
-    for intranet in "${ipts_intranet[@]}"; do
-        ipv4_reserved_ipaddrs+=($intranet)
-    done
-
-    for intranet in "${ipts_intranet6[@]}"; do
-        ipv6_reserved_ipaddrs+=($intranet)
-    done
 }
 
 check_depend() {
