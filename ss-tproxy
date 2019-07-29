@@ -111,6 +111,10 @@ sstproxy_is_started() {
     iptables -t mangle -nL SSTP_OUTPUT &>/dev/null
 }
 
+is_ipv6_address() {
+    [ $(grep -c ':' <<<"$1") -ne 0 ]
+}
+
 resolve_hostname() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
@@ -158,6 +162,15 @@ load_config() {
             log_error "opts_ss_netstat option value is invalid: $opts_ss_netstat"
             ;;
     esac
+
+    for svr in "${proxy_svraddr[@]}"; do
+        local svr_ip=$(resolve_hostname "$svr")
+        if is_ipv6_address "$svr_ip" then
+            proxy_svraddr6+=($svr_ip)
+        else
+            proxy_svraddr4+=($svr_ip)
+        fi
+    done
 }
 
 check_depend() {
