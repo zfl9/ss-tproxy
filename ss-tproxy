@@ -172,9 +172,9 @@ load_config() {
 
     for svr in "${proxy_svraddr[@]}"; do
         local svr_ip=$(resolve_hostname "$svr")
-        if is_ipv4_address "$svr_ip" then
+        if is_ipv4_address "$svr_ip"; then
             proxy_svraddr4+=($svr_ip)
-        elif is_ipv6_address "$svr_ip"
+        elif is_ipv6_address "$svr_ip"; then
             proxy_svraddr6+=($svr_ip)
         else
             log_error "assertion failed: neither ipv4 address nor ipv6 address: $svr_ip"
@@ -387,21 +387,26 @@ restore_resolvconf() {
 
 start() {
     # TODO
+    return 0
 }
 
 stop() {
     # TODO
+    return 0
 }
 
 status() {
     # TODO
+    return 0
 }
 
 help() {
     # TODO
+    return 0
 }
 
 main() {
     # TODO
+    return 0
 }
 main "$@"
