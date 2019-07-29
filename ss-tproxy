@@ -427,8 +427,13 @@ start_iptables_basic_rules() {
 }
 
 start_iptables_tproxy_gfwlist() {
-    # TODO
-    return 0
+    if [ "$1" = 'iptables' ]; then
+        ipset -N gfwlist hash:net family inet &>/dev/null || ignore
+        grep -E '^-' $file_gfwlist_ext | cut -c2- | while read ipv4_addr; do echo "-A gfwlist $ipv4_addr"; done | ipset -R &>/dev/null || ignore
+    else
+        ipset -N gfwlist6 hash:net family inet &>/dev/null || ignore
+        grep -E '^~' $file_gfwlist_ext | cut -c2- | while read ipv6_addr; do echo "-A gfwlist6 $ipv6_addr"; done | ipset -R &>/dev/null || ignore
+    fi
 }
 
 start_iptables_tproxy_chnroute() {
