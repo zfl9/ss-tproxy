@@ -385,6 +385,14 @@ restore_resolvconf() {
     fi
 }
 
+start_proxy_proc() {
+    eval "$proxy_startcmd" || log_error "failed to start local proxy process, exit-code: $?"
+}
+
+stop_proxy_proc() {
+    eval "$proxy_stopcmd" || ignore
+}
+
 start() {
     # TODO
     return 0
