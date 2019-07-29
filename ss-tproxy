@@ -393,6 +393,17 @@ stop_proxy_proc() {
     eval "$proxy_stopcmd" || ignore
 }
 
+enable_ipforward() {
+    sysctl -w net.ipv4.ip_forward=1 &>/dev/null
+    sysctl -w net.ipv6.conf.all.forwarding=1 &>/dev/null
+}
+
+disable_icmpredir() {
+    for dir in $(ls /proc/sys/net/ipv4/conf); do
+        sysctl -w net.ipv4.conf.$dir.send_redirects=0 &>/dev/null
+    done
+}
+
 start_iptables() {
     # TODO
     return 0
