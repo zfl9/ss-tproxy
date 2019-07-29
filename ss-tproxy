@@ -404,14 +404,62 @@ disable_icmpredir() {
     done
 }
 
-start_iptables() {
+start_iptables_basic_rules() {
+    "$1" -t mangle -N SSTP_PREROUTING
+    "$1" -t mangle -N SSTP_OUTPUT
+    "$1" -t nat    -N SSTP_PREROUTING
+    "$1" -t nat    -N SSTP_OUTPUT
+    "$1" -t nat    -N SSTP_POSTROUTING
+
+    "$1" -t mangle -A PREROUTING  -j SSTP_PREROUTING
+    "$1" -t mangle -A OUTPUT      -j SSTP_OUTPUT
+    "$1" -t nat    -A PREROUTING  -j SSTP_PREROUTING
+    "$1" -t nat    -A OUTPUT      -j SSTP_OUTPUT
+    "$1" -t nat    -A POSTROUTING -j SSTP_POSTROUTING
+
+    if [ "$1" = 'iptables' ]; then
+        ip -4 route add local 0/0 dev lo     table $ipts_rt_tab
+        ip -4 rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    else
+        ip -6 route add local ::/0 dev lo    table $ipts_rt_tab
+        ip -6 rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
+    fi
+}
+
+start_iptables_tproxy_gfwlist() {
     # TODO
     return 0
 }
 
-start_ip6tables() {
+start_iptables_tproxy_chnroute() {
     # TODO
     return 0
+}
+
+start_iptables_redirect_gfwlist() {
+    # TODO
+    return 0
+}
+
+start_iptables_redirect_chnroute() {
+    # TODO
+    return 0
+}
+
+start_iptables() {
+    start_iptables_basic_rules "iptables"
+    is_true "$ipv6" && start_iptables_basic_rules "ip6tables"
+
+    case "$mode" in
+        gfwlist)
+            is_true "$tproxy" && start_iptables_tproxy_gfwlist "iptables" || start_iptables_redirect_gfwlist "iptables"
+            is_true "$ipv6" && { is_true "$tproxy" && start_iptables_tproxy_gfwlist "ip6tables" || start_iptables_redirect_gfwlist "ip6tables"; }
+            ;;
+        chnroute)
+            is_true "$tproxy" && start_iptables_tproxy_chnroute "iptables" || start_iptables_redirect_chnroute "iptables"
+            is_true "$ipv6" && { is_true "$tproxy" && start_iptables_tproxy_chnroute "ip6tables" || start_iptables_redirect_chnroute "ip6tables"; }
+            ;;
+    esac
 }
 
 start() {
