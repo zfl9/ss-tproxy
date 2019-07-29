@@ -171,6 +171,10 @@ load_config() {
             proxy_svraddr4+=($svr_ip)
         fi
     done
+
+    if is_false "$ipv6" && [ "${#arr[@]}" -ne 0 ]; then
+        log_error "proxy server contains the ipv6 addr, but ipv6 is disabled"
+    fi
 }
 
 check_depend() {
@@ -179,7 +183,7 @@ check_depend() {
     command_is_exists 'ipset'    || log_error "command not found: ipset"
     command_is_exists 'dnsmasq'  || log_error "command not found: dnsmasq"
     command_is_exists 'iptables' || log_error "command not found: iptables"
-    [ "$ipv6" = 'enable' ] && { command_is_exists 'ip6tables' || log_error "command not found: ip6tables"; }
+    is_true "$ipv6" && { command_is_exists 'ip6tables' || log_error "command not found: ip6tables"; }
 
     case "$mode" in
         gfwlist)
@@ -187,7 +191,7 @@ check_depend() {
             command_is_exists 'base64' || log_warn  "command not found: base64"
             ;;
         chnroute)
-            if [ "$chinadnsng_enable" = 'false' ]; then
+            if is_false "$chinadns_replace"; then
                 command_is_exists 'chinadns'    || log_error "command not found: chinadns"
             else
                 command_is_exists "chinadns-ng" || log_error "command not found: chinadns-ng"
