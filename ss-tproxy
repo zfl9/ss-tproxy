@@ -126,7 +126,7 @@ is_domain_name() {
 resolve_hostname() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
-        ipaddr=$(ping -nq -c1 -t1 -W1 "$1" | head -n1 | awk -F'[()]' '{print $2}') || ignore
+        ipaddr=$(ping -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}') || ignore
     done
     echo "$ipaddr"
 }
@@ -200,11 +200,7 @@ check_depend() {
             command_is_exists 'base64' || log_warn  "command not found: base64"
             ;;
         chnroute)
-            if is_false "$chinadns_replace"; then
-                command_is_exists 'chinadns'    || log_error "command not found: chinadns"
-            else
-                command_is_exists "chinadns-ng" || log_error "command not found: chinadns-ng"
-            fi
+            command_is_exists "chinadns-ng" || log_error "command not found: chinadns-ng"
             ;;
     esac
 }
@@ -230,21 +226,20 @@ update_gfwlist() {
 update_chnroute() {
     local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
-
-    for reserved_addr in "${ipv4_reserved_ipaddrs[@]}"; do echo "$reserved_addr"; done >$file_chnroute_txt
-    echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("%s/%d\n", $4, 32-log($5)/log(2))}' >>$file_chnroute_txt
-    echo 'create chnroute hash:net family inet' >$file_chnroute_set
-    while read ipaddr; do
-        echo "add chnroute $ipaddr"
-    done <$file_chnroute_txt >>$file_chnroute_set
-
-    echo 'create chnroute6 hash:net family inet6' >$file_chnroute6_set
-    for reserved_addr in "${ipv6_reserved_ipaddrs[@]}"; do echo "add chnroute6 $reserved_addr"; done >>$file_chnroute6_set
-    echo "$data" | grep CN | grep ipv6 | gawk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}' >>$file_chnroute6_set
+    {
+        echo "create chnroute hash:net family inet"
+        for reserved_ipaddrs in "${ipv4_reserved_ipaddrs[@]}"; do echo "add chnroute $reserved_ipaddrs"; done
+        echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("add chnroute %s/%d\n", $4, 32-log($5)/log(2))}'
+    } >$file_chnroute_set
+    {
+        echo "create chnroute6 hash:net family inet6"
+        for reserved_ipaddrs in "${ipv6_reserved_ipaddrs[@]}"; do echo "add chnroute6 $reserved_ipaddrs"; done
+        echo "$data" | grep CN | grep ipv6 | gawk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}'
+    } >$file_chnroute6_set
 }
 
 flush_dnscache() {
-    kill -HUP "$status_dnsmasq_pid" &>/dev/null || ignore
+    sstproxy_is_started && kill -HUP "$status_dnsmasq_pid"
 }
 
 flush_gfwlist() {
@@ -282,17 +277,17 @@ flush_iptables() {
 }
 
 show_iptables() {
-    printf "\e[36;1m==> iptables-mangle <==\e[0m"
+    printf "\e[36;1m==> iptables-mangle <==\e[0m\n"
     iptables -t mangle -nvL --line-numbers
     echo
-    printf "\e[36;1m==> iptables-nat <==\e[0m"
+    printf "\e[36;1m==> iptables-nat <==\e[0m\n"
     iptables -t nat -nvL --line-numbers
 
     if is_true "$ipv6"; then
-        printf "\e[36;1m==> ip6tables-mangle <==\e[0m"
+        printf "\e[36;1m==> ip6tables-mangle <==\e[0m\n"
         ip6tables -t mangle -nvL --line-numbers
         echo
-        printf "\e[36;1m==> ip6tables-nat <==\e[0m"
+        printf "\e[36;1m==> ip6tables-nat <==\e[0m\n"
         ip6tables -t nat -nvL --line-numbers
     fi
 }
@@ -324,31 +319,26 @@ EOF
 }
 
 start_dnsserver_chnroute() {
-    if is_true "$chinadns_replace"; then
-        local chinadns_ng_args="-b 127.0.0.1 -l $chinadns_bind_port"
-        is_true "$chinadns_verbose" && chinadns_ng_args+=" -v"
-        chinadns_ng_args+=" -c $dns_direct"
-        is_true "$ipv6" && chinadns_ng_args+=",$dns_direct6"
-        chinadns_ng_args+=" -t $dns_remote"
-        is_true "$ipv6" && chinadns_ng_args+=",$dns_remote6"
-        status_chinadns_pid=$(chinadns-ng $chinadns_ng_args </dev/null &>>$chinadns_logfile & echo $!)
-    else
-        local chinadns_args="-b 127.0.0.1 -p 65353 -s $dns_direct,$dns_remote -c $file_chnroute_txt -y 0"
-        is_true "$chinadns_verbose" && chinadns_args+=' -v'
-        status_chinadns_pid=$(chinadns $chinadns_args </dev/null &>>$chinadns_logfile & echo $!)
-    fi
+    local chinadns_ng_args="-b 127.0.0.1 -l $chinadns_bind_port"
+    is_true "$chinadns_verbose" && chinadns_ng_args+=" -v"
+    chinadns_ng_args+=" -c $dns_direct"
+    is_true "$ipv6" && chinadns_ng_args+=",$dns_direct6"
+    chinadns_ng_args+=" -t $dns_remote"
+    is_true "$ipv6" && chinadns_ng_args+=",$dns_remote6"
+
+    status_chinadns_pid=$(chinadns-ng $chinadns_ng_args </dev/null &>>$chinadns_logfile & echo $!)
 
     local dnsmasq_config_string=$(cat <<EOF
-$([ "$dnsmasq_log_enable" = 'true' ] && echo 'log-queries')
+$(is_true "$dnsmasq_log_enable" && echo 'log-queries')
 log-async = 20
 domain-needed
 cache-size = $dnsmasq_cache_size
 $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $dnsmasq_cache_time")
 no-negcache
 no-resolv
-port = 60053
-server = 127.0.0.1#65353
-$(for server_addr in "${server_addrs[@]}"; do echo "address = $server_addr"; done)
+port = $dnsmasq_bind_port
+server = 127.0.0.1#$chinadns_bind_port
+$(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
 $([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
 EOF
 )
@@ -358,7 +348,7 @@ EOF
 start_dnsserver() {
     local dnsmasq_append_config=()
     for svr in "${proxy_svraddr[@]}"; do
-        if [ $(grep -Evc '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|:' <<<"$svr") -ne 0 ]; then
+        if is_domain_name "$svr"; then
             local svr_ip=$(resolve_hostname "$svr")
             dnsmasq_append_config+=("address = /$svr/$svr_ip")
         fi
