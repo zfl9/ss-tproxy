@@ -393,6 +393,16 @@ stop_proxy_proc() {
     eval "$proxy_stopcmd" || ignore
 }
 
+start_iptables() {
+    # TODO
+    return 0
+}
+
+start_ip6tables() {
+    # TODO
+    return 0
+}
+
 start() {
     # TODO
     return 0
