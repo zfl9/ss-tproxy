@@ -825,22 +825,21 @@ EOF
 main() {
     load_config
     check_depend
-    [ $# -lt 1 ] && { help; exit 1; }
     case $1 in
-        start)              start; status;;
-        stop)               stop; status;;
-        status)             status;;
-        r*)                 stop; status; echo; start; status;;
-        show-iptables)      show_iptables;;
-        flush-iptables)     flush_iptables;;
-        flush-gfwlist)      flush_gfwlist;;
-        flush-dnscache)     flush_dnscache;;
-        update-chnonly)     update_chnonly;;
-        update-gfwlist)     update_gfwlist;;
-        update-chnroute)    update_chnroute;;
-        v*)                 version;;
-        h*)                 help;;
-        *)                  help; exit 1;;
+        start)           start; status;;
+        stop)            stop; status;;
+        r*)              stop; status; echo; start; status;;
+        status)          status;;
+        show-iptables)   show_iptables;;
+        flush-iptables)  flush_iptables;;
+        flush-dnscache)  flush_dnscache;;
+        flush-gfwlist)   flush_gfwlist;;
+        update-chnonly)  update_chnonly;;
+        update-gfwlist)  update_gfwlist;;
+        update-chnroute) update_chnroute;;
+        v*)              version;;
+        h*)              help;;
+        *)               help; exit 1;;
     esac
 }
 main "$@"
