@@ -1,7 +1,4 @@
 #!/bin/bash
-set -o nounset
-set -o errexit
-set -o pipefail
 
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
@@ -711,7 +708,7 @@ start_iptables() {
 }
 
 start() {
-    sstproxy_is_started && return
+    sstproxy_is_started && { stop; status; echo; }
 
     if [ "$(type -t pre_start)" = 'function' ]; then
         pre_start || log_error "failed to execute the pre_start function, exit-code: $?"
@@ -730,8 +727,6 @@ start() {
 }
 
 stop() {
-    sstproxy_is_started || return
-
     if [ "$(type -t pre_stop)" = 'function' ]; then
         pre_stop || log_error "failed to execute the pre_stop function, exit-code: $?"
     fi
@@ -739,12 +734,15 @@ stop() {
     restore_resolvconf
     flush_iptables
 
-    is_true "$ipv4" && ipset -X chnroute
-    is_true "$ipv6" && ipset -X chnroute6
+    is_true "$ipv4" && ipset -X chnroute &>/dev/null
+    is_true "$ipv6" && ipset -X chnroute6 &>/dev/null
 
-    stop_proxy_proc
-    kill -9 $status_dnsmasq_pid
-    kill -9 $status_chinadns_pid
+	ip rule del table $ipts_rt_tab
+	ip route flush table $ipts_rt_tab
+
+    stop_proxy_proc &>/dev/null
+    kill -9 $status_dnsmasq_pid &>/dev/null
+    kill -9 $status_chinadns_pid &>/dev/null
 
     rm -f $file_dnsserver_pid
 
@@ -770,13 +768,52 @@ status() {
     esac
 }
 
+version() {
+    echo "ss-tproxy v4.0"
+}
+
 help() {
-    # TODO
-    return 0
+    cat <<EOF
+Usage: ss-tproxy <COMMAND>
+COMMAND := {
+    start               start ss-tproxy
+    stop                stop ss-tproxy
+    restart             restart ss-tproxy
+    status              status of ss-tproxy
+    show-iptables       show iptables rules
+    flush-iptables      flush iptables rules
+    flush-dnscache      flush dns cache
+    flush-gfwlist       flush ipset-gfwlist
+    update-chnonly      update chnonly
+    update-gfwlist      update gfwlist
+    update-chnroute     update chnroute
+    version             show version and exit
+    help                show help and exit
+}
+Issues or Bug report: zfl9.com@gmail.com (Otokaze)
+See https://www.zfl9.com/ss-redir.html for more details
+EOF
 }
 
 main() {
-    # TODO
-    return 0
+    load_config
+    check_depend
+    [ $# -lt 1 ] && { help; exit 1; }
+    case $1 in
+        start)              start; status;;
+        stop)               stop; status;;
+        status)             status;;
+        r*)                 stop; status; echo; start; status;;
+        show-iptables)      show_iptables;;
+        flush-iptables)     flush_iptables;;
+        flush-gfwlist)      flush_gfwlist;;
+        flush-dnscache)     flush_dnscache;;
+        update-chnonly)     update_chnonly;;
+        update-gfwlist)     update_gfwlist;;
+        update-chnroute)    update_chnroute;;
+        v*)                 version;;
+        h*)                 help;;
+        *)                  help; exit 1;;
+    esac
 }
 main "$@"
