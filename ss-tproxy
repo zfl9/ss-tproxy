@@ -885,7 +885,7 @@ main() {
         update-chnroute) update_chnroute;;
         v*)              version;;
         h*)              help;;
-        *)               help; exit 1;;
+        *)               help; return 1;;
     esac
     return 0
 }
