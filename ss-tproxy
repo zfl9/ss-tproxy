@@ -98,11 +98,9 @@ udp_bind_port_is_exists() {
 
 sstproxy_is_started() {
     if is_true "$ipv4"; then
-        iptables -t mangle -nL SSTP_OUTPUT &>/dev/null
-        return $?
+        [ $(ip -4 rule | grep -c "fwmark $ipts_rt_mark") -ne 0 ]
     else
-        ip6tables -t mangle -nL SSTP_OUTPUT &>/dev/null
-        return $?
+        [ $(ip -6 rule | grep -c "fwmark $ipts_rt_mark") -ne 0 ]
     fi
 }
 
