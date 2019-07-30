@@ -887,5 +887,6 @@ main() {
         h*)              help;;
         *)               help; exit 1;;
     esac
+    return 0
 }
 main "$@"
