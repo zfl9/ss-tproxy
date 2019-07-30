@@ -170,20 +170,21 @@ load_config() {
             ;;
     esac
 
+    proxy_svraddr4=()
+    proxy_svraddr6=()
+
     for svr in "${proxy_svraddr[@]}"; do
         local svr_ip=$(resolve_hostname "$svr")
         if is_ipv4_address "$svr_ip"; then
             proxy_svraddr4+=($svr_ip)
-        elif is_ipv6_address "$svr_ip"; then
-            proxy_svraddr6+=($svr_ip)
         else
-            log_error "assertion failed: neither ipv4 address nor ipv6 address: $svr_ip"
+            proxy_svraddr6+=($svr_ip)
         fi
     done
 
-    if is_false "$ipv6" && [ "${#proxy_svraddr6[@]}" -ne 0 ]; then
-        log_error "proxy server contains ipv6 addr, but ipv6 is disabled: ${proxy_svraddr6[@]}"
-    fi
+    [ "${#proxy_svraddr4[@]}" -eq 0 ] && log_error "there is no ipv4 address in proxy_svraddr"
+    { is_true "$ipv6" && [ "${#proxy_svraddr6[@]}" -eq 0 ]; } && log_error "there is no ipv6 address in proxy_svraddr"
+    { is_false "$ipv6" && [ "${#proxy_svraddr6[@]}" -ne 0 ]; } && log_error "proxy_svraddr contains ipv6 addr, but ipv6 is disabled: ${proxy_svraddr6[@]}"
 }
 
 check_depend() {
@@ -416,13 +417,12 @@ start_iptables_pre_rules() {
     $1 -t nat    -N SSTP_OUTPUT
     $1 -t nat    -N SSTP_POSTROUTING
 
-    if is_ipv4_ipts $1; then
-        ip -4 route add local 0/0 dev lo     table $ipts_rt_tab
-        ip -4 rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
-    else
-        ip -6 route add local ::/0 dev lo    table $ipts_rt_tab
-        ip -6 rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
-    fi
+    local iproute2_family iproute2_default_rt
+    is_ipv4_ipts $1 && iproute2_family="-4" || iproute2_family="-6"
+    is_ipv4_ipts $1 && iproute2_default_rt="0/0" || iproute2_default_rt="::/0"
+
+    ip $iproute2_family route add local $iproute2_default_rt dev lo table $ipts_rt_tab
+    ip $iproute2_family rule  add fwmark $ipts_rt_mark              table $ipts_rt_tab
 }
 
 start_iptables_post_rules() {
@@ -437,20 +437,21 @@ start_iptables_tproxy_gfwlist() {
     local gfwlist_setname
     is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
 
-    if is_ipv4_ipts $1; then
-        ipset -N $gfwlist_setname hash:net family inet &>/dev/null || ignore
-        grep -E '^-' $file_gfwlist_ext | cut -c2- | while read ipv4_addr; do echo "-A $gfwlist_setname $ipv4_addr"; done | ipset -R &>/dev/null || ignore
-        for svr_ip in "${proxy_svraddr4[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null || ignore
-    else
-        ipset -N $gfwlist_setname hash:net family inet6 &>/dev/null || ignore
-        grep -E '^~' $file_gfwlist_ext | cut -c2- | while read ipv6_addr; do echo "-A $gfwlist_setname $ipv6_addr"; done | ipset -R &>/dev/null || ignore
-        for svr_ip in "${proxy_svraddr6[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null || ignore
-    fi
+    local gfwlist_setfamily
+    is_ipv4_ipts $1 && gfwlist_setfamily="inet" || gfwlist_setfamily="inet6"
 
-    $1 -t mangle -N SSTP_RULE
+    local grep_pattern
+    is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
 
     local svr_ip_array
     is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
+
+    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null || ignore
+    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null || ignore
+    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null || ignore
+
+    $1 -t mangle -N SSTP_RULE
+
     for svr_ip in "${svr_ip_array[@]}"; do
         $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
         $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
