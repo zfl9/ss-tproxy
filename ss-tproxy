@@ -623,7 +623,52 @@ start_iptables_redirect_gfwlist() {
 }
 
 start_iptables_redirect_chnroute() {
-    # TODO
+    local chnroute_setname chnroute_setfile
+    is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
+    is_ipv4_ipts $1 && chnroute_setfile="$file_chnroute_set" || chnroute_setfile="$file_chnroute6_set"
+    ipset -X $chnroute_setname &>/dev/null || ignore
+    ipset -R <$chnroute_setfile
+
+    local intranet_array
+    is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
+    for intranet in "${intranet_array[@]}"; do echo "-A $chnroute_setname $intranet"; done | ipset -R &>/dev/null || ignore
+
+    ######################### UDP #########################
+
+    $1 -t mangle -N SSTP_RULE
+
+    local svr_ip_array
+    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
+
+    local direct_dns_ip
+    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+    $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
+
+    local remote_dns_ip remote_dns_port
+    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
+    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
+    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+
+    $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
+
+    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -j MARK --set-mark $ipts_rt_mark
+
+    ######################### TCP #########################
+
+    $1 -t nat -N SSTP_RULE
+
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
+
+    $1 -t nat -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
+
+    $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port -j REDIRECT --to-ports $proxy_tcpport
+
     start_iptables_redirect_common $1
 }
 
