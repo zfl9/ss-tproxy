@@ -70,6 +70,10 @@ color_red() {
     printf "\e[35m$*\e[0m"
 }
 
+color_green() {
+    printf "\e[32m$*\e[0m"
+}
+
 color_yellow() {
     printf "\e[31m$*\e[0m"
 }
@@ -105,6 +109,14 @@ command_is_exists() {
 
 process_is_running() {
     kill -0 "$1" &>/dev/null
+}
+
+tcp_bind_port_is_exists() {
+    [ $($netstat -lnpt | grep -E ":$1[ \t]" | wc -l) -ne 0 ]
+}
+
+udp_bind_port_is_exists() {
+    [ $($netstat -anpu | grep -E ":$1[ \t]" | wc -l) -ne 0 ]
 }
 
 sstproxy_is_started() {
@@ -152,6 +164,8 @@ load_config() {
     if sstproxy_is_started; then
         source "$file_dnsserver_pid" || log_error "failed to load the pid file, exit-code: $?"
     else
+        status_dnsmasq_pid='null'
+        status_chinadns_pid='null'
         rm -f "$file_dnsserver_pid" &>/dev/null || ignore
     fi
 
@@ -195,6 +209,11 @@ load_config() {
 
     { is_false "$ipv6" && [ "${#proxy_svraddr6[@]}" -ne 0 ]; } && log_warn "found ipv6 address(${proxy_svraddr6[@]}) in the proxy_svraddr, but ipv6 is disabled"
     { is_false "$ipv4" && [ "${#proxy_svraddr4[@]}" -ne 0 ]; } && log_warn "found ipv4 address(${proxy_svraddr4[@]}) in the proxy_svraddr, but ipv4 is disabled"
+}
+
+save_pidfile() {
+    echo "status_dnsmasq_pid=$status_dnsmasq_pid" >$file_dnsserver_pid
+    echo "status_chinadns_pid=$status_chinadns_pid" >>$file_dnsserver_pid
 }
 
 check_depend() {
@@ -692,18 +711,63 @@ start_iptables() {
 }
 
 start() {
-    # TODO
-    return 0
+    sstproxy_is_started && return
+
+    if [ "$(type -t pre_start)" = 'function' ]; then
+        pre_start || log_error "failed to execute the pre_start function, exit-code: $?"
+    fi
+
+    restore_resolvconf
+    start_proxy_proc
+    start_dnsserver
+    start_iptables
+    modify_resolvconf
+    save_pidfile
+
+    if [ "$(type -t post_start)" = 'function' ]; then
+        post_start || log_error "failed to execute the post_start function, exit-code: $?"
+    fi
 }
 
 stop() {
-    # TODO
-    return 0
+    sstproxy_is_started || return
+
+    if [ "$(type -t pre_stop)" = 'function' ]; then
+        pre_stop || log_error "failed to execute the pre_stop function, exit-code: $?"
+    fi
+
+    restore_resolvconf
+    flush_iptables
+
+    is_true "$ipv4" && ipset -X chnroute
+    is_true "$ipv6" && ipset -X chnroute6
+
+    stop_proxy_proc
+    kill -9 $status_dnsmasq_pid
+    kill -9 $status_chinadns_pid
+
+    rm -f $file_dnsserver_pid
+
+    if [ "$(type -t post_stop)" = 'function' ]; then
+        post_stop || log_error "failed to execute the post_stop function, exit-code: $?"
+    fi
 }
 
 status() {
-    # TODO
-    return 0
+    case "$mode" in
+        gfwlist)
+            echo "mode:     gfwlist"
+            tcp_bind_port_is_exists $proxy_tcpport && echo "pxy/tcp: $(color_green '[running]')" || echo "pxy/tcp: $(color_red '[stopped]')"
+            udp_bind_port_is_exists $proxy_udpport && echo "pxy/udp: $(color_green '[running]')" || echo "pxy/udp: $(color_red '[stopped]')"
+            process_is_running $status_dnsmasq_pid && echo "dnsmasq: $(color_green '[running]')" || echo "dnsmasq: $(color_red '[stopped]')"
+            ;;
+        chnroute)
+            tcp_bind_port_is_exists $proxy_tcpport  && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
+            udp_bind_port_is_exists $proxy_udpport  && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
+            process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
+            process_is_running $status_chinadns_pid && echo "chinadns: $(color_green '[running]')" || echo "chinadns: $(color_red '[stopped]')"
+            ;;
+    esac
 }
 
 help() {
