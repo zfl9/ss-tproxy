@@ -140,7 +140,7 @@ delete_pidfile() {
 }
 
 load_config() {
-    file_is_exists "$ss_tproxy_config"   || log_error "file not found: $ss_tproxy_config" && source "$ss_tproxy_config"
+    file_is_exists "$ss_tproxy_config"   || log_error "file not found: $ss_tproxy_config" && source "$ss_tproxy_config" "$@"
     file_is_exists "$file_gfwlist_txt"   || log_error "file not found: $file_gfwlist_txt"
     file_is_exists "$file_gfwlist_ext"   || log_error "file not found: $file_gfwlist_ext"
     file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
@@ -176,7 +176,9 @@ load_config() {
     esac
 
     { is_false "$ipv4" && is_false "$ipv6"; } && log_error "both ipv4 and ipv6 are disabled, nothing to do"
+}
 
+resolve_svraddr() {
     for svr in "${proxy_svraddr[@]}"; do
         local svr_ip=$(resolve_hostname "$svr")
         if is_ipv4_address "$svr_ip"; then
@@ -798,6 +800,7 @@ start() {
     enable_ipforward
     disable_icmpredir
     restore_resolvconf
+    resolve_svraddr
     start_proxy_proc
     start_dnsserver
     save_pidfile
@@ -868,7 +871,7 @@ EOF
 }
 
 main() {
-    load_config
+    load_config "$@"
     check_depend
     case $1 in
         start)           start; status;;
