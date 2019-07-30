@@ -404,6 +404,10 @@ disable_icmpredir() {
     done
 }
 
+is_ipv4_ipts() {
+    [ "$1" = 'iptables' ]
+}
+
 start_iptables_basic_rules() {
     "$1" -t mangle -N SSTP_PREROUTING
     "$1" -t mangle -N SSTP_OUTPUT
@@ -417,7 +421,7 @@ start_iptables_basic_rules() {
     "$1" -t nat    -A OUTPUT      -j SSTP_OUTPUT
     "$1" -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 
-    if [ "$1" = 'iptables' ]; then
+    if is_ipv4_ipts "$1"; then
         ip -4 route add local 0/0 dev lo     table $ipts_rt_tab
         ip -4 rule  add fwmark $ipts_rt_mark table $ipts_rt_tab
     else
