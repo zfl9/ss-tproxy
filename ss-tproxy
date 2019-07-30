@@ -461,6 +461,49 @@ is_ipv4_ipts() {
     [ "$1" = 'iptables' ]
 }
 
+redir_intranet_dns() {
+    is_false "$ipts_reddns_onstop" && return
+    is_true "$ipv4" && {
+        iptables -t nat -N SSTP_PREROUTING
+        iptables -t nat -N SSTP_POSTROUTING
+        for intranet in "${ipts_intranet[@]}"; do
+            iptables -t nat -A SSTP_PREROUTING -s $intranet -d $intranet -p udp --dport 53 -j DNAT --to-destination $dns_direct
+            iptables -t nat -A SSTP_POSTROUTING -s $intranet -d $dns_direct -p udp --dport 53 -j MASQUERADE
+        done
+        iptables -t nat -A PREROUTING -j SSTP_PREROUTING
+        iptables -t nat -A POSTROUTING -j SSTP_POSTROUTING
+    }
+    is_true "$ipv6" && {
+        ip6tables -t nat -N SSTP_PREROUTING
+        ip6tables -t nat -N SSTP_POSTROUTING
+        for intranet in "${ipts_intranet6[@]}"; do
+            ip6tables -t nat -A SSTP_PREROUTING -s $intranet -d $intranet -p udp --dport 53 -j DNAT --to-destination $dns_direct6
+            ip6tables -t nat -A SSTP_POSTROUTING -s $intranet -d $dns_direct6 -p udp --dport 53 -j MASQUERADE
+        done
+        ip6tables -t nat -A PREROUTING -j SSTP_PREROUTING
+        ip6tables -t nat -A POSTROUTING -j SSTP_POSTROUTING
+    }
+}
+
+unredir_intranet_dns() {
+    is_true "$ipv4" && {
+        iptables -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
+        iptables -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
+        iptables -t nat -F SSTP_PREROUTING  &>/dev/null
+        iptables -t nat -X SSTP_PREROUTING  &>/dev/null
+        iptables -t nat -F SSTP_POSTROUTING &>/dev/null
+        iptables -t nat -X SSTP_POSTROUTING &>/dev/null
+    }
+    is_true "$ipv6" && {
+        ip6tables -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
+        ip6tables -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
+        ip6tables -t nat -F SSTP_PREROUTING  &>/dev/null
+        ip6tables -t nat -X SSTP_PREROUTING  &>/dev/null
+        ip6tables -t nat -F SSTP_POSTROUTING &>/dev/null
+        ip6tables -t nat -X SSTP_POSTROUTING &>/dev/null
+    }
+}
+
 start_iptables_pre_rules() {
     local iproute2_family iproute2_default_rt
     is_ipv4_ipts $1 && iproute2_family="-4" || iproute2_family="-6"
@@ -751,6 +794,7 @@ start() {
 
     [ "$(type -t pre_start)" = 'function' ] && pre_start
 
+    unredir_intranet_dns
     enable_ipforward
     disable_icmpredir
     restore_resolvconf
@@ -773,6 +817,7 @@ stop() {
     stop_dnsserver
     delete_pidfile
     stop_proxy_proc
+    redir_intranet_dns
 
     [ "$(type -t post_stop)" = 'function' ] && post_stop
 }
