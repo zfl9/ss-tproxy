@@ -408,18 +408,12 @@ is_ipv4_ipts() {
     [ "$1" = 'iptables' ]
 }
 
-start_iptables_basic_rules() {
+start_iptables_pre_rules() {
     "$1" -t mangle -N SSTP_PREROUTING
     "$1" -t mangle -N SSTP_OUTPUT
     "$1" -t nat    -N SSTP_PREROUTING
     "$1" -t nat    -N SSTP_OUTPUT
     "$1" -t nat    -N SSTP_POSTROUTING
-
-    "$1" -t mangle -A PREROUTING  -j SSTP_PREROUTING
-    "$1" -t mangle -A OUTPUT      -j SSTP_OUTPUT
-    "$1" -t nat    -A PREROUTING  -j SSTP_PREROUTING
-    "$1" -t nat    -A OUTPUT      -j SSTP_OUTPUT
-    "$1" -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 
     if is_ipv4_ipts "$1"; then
         ip -4 route add local 0/0 dev lo     table $ipts_rt_tab
@@ -430,6 +424,14 @@ start_iptables_basic_rules() {
     fi
 }
 
+start_iptables_post_rules() {
+    "$1" -t mangle -A PREROUTING  -j SSTP_PREROUTING
+    "$1" -t mangle -A OUTPUT      -j SSTP_OUTPUT
+    "$1" -t nat    -A PREROUTING  -j SSTP_PREROUTING
+    "$1" -t nat    -A OUTPUT      -j SSTP_OUTPUT
+    "$1" -t nat    -A POSTROUTING -j SSTP_POSTROUTING
+}
+
 start_iptables_tproxy_gfwlist() {
     if is_ipv4_ipts "$1"; then
         ipset -N gfwlist hash:net family inet &>/dev/null || ignore
@@ -438,6 +440,8 @@ start_iptables_tproxy_gfwlist() {
         ipset -N gfwlist6 hash:net family inet &>/dev/null || ignore
         grep -E '^~' $file_gfwlist_ext | cut -c2- | while read ipv6_addr; do echo "-A gfwlist6 $ipv6_addr"; done | ipset -R &>/dev/null || ignore
     fi
+
+    // TODO
 }
 
 start_iptables_tproxy_chnroute() {
@@ -456,8 +460,8 @@ start_iptables_redirect_chnroute() {
 }
 
 start_iptables() {
-    start_iptables_basic_rules "iptables"
-    is_true "$ipv6" && start_iptables_basic_rules "ip6tables"
+    start_iptables_pre_rules "iptables"
+    is_true "$ipv6" && start_iptables_pre_rules "ip6tables"
 
     case "$mode" in
         gfwlist)
@@ -469,6 +473,9 @@ start_iptables() {
             is_true "$ipv6" && { is_true "$tproxy" && start_iptables_tproxy_chnroute "ip6tables" || start_iptables_redirect_chnroute "ip6tables"; }
             ;;
     esac
+
+    start_iptables_post_rules "iptables"
+    is_true "$ipv6" && start_iptables_post_rules "ip6tables"
 }
 
 start() {
