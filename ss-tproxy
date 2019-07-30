@@ -573,7 +573,52 @@ start_iptables_redirect_common() {
 }
 
 start_iptables_redirect_gfwlist() {
-    # TODO
+    local gfwlist_setname
+    is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
+
+    local gfwlist_setfamily
+    is_ipv4_ipts $1 && gfwlist_setfamily="inet" || gfwlist_setfamily="inet6"
+
+    local grep_pattern
+    is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
+
+    local svr_ip_array
+    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
+
+    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null || ignore
+    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null || ignore
+    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null || ignore
+
+    ######################### UDP #########################
+
+    $1 -t mangle -N SSTP_RULE
+
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
+
+    local direct_dns_ip
+    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+    $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
+
+    local remote_dns_ip remote_dns_port
+    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
+    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
+    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+
+    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -j MARK --set-mark $ipts_rt_mark
+
+    ######################### TCP #########################
+
+    $1 -t nat -N SSTP_RULE
+
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
+
+    $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -j REDIRECT --to-ports $proxy_tcpport
+
     start_iptables_redirect_common $1
 }
 
