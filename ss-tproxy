@@ -84,10 +84,6 @@ log_error() {
     exit 1
 }
 
-ignore() {
-    true
-}
-
 is_true() {
     [ "$1" = 'true' ]
 }
@@ -141,7 +137,7 @@ is_domain_name() {
 resolve_hostname() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
-        ipaddr=$(ping -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}') || ignore
+        ipaddr=$(ping -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
     done
     echo "$ipaddr"
 }
@@ -163,7 +159,7 @@ load_config() {
     else
         status_dnsmasq_pid='null'
         status_chinadns_pid='null'
-        rm -f "$file_dnsserver_pid" &>/dev/null || ignore
+        rm -f "$file_dnsserver_pid" &>/dev/null
     fi
 
     case "$opts_ss_netstat" in
@@ -271,32 +267,32 @@ flush_dnscache() {
 }
 
 flush_gfwlist() {
-    is_true "$ipv4" && ipset -F gfwlist  &>/dev/null || ignore
-    is_true "$ipv6" && ipset -F gfwlist6 &>/dev/null || ignore
+    is_true "$ipv4" && ipset -F gfwlist  &>/dev/null
+    is_true "$ipv6" && ipset -F gfwlist6 &>/dev/null
 }
 
 _flush_iptables() {
-    $1 -t mangle -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null || ignore
-    $1 -t mangle -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null || ignore
-    $1 -t nat    -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null || ignore
-    $1 -t nat    -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null || ignore
-    $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null || ignore
+    $1 -t mangle -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
+    $1 -t mangle -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
+    $1 -t nat    -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
 
-    $1 -t mangle -F SSTP_PREROUTING  &>/dev/null || ignore
-    $1 -t mangle -X SSTP_PREROUTING  &>/dev/null || ignore
-    $1 -t mangle -F SSTP_OUTPUT      &>/dev/null || ignore
-    $1 -t mangle -X SSTP_OUTPUT      &>/dev/null || ignore
-    $1 -t nat    -F SSTP_PREROUTING  &>/dev/null || ignore
-    $1 -t nat    -X SSTP_PREROUTING  &>/dev/null || ignore
-    $1 -t nat    -F SSTP_OUTPUT      &>/dev/null || ignore
-    $1 -t nat    -X SSTP_OUTPUT      &>/dev/null || ignore
-    $1 -t nat    -F SSTP_POSTROUTING &>/dev/null || ignore
-    $1 -t nat    -X SSTP_POSTROUTING &>/dev/null || ignore
+    $1 -t mangle -F SSTP_PREROUTING  &>/dev/null
+    $1 -t mangle -X SSTP_PREROUTING  &>/dev/null
+    $1 -t mangle -F SSTP_OUTPUT      &>/dev/null
+    $1 -t mangle -X SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -F SSTP_PREROUTING  &>/dev/null
+    $1 -t nat    -X SSTP_PREROUTING  &>/dev/null
+    $1 -t nat    -F SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -X SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -F SSTP_POSTROUTING &>/dev/null
+    $1 -t nat    -X SSTP_POSTROUTING &>/dev/null
 
-    $1 -t mangle -F SSTP_RULE &>/dev/null || ignore
-    $1 -t mangle -X SSTP_RULE &>/dev/null || ignore
-    $1 -t nat    -F SSTP_RULE &>/dev/null || ignore
-    $1 -t nat    -X SSTP_RULE &>/dev/null || ignore
+    $1 -t mangle -F SSTP_RULE &>/dev/null
+    $1 -t mangle -X SSTP_RULE &>/dev/null
+    $1 -t nat    -F SSTP_RULE &>/dev/null
+    $1 -t nat    -X SSTP_RULE &>/dev/null
 }
 
 flush_iptables() {
@@ -421,7 +417,7 @@ start_proxy_proc() {
 }
 
 stop_proxy_proc() {
-    eval "$proxy_stopcmd" || ignore
+    eval "$proxy_stopcmd"
 }
 
 enable_ipforward() {
@@ -500,9 +496,9 @@ start_iptables_tproxy_gfwlist() {
     local svr_ip_array
     is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
 
-    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null || ignore
-    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null || ignore
-    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null || ignore
+    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
+    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
 
     $1 -t mangle -N SSTP_RULE
 
@@ -531,12 +527,12 @@ start_iptables_tproxy_chnroute() {
     local chnroute_setname chnroute_setfile
     is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
     is_ipv4_ipts $1 && chnroute_setfile="$file_chnroute_set" || chnroute_setfile="$file_chnroute6_set"
-    ipset -X $chnroute_setname &>/dev/null || ignore
+    ipset -X $chnroute_setname &>/dev/null
     ipset -R <$chnroute_setfile
 
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
-    for intranet in "${intranet_array[@]}"; do echo "-A $chnroute_setname $intranet"; done | ipset -R &>/dev/null || ignore
+    for intranet in "${intranet_array[@]}"; do echo "-A $chnroute_setname $intranet"; done | ipset -R &>/dev/null
 
     $1 -t mangle -N SSTP_RULE
 
@@ -601,9 +597,9 @@ start_iptables_redirect_gfwlist() {
     local svr_ip_array
     is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
 
-    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null || ignore
-    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null || ignore
-    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null || ignore
+    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
+    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
 
     ######################### UDP #########################
 
@@ -642,12 +638,12 @@ start_iptables_redirect_chnroute() {
     local chnroute_setname chnroute_setfile
     is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
     is_ipv4_ipts $1 && chnroute_setfile="$file_chnroute_set" || chnroute_setfile="$file_chnroute6_set"
-    ipset -X $chnroute_setname &>/dev/null || ignore
+    ipset -X $chnroute_setname &>/dev/null
     ipset -R <$chnroute_setfile
 
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
-    for intranet in "${intranet_array[@]}"; do echo "-A $chnroute_setname $intranet"; done | ipset -R &>/dev/null || ignore
+    for intranet in "${intranet_array[@]}"; do echo "-A $chnroute_setname $intranet"; done | ipset -R &>/dev/null
 
     ######################### UDP #########################
 
