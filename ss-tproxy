@@ -431,7 +431,7 @@ start_iptables_basic_rules() {
 }
 
 start_iptables_tproxy_gfwlist() {
-    if [ "$1" = 'iptables' ]; then
+    if is_ipv4_ipts "$1"; then
         ipset -N gfwlist hash:net family inet &>/dev/null || ignore
         grep -E '^-' $file_gfwlist_ext | cut -c2- | while read ipv4_addr; do echo "-A gfwlist $ipv4_addr"; done | ipset -R &>/dev/null || ignore
     else
