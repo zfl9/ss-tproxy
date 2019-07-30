@@ -574,12 +574,12 @@ start_iptables_redirect_common() {
 
 start_iptables_redirect_gfwlist() {
     # TODO
-    return 0
+    start_iptables_redirect_common $1
 }
 
 start_iptables_redirect_chnroute() {
     # TODO
-    return 0
+    start_iptables_redirect_common $1
 }
 
 start_iptables() {
