@@ -98,7 +98,7 @@ udp_bind_port_is_exists() {
     [ $($netstat -anpu | grep -E ":$1[ \t]" | wc -l) -ne 0 ]
 }
 
-sstproxy_is_started() {
+ss_tproxy_is_started() {
     if is_true "$ipv4"; then
         [ $(ip -4 rule | grep -c "fwmark $ipts_rt_mark") -ne 0 ]
     else
@@ -146,7 +146,7 @@ load_config() {
     file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
     file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
 
-    if sstproxy_is_started; then
+    if ss_tproxy_is_started; then
 		file_is_exists "$file_dnsserver_pid" || log_error "file not found: $file_dnsserver_pid"
 		file_is_not_empty "$file_dnsserver_pid" || log_error "file is empty: $file_dnsserver_pid"
         source "$file_dnsserver_pid"
@@ -789,7 +789,7 @@ start_iptables() {
 }
 
 start() {
-    sstproxy_is_started && { stop; status; echo; }
+    ss_tproxy_is_started && { stop; status; echo; }
 
     waiting_network "$opts_ip_for_check_net"
 
