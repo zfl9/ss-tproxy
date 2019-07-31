@@ -183,6 +183,9 @@ load_config() {
 }
 
 resolve_svraddr() {
+    proxy_svraddr4=() # global variable
+    proxy_svraddr6=() # global variable
+
     for svr in "${proxy_svraddr[@]}"; do
         local svr_ip=$(resolve_hostname "$svr")
         if is_ipv4_address "$svr_ip"; then
@@ -192,8 +195,8 @@ resolve_svraddr() {
         fi
     done
 
-    { is_true "$ipv4" && [ "${#proxy_svraddr4[@]}" -eq 0 ]; } && log_error "not found ipv4 address in the proxy_svraddr"
-    { is_true "$ipv6" && [ "${#proxy_svraddr6[@]}" -eq 0 ]; } && log_error "not found ipv6 address in the proxy_svraddr"
+    { is_true "$ipv4" && [ "${#proxy_svraddr4[@]}" -eq 0 ]; } && log_error "not found ipv4 address in the proxy_svraddr: ${proxy_svraddr6[@]}"
+    { is_true "$ipv6" && [ "${#proxy_svraddr6[@]}" -eq 0 ]; } && log_error "not found ipv6 address in the proxy_svraddr: ${proxy_svraddr4[@]}"
 
     { is_false "$ipv6" && [ "${#proxy_svraddr6[@]}" -ne 0 ]; } && log_warn "found ipv6 address(${proxy_svraddr6[@]}) in the proxy_svraddr, but ipv6 is disabled"
     { is_false "$ipv4" && [ "${#proxy_svraddr4[@]}" -ne 0 ]; } && log_warn "found ipv4 address(${proxy_svraddr4[@]}) in the proxy_svraddr, but ipv4 is disabled"
