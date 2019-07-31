@@ -4,6 +4,8 @@ PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 
+loopback_ifname='lo'
+
 ipv4_reserved_ipaddrs=(
     0.0.0.0/8
     10.0.0.0/8
@@ -507,7 +509,6 @@ unredir_intranet_dns() {
 start_iptables_pre_rules() {
     local iproute2_family iproute2_default_rt
     is_ipv4_ipts $1 && iproute2_family="-4" || iproute2_family="-6"
-    is_ipv4_ipts $1 && iproute2_default_rt="0/0" || iproute2_default_rt="::/0"
 
     $1 -t mangle -N SSTP_PREROUTING
     $1 -t mangle -N SSTP_OUTPUT
@@ -515,8 +516,8 @@ start_iptables_pre_rules() {
     $1 -t nat    -N SSTP_OUTPUT
     $1 -t nat    -N SSTP_POSTROUTING
 
-    ip $iproute2_family route add local $iproute2_default_rt dev lo table $ipts_rt_tab
-    ip $iproute2_family rule  add fwmark $ipts_rt_mark              table $ipts_rt_tab
+    ip $iproute2_family route add local default dev $loopback_ifname table $ipts_rt_tab
+    ip $iproute2_family rule  add fwmark $ipts_rt_mark               table $ipts_rt_tab
 }
 
 start_iptables_post_rules() {
