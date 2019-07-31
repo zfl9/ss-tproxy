@@ -275,10 +275,6 @@ update_chnroute() {
     } >$file_chnroute6_set
 }
 
-flush_dnscache() {
-    kill -HUP "$status_dnsmasq_pid" &>/dev/null
-}
-
 start_dnsserver_gfwlist() {
     local dnsmasq_config_string=$(cat <<EOF
 $(is_true "$dnsmasq_log_enable" && echo 'log-queries')
@@ -295,14 +291,20 @@ $(
 { cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-; } | while read domain_name; do
   is_true "$ipv4" && echo "server = /$domain_name/$dns_remote"
   is_true "$ipv6" && echo "server = /$domain_name/$dns_remote6"
-  echo "ipset = /$domain_name/gfwlist,gfwlist6"
+  if is_true "$ipv4" && is_true "$ipv6"; then
+      echo "ipset = /$domain_name/gfwlist,gfwlist6"
+  elif is_true "$ipv4"; then
+      echo "ipset = /$domain_name/gfwlist"
+  else
+      echo "ipset = /$domain_name/gfwlist6"
+  fi
 done
 )
 $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
 $([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
 EOF
 )
-    status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
+    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
 start_dnsserver_chnroute() {
@@ -334,7 +336,7 @@ $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; 
 $([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
 EOF
 )
-    status_dnsmasq_pid=$(dnsmasq --no-daemon --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
+    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
 }
 
 start_dnsserver() {
@@ -358,6 +360,10 @@ start_dnsserver() {
 stop_dnsserver() {
     kill -9 $status_dnsmasq_pid &>/dev/null
     kill -9 $status_chinadns_pid &>/dev/null
+}
+
+flush_dnscache() {
+    kill -HUP "$status_dnsmasq_pid" &>/dev/null
 }
 
 modify_resolvconf() {
