@@ -501,6 +501,7 @@ redir_intranet_dns() {
 }
 
 unredir_intranet_dns() {
+    ss_tproxy_is_started && return
     is_true "$ipv4" && {
         iptables -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
         iptables -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
@@ -520,7 +521,7 @@ unredir_intranet_dns() {
 }
 
 start_iptables_pre_rules() {
-    local iproute2_family iproute2_default_rt
+    local iproute2_family
     is_ipv4_ipts $1 && iproute2_family="-4" || iproute2_family="-6"
 
     $1 -t mangle -N SSTP_PREROUTING
@@ -554,11 +555,11 @@ start_iptables_tproxy_common() {
     [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
     for intranet in "${intranet_array[@]}"; do
-        $1 -t mangle -A SSTP_PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        $1 -t nat    -A SSTP_PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports $dnsmasq_bind_port
+        $1 -t mangle -A SSTP_PREROUTING -p udp ! -i $loopback_ifname -s $intranet --dport 53 -j ACCEPT
+        $1 -t nat    -A SSTP_PREROUTING -p udp ! -i $loopback_ifname -s $intranet --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
-        $1 -t mangle -A SSTP_PREROUTING -p tcp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING -p tcp ! -i $loopback_ifname -s $intranet -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING -p udp ! -i $loopback_ifname -s $intranet -j SSTP_RULE
 
         is_true "$ipts_set_snat" && $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
