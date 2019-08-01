@@ -538,6 +538,14 @@ start_iptables_pre_rules() {
 }
 
 start_iptables_post_rules() {
+    local ignore_ip_list
+    is_ipv4_ipts $1 && ignore_ip_list=("${ipts_ignore_list[@]}") || ignore_ip_list=("${ipts_ignore_list6[@]}")
+
+    for ignore_ip in "${ignore_ip_list[@]}"; do
+        $1 -t mangle -I SSTP_PREROUTING -s $ignore_ip -j RETURN
+        $1 -t nat    -I SSTP_PREROUTING -s $ignore_ip -j RETURN
+    done
+
     $1 -t mangle -A PREROUTING  -j SSTP_PREROUTING
     $1 -t mangle -A OUTPUT      -j SSTP_OUTPUT
     $1 -t nat    -A PREROUTING  -j SSTP_PREROUTING
@@ -676,16 +684,16 @@ start_iptables_redirect_common() {
     [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
     for intranet in "${intranet_array[@]}"; do
-        $1 -t mangle -A SSTP_PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j ACCEPT
-        $1 -t nat    -A SSTP_PREROUTING -p udp -s $intranet --dport 53 -m mark ! --mark $ipts_rt_mark -j REDIRECT --to-ports $dnsmasq_bind_port
+        $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet --dport 53 -j ACCEPT
+        $1 -t nat    -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
-        $1 -t nat    -A SSTP_PREROUTING -p tcp -s $intranet                                           -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING -p udp -s $intranet            -m mark ! --mark $ipts_rt_mark -j SSTP_RULE
+        $1 -t nat    -A SSTP_PREROUTING                       -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet ! -d $intranet -j SSTP_RULE
 
         is_true "$ipts_set_snat" && $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
 
-    $1 -t mangle -A SSTP_PREROUTING -m mark --mark $ipts_rt_mark -p udp -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
+    $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
 }
 
 start_iptables_redirect_gfwlist() {
@@ -716,6 +724,9 @@ start_iptables_redirect_gfwlist() {
 
     $1 -t mangle -N SSTP_RULE
 
+    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
+    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
+
     for svr_ip in "${svr_ip_array[@]}"; do
         $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
     done
@@ -725,17 +736,22 @@ start_iptables_redirect_gfwlist() {
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
 
-    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m state --state NEW -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### TCP #########################
 
     $1 -t nat -N SSTP_RULE
 
+    $1 -t nat -A SSTP_RULE -j CONNMARK --restore-mark
+    $1 -t nat -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
+
     for svr_ip in "${svr_ip_array[@]}"; do
         $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
     done
 
-    $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -j REDIRECT --to-ports $proxy_tcpport
+    $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
+    $1 -t nat -A SSTP_RULE -j CONNMARK --save-mark
 
     start_iptables_redirect_common $1
 }
@@ -766,6 +782,9 @@ start_iptables_redirect_chnroute() {
 
     $1 -t mangle -N SSTP_RULE
 
+    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
+    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
+
     for svr_ip in "${svr_ip_array[@]}"; do
         $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
     done
@@ -777,11 +796,15 @@ start_iptables_redirect_chnroute() {
 
     $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
 
-    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m state --state NEW -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### TCP #########################
 
     $1 -t nat -N SSTP_RULE
+
+    $1 -t nat -A SSTP_RULE -j CONNMARK --restore-mark
+    $1 -t nat -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
     for svr_ip in "${svr_ip_array[@]}"; do
         $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
@@ -789,7 +812,8 @@ start_iptables_redirect_chnroute() {
 
     $1 -t nat -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
 
-    $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port -j REDIRECT --to-ports $proxy_tcpport
+    $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
+    $1 -t nat -A SSTP_RULE -j CONNMARK --save-mark
 
     start_iptables_redirect_common $1
 }
@@ -827,7 +851,6 @@ start() {
     resolve_svraddr
     start_proxy_proc
     start_dnsserver
-    save_pidfile
     start_iptables
     modify_resolvconf
 
@@ -838,11 +861,10 @@ stop() {
     [ "$(type -t pre_stop)" = 'function' ] && pre_stop
 
     restore_resolvconf
-    delete_iproute2
     flush_iptables
     delete_chnroute
+    delete_iproute2
     stop_dnsserver
-    delete_pidfile
     stop_proxy_proc
     redir_intranet_dns
 
@@ -880,12 +902,12 @@ COMMAND := {
     restart             restart ss-tproxy
     status              status of ss-tproxy
     show-iptables       show iptables rules
-    flush-iptables      flush iptables rules
-    flush-dnscache      flush dns cache
-    flush-gfwlist       flush ipset-gfwlist
-    update-chnonly      update chnonly
-    update-gfwlist      update gfwlist
-    update-chnroute     update chnroute
+    flush-dnsredir      flush dns redir rule
+    flush-dnscache      flush dnsmasq cache
+    flush-gfwlist       flush ipset@gfwlist
+    update-chnonly      update chnonly list
+    update-gfwlist      update gfwlist list
+    update-chnroute     update chnroute list
     version             show version and exit
     help                show help and exit
 }
@@ -903,7 +925,7 @@ main() {
         r*)              stop; status; echo; start; status;;
         status)          status;;
         show-iptables)   show_iptables;;
-        flush-iptables)  flush_iptables;;
+        flush-dnsredir)  unredir_intranet_dns;;
         flush-dnscache)  flush_dnscache;;
         flush-gfwlist)   flush_gfwlist;;
         update-chnonly)  update_chnonly;;
