@@ -479,7 +479,7 @@ is_ipv4_ipts() {
     [ "$1" = 'iptables' ]
 }
 
-redir_intranet_dns() {
+check_dnsredir() {
     is_false "$ipts_reddns_onstop" && return
     is_true "$ipv4" && {
         iptables -t nat -N SSTP_PREROUTING
@@ -503,7 +503,7 @@ redir_intranet_dns() {
     }
 }
 
-unredir_intranet_dns() {
+flush_dnsredir() {
     ss_tproxy_is_started && return
     is_true "$ipv4" && {
         iptables -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
@@ -844,7 +844,7 @@ start() {
 
     [ "$(type -t pre_start)" = 'function' ] && pre_start
 
-    unredir_intranet_dns
+    flush_dnsredir
     enable_ipforward
     disable_icmpredir
     restore_resolvconf
@@ -866,7 +866,7 @@ stop() {
     delete_iproute2
     stop_dnsserver
     stop_proxy_proc
-    redir_intranet_dns
+    check_dnsredir
 
     [ "$(type -t post_stop)" = 'function' ] && post_stop
 }
@@ -925,7 +925,7 @@ main() {
         r*)              stop; status; echo; start; status;;
         status)          status;;
         show-iptables)   show_iptables;;
-        flush-dnsredir)  unredir_intranet_dns;;
+        flush-dnsredir)  flush_dnsredir;;
         flush-dnscache)  flush_dnscache;;
         flush-gfwlist)   flush_gfwlist;;
         update-chnonly)  update_chnonly;;
