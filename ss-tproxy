@@ -355,11 +355,13 @@ start_dnsserver() {
             start_dnsserver_chnroute
             ;;
     esac
+    save_pidfile
 }
 
 stop_dnsserver() {
     kill -9 $status_dnsmasq_pid &>/dev/null
     kill -9 $status_chinadns_pid &>/dev/null
+    delete_pidfile
 }
 
 flush_dnscache() {
