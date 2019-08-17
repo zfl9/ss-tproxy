@@ -37,6 +37,24 @@ v4.0 只剩下 `gfwlist`、`chnroute`、`chnlist` 3 种分流模式，相关介�
 - `chnroute` 分流模式：除了国内地址、保留地址之外，其余均走代理，即白名单模式。
 - `chnlist` 分流模式：本质还是 `gfwlist` 模式，只是域名列表为国内域名，即回国模式。
 
+## 相关依赖
+核心依赖：
+- `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
+- `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
+- `ip`：通常位于 iproute2 软件包，用于配置策略路由（TPROXY）。
+- `ipset`：ipset 用于存储 gfwlist 的黑名单 IP，以及 chnroute 的白名单 IP。
+- `dnsmasq`：构建 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需要支持 `--ipset` 选项。
+- `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
+
+> 如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng，安装依赖之前先检查当前系统是否已有对应依赖。
+
+可选依赖：
+- `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
+- `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
+- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `Adblock Plus` 规则，要进行转换。
+
+[ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
+
 ## 安装脚本
 ```bash
 git clone https://github.com/zfl9/ss-tproxy
@@ -56,21 +74,3 @@ ss-tproxy delete-gfwlist
 rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 ```
 > 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
-
-## 相关依赖
-核心依赖：
-- `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
-- `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
-- `ip`：通常位于 iproute2 软件包，用于配置策略路由（TPROXY）。
-- `ipset`：ipset 用于存储 gfwlist 的黑名单 IP，以及 chnroute 的白名单 IP。
-- `dnsmasq`：构建 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需要支持 `--ipset` 选项。
-- `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
-
-> 如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng，安装依赖之前先检查当前系统是否已有对应依赖。
-
-可选依赖：
-- `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
-- `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
-- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `Adblock Plus` 规则，要进行转换。
-
-[ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
