@@ -539,7 +539,8 @@ check_snatrule() {
 
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
     for intranet in "${intranet_array[@]}"; do
-        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p tcp --syn                      -j MASQUERADE
+        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p udp -m conntrack --ctstate NEW -j MASQUERADE
     done
 }
 
@@ -615,9 +616,9 @@ start_iptables_tproxy_common() {
 
         $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
         $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet ! -d $intranet -j SSTP_RULE
-
-        is_true "$set_snat_rule" && $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
+
+    check_snatrule $1
 
     $1 -t mangle -A SSTP_OUTPUT -p tcp -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT -p udp -j SSTP_RULE
@@ -745,9 +746,9 @@ start_iptables_redirect_common() {
 
         $1 -t nat    -A SSTP_PREROUTING ! -i $loopback_ifname -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
         $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet ! -d $intranet -j SSTP_RULE
-
-        is_true "$set_snat_rule" && $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
     done
+
+    check_snatrule $1
 
     $1 -t nat    -A SSTP_OUTPUT -p tcp -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT -p udp -j SSTP_RULE
