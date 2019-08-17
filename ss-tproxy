@@ -1,5 +1,7 @@
 #!/bin/bash
 
+trap "exit 1" HUP INT QUIT TERM PIPE
+
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
@@ -90,11 +92,11 @@ process_is_running() {
     kill -0 "$1" &>/dev/null
 }
 
-tcp_bind_port_is_exists() {
+tcp_port_is_exists() {
     [ $($netstat -lnpt | grep -E ":$1[ \t]" | wc -l) -ne 0 ]
 }
 
-udp_bind_port_is_exists() {
+udp_port_is_exists() {
     [ $($netstat -anpu | grep -E ":$1[ \t]" | wc -l) -ne 0 ]
 }
 
@@ -118,16 +120,32 @@ is_domain_name() {
     ! is_ipv4_address "$1" && ! is_ipv6_address "$1"
 }
 
-resolve_hostname() {
+resolve_hostname4() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
-        ipaddr=$(ping -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
+        ipaddr=$(ping -4 -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
+        [ "$ipaddr" ] && break || sleep 1
+    done
+    echo "$ipaddr"
+}
+
+resolve_hostname6() {
+    local ipaddr=""
+    while [ -z "$ipaddr" ]; do
+        ipaddr=$(ping -6 -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
+        [ "$ipaddr" ] && break || sleep 1
     done
     echo "$ipaddr"
 }
 
 waiting_network() {
-    until ping -nq -c1 -W1 "$1" &>/dev/null; do true; done
+    if is_ipv4_address "$1"; then
+        until ping -4 -nq -c1 -W1 "$1" >/dev/null; do sleep 1; done
+    elif is_ipv6_address "$1"; then
+        until ping -6 -nq -c1 -W1 "$1" >/dev/null; do sleep 1; done
+    else
+        log_error "ip address format is incorrect: $1"
+    fi
 }
 
 load_pidfile() {
@@ -183,23 +201,15 @@ load_config() {
 }
 
 resolve_svraddr() {
-    proxy_svraddr4=() # global variable
-    proxy_svraddr6=() # global variable
-
-    for svr in "${proxy_svraddr[@]}"; do
-        local svr_ip=$(resolve_hostname "$svr")
-        if is_ipv4_address "$svr_ip"; then
-            proxy_svraddr4+=($svr_ip)
-        else
-            proxy_svraddr6+=($svr_ip)
-        fi
+    proxy_svripv4=()
+    for svraddr in "${proxy_svraddr4[@]}"; do
+        proxy_svripv4+=($(resolve_hostname4 "$svraddr"))
     done
 
-    { is_true "$ipv4" && [ "${#proxy_svraddr4[@]}" -eq 0 ]; } && log_error "not found ipv4 address in the proxy_svraddr: ${proxy_svraddr6[@]}"
-    { is_true "$ipv6" && [ "${#proxy_svraddr6[@]}" -eq 0 ]; } && log_error "not found ipv6 address in the proxy_svraddr: ${proxy_svraddr4[@]}"
-
-    { is_false "$ipv6" && [ "${#proxy_svraddr6[@]}" -ne 0 ]; } && log_warn "found ipv6 address(${proxy_svraddr6[@]}) in the proxy_svraddr, but ipv6 is disabled"
-    { is_false "$ipv4" && [ "${#proxy_svraddr4[@]}" -ne 0 ]; } && log_warn "found ipv4 address(${proxy_svraddr4[@]}) in the proxy_svraddr, but ipv4 is disabled"
+    proxy_svripv6=()
+    for svraddr in "${proxy_svraddr6[@]}"; do
+        proxy_svripv6+=($(resolve_hostname6 "$svraddr"))
+    done
 }
 
 check_depend() {
@@ -222,7 +232,7 @@ check_depend() {
     esac
 }
 
-update_chnonly() {
+update_chnlist() {
     local url='https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     echo "$data" | gawk -F/ '{print $2}' >$file_gfwlist_txt
@@ -289,19 +299,20 @@ $(is_true "$ipv4" && echo "server = $dns_direct")
 $(is_true "$ipv6" && echo "server = $dns_direct6")
 $(
 { cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-; } | while read domain_name; do
-  is_true "$ipv4" && echo "server = /$domain_name/$dns_remote"
-  is_true "$ipv6" && echo "server = /$domain_name/$dns_remote6"
-  if is_true "$ipv4" && is_true "$ipv6"; then
-      echo "ipset = /$domain_name/gfwlist,gfwlist6"
-  elif is_true "$ipv4"; then
-      echo "ipset = /$domain_name/gfwlist"
-  else
-      echo "ipset = /$domain_name/gfwlist6"
-  fi
+    is_true "$ipv4" && echo "server = /$domain_name/$dns_remote"
+    is_true "$ipv6" && echo "server = /$domain_name/$dns_remote6"
+    if is_true "$ipv4" && is_true "$ipv6"; then
+        echo "ipset = /$domain_name/gfwlist,gfwlist6"
+    elif is_true "$ipv4"; then
+        echo "ipset = /$domain_name/gfwlist"
+    else
+        echo "ipset = /$domain_name/gfwlist6"
+    fi
 done
 )
 $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
-$([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
+$(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_arg"; done)
+$(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
 EOF
 )
     status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
@@ -333,7 +344,8 @@ no-resolv
 port = $dnsmasq_bind_port
 server = 127.0.0.1#$chinadns_bind_port
 $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
-$([ "$dnsmasq_conf_dir" ] && echo "conf-dir = $dnsmasq_conf_dir")
+$(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_arg"; done)
+$(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
 EOF
 )
     status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
@@ -341,10 +353,18 @@ EOF
 
 start_dnsserver() {
     local dnsmasq_append_config=()
-    for svr in "${proxy_svraddr[@]}"; do
-        if is_domain_name "$svr"; then
-            local svr_ip=$(resolve_hostname "$svr")
-            dnsmasq_append_config+=("address = /$svr/$svr_ip")
+    for ((i = 0; i < ${#proxy_svraddr4[@]}; ++i)); do
+        local server_host="${proxy_svraddr4[$i]}"
+        local server_addr="${proxy_svripv4[$i]}"
+        if is_domain_name "$server_host"; then
+            dnsmasq_append_config+=("address = /$server_host/$server_addr")
+        fi
+    done
+    for ((i = 0; i < ${#proxy_svraddr6[@]}; ++i)); do
+        local server_host="${proxy_svraddr6[$i]}"
+        local server_addr="${proxy_svripv6[$i]}"
+        if is_domain_name "$server_host"; then
+            dnsmasq_append_config+=("address = /$server_host/$server_addr")
         fi
     done
     case "$mode" in
@@ -400,13 +420,14 @@ stop_proxy_proc() {
 }
 
 enable_ipforward() {
-    is_true "$ipv4" && sysctl -w net.ipv4.ip_forward=1 &>/dev/null
-    is_true "$ipv6" && sysctl -w net.ipv6.conf.all.forwarding=1 &>/dev/null
+    is_true "$ipv4" && sysctl -w net.ipv4.ip_forward=1 >/dev/null
+    is_true "$ipv6" && sysctl -w net.ipv6.conf.all.forwarding=1 >/dev/null
 }
 
 disable_icmpredir() {
+    is_false "$ipv4" && return
     for dir in $(ls /proc/sys/net/ipv4/conf); do
-        sysctl -w net.ipv4.conf.$dir.send_redirects=0 &>/dev/null
+        sysctl -w net.ipv4.conf.$dir.send_redirects=0 >/dev/null
     done
 }
 
@@ -462,10 +483,10 @@ flush_iptables() {
 }
 
 _show_iptables() {
-    printf "\e[36;1m==> $1-mangle <==\e[0m\n"
+    echo "$(color_green "==> $1-mangle <==")"
     $1 -t mangle -nvL --line-numbers
     echo
-    printf "\e[36;1m==> $1-nat <==\e[0m\n"
+    echo "$(color_green "==> $1-nat <==")"
     $1 -t nat -nvL --line-numbers
 }
 
@@ -538,14 +559,6 @@ start_iptables_pre_rules() {
 }
 
 start_iptables_post_rules() {
-    local ignore_ip_list
-    is_ipv4_ipts $1 && ignore_ip_list=("${ipts_ignore_list[@]}") || ignore_ip_list=("${ipts_ignore_list6[@]}")
-
-    for ignore_ip in "${ignore_ip_list[@]}"; do
-        $1 -t mangle -I SSTP_PREROUTING -s $ignore_ip -j RETURN
-        $1 -t nat    -I SSTP_PREROUTING -s $ignore_ip -j RETURN
-    done
-
     $1 -t mangle -A PREROUTING  -j SSTP_PREROUTING
     $1 -t mangle -A OUTPUT      -j SSTP_OUTPUT
     $1 -t nat    -A PREROUTING  -j SSTP_PREROUTING
@@ -879,14 +892,14 @@ status() {
     case "$mode" in
         gfwlist)
             echo "mode:     gfwlist"
-            tcp_bind_port_is_exists $proxy_tcpport  && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-            udp_bind_port_is_exists $proxy_udpport  && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
+            tcp_port_is_exists $proxy_tcpport  && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
+            udp_port_is_exists $proxy_udpport  && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
             process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
             ;;
         chnroute)
             echo "mode:     chnroute"
-            tcp_bind_port_is_exists $proxy_tcpport  && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-            udp_bind_port_is_exists $proxy_udpport  && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
+            tcp_port_is_exists $proxy_tcpport  && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
+            udp_port_is_exists $proxy_udpport  && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
             process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
             process_is_running $status_chinadns_pid && echo "chinadns: $(color_green '[running]')" || echo "chinadns: $(color_red '[stopped]')"
             ;;
@@ -909,7 +922,7 @@ COMMAND := {
     flush-dnsredir      flush dns redir rule
     flush-dnscache      flush dnsmasq cache
     flush-gfwlist       flush ipset@gfwlist
-    update-chnonly      update chnonly list
+    update-chnlist      update chnlist list
     update-gfwlist      update gfwlist list
     update-chnroute     update chnroute list
     version             show version and exit
@@ -932,7 +945,7 @@ main() {
         flush-dnsredir)  flush_dnsredir;;
         flush-dnscache)  flush_dnscache;;
         flush-gfwlist)   flush_gfwlist;;
-        update-chnonly)  update_chnonly;;
+        update-chnlist)  update_chnlist;;
         update-gfwlist)  update_gfwlist;;
         update-chnroute) update_chnroute;;
         v*)              version;;
