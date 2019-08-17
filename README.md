@@ -41,4 +41,5 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 ```
 > 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
 
+## 相关依赖
 // TODO
