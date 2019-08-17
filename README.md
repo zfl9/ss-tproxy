@@ -66,7 +66,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `dnsmasq`：构建 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需要支持 `--ipset` 选项。
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
 
-如果某些模式或选项你基本用不上，那么对应的依赖就不用安装。比如，你不打算使用 IPv6 透明代理，那么就不用关心 ip6tables，又比如你不打算使用 chnroute 模式，那么就不用关心 chinadns-ng，安装依赖之前先检查当前系统是否已有对应依赖。
+如果某些模式或选项你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，那么就不用关心 ip6tables，又比如你不打算使用 chnroute 模式，那么就不用关心 chinadns-ng，安装依赖之前先检查当前系统是否已有对应依赖。
 
 可选依赖：
 - `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
