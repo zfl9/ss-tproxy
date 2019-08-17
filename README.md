@@ -51,7 +51,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
 
 可选依赖：
-- `curl`：用于更新 chnlist、gfwlist、chnroute 的相关列表。
+- `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
 - `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
 - `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `Adblock Plus` 规则，需进行转换。
 
