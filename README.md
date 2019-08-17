@@ -42,4 +42,9 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 > 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
 
 ## 相关依赖
-// TODO
+- `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
+- `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
+- `ip`：通常位于 iproute2 软件包；用于配置策略路由（TPROXY）。
+- `ipset`：ipset 用于存储 gfwlist 的黑名单 IP，以及 chnroute 的白名单 IP。
+- `dnsmasq`：用于构建无污染的 DNS 解析服务，对于 gfwlist 模式，你的 dnsmasq 需要支持 `--ipset` 选项。
+- [ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
