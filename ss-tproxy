@@ -500,49 +500,43 @@ is_ipv4_ipts() {
     [ "$1" = 'iptables' ]
 }
 
+_check_dnsredir() {
+    local intranet_array
+    is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
+
+    local direct_dns_ip
+    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+
+    $1 -t nat -N SSTP_PREROUTING
+    $1 -t nat -N SSTP_POSTROUTING
+    for intranet in "${intranet_array[@]}"; do
+        $1 -t nat -A SSTP_PREROUTING -s $intranet -d $intranet -p udp --dport 53 -j DNAT --to-destination $direct_dns_ip
+        $1 -t nat -A SSTP_POSTROUTING -s $intranet -d $direct_dns_ip -p udp --dport 53 -j MASQUERADE
+    done
+    $1 -t nat -A PREROUTING -j SSTP_PREROUTING
+    $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
+}
+
 check_dnsredir() {
     ss_tproxy_is_started && return
     is_false "$ipts_reddns_onstop" && return
-    is_true "$ipv4" && {
-        iptables -t nat -N SSTP_PREROUTING
-        iptables -t nat -N SSTP_POSTROUTING
-        for intranet in "${ipts_intranet[@]}"; do
-            iptables -t nat -A SSTP_PREROUTING -s $intranet -d $intranet -p udp --dport 53 -j DNAT --to-destination $dns_direct
-            iptables -t nat -A SSTP_POSTROUTING -s $intranet -d $dns_direct -p udp --dport 53 -j MASQUERADE
-        done
-        iptables -t nat -A PREROUTING -j SSTP_PREROUTING
-        iptables -t nat -A POSTROUTING -j SSTP_POSTROUTING
-    }
-    is_true "$ipv6" && {
-        ip6tables -t nat -N SSTP_PREROUTING
-        ip6tables -t nat -N SSTP_POSTROUTING
-        for intranet in "${ipts_intranet6[@]}"; do
-            ip6tables -t nat -A SSTP_PREROUTING -s $intranet -d $intranet -p udp --dport 53 -j DNAT --to-destination $dns_direct6
-            ip6tables -t nat -A SSTP_POSTROUTING -s $intranet -d $dns_direct6 -p udp --dport 53 -j MASQUERADE
-        done
-        ip6tables -t nat -A PREROUTING -j SSTP_PREROUTING
-        ip6tables -t nat -A POSTROUTING -j SSTP_POSTROUTING
-    }
+    is_true "$ipv4" && _check_dnsredir "iptables"
+    is_true "$ipv6" && _check_dnsredir "ip6tables"
+}
+
+_flush_dnsredir() {
+    $1 -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
+    $1 -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
+    $1 -t nat -F SSTP_PREROUTING  &>/dev/null
+    $1 -t nat -X SSTP_PREROUTING  &>/dev/null
+    $1 -t nat -F SSTP_POSTROUTING &>/dev/null
+    $1 -t nat -X SSTP_POSTROUTING &>/dev/null
 }
 
 flush_dnsredir() {
     ss_tproxy_is_started && return
-    is_true "$ipv4" && {
-        iptables -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
-        iptables -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
-        iptables -t nat -F SSTP_PREROUTING  &>/dev/null
-        iptables -t nat -X SSTP_PREROUTING  &>/dev/null
-        iptables -t nat -F SSTP_POSTROUTING &>/dev/null
-        iptables -t nat -X SSTP_POSTROUTING &>/dev/null
-    }
-    is_true "$ipv6" && {
-        ip6tables -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
-        ip6tables -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
-        ip6tables -t nat -F SSTP_PREROUTING  &>/dev/null
-        ip6tables -t nat -X SSTP_PREROUTING  &>/dev/null
-        ip6tables -t nat -F SSTP_POSTROUTING &>/dev/null
-        ip6tables -t nat -X SSTP_POSTROUTING &>/dev/null
-    }
+    is_true "$ipv4" && _flush_dnsredir "iptables"
+    is_true "$ipv6" && _flush_dnsredir "ip6tables"
 }
 
 start_iptables_pre_rules() {
