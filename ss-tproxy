@@ -436,6 +436,11 @@ flush_gfwlist() {
     is_true "$ipv6" && ipset -F gfwlist6 &>/dev/null
 }
 
+delete_gfwlist() {
+    is_true "$ipv4" && ipset -X gfwlist  &>/dev/null
+    is_true "$ipv6" && ipset -X gfwlist6 &>/dev/null
+}
+
 delete_chnroute() {
 	is_true "$ipv4" && ipset -X chnroute  &>/dev/null
     is_true "$ipv6" && ipset -X chnroute6 &>/dev/null
@@ -938,6 +943,7 @@ main() {
         flush-dnsredir)  flush_dnsredir;;
         flush-dnscache)  flush_dnscache;;
         flush-gfwlist)   flush_gfwlist;;
+        delete-gfwlist)  delete_gfwlist;;
         update-chnlist)  update_chnlist;;
         update-gfwlist)  update_gfwlist;;
         update-chnroute) update_chnroute;;
