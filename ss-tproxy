@@ -635,8 +635,8 @@ start_iptables_tproxy_gfwlist() {
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
 
-    $1 -t mangle -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn                     -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack -ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     start_iptables_tproxy_common $1
@@ -681,8 +681,8 @@ start_iptables_tproxy_chnroute() {
 
     $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
 
-    $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn                     -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack -ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     start_iptables_tproxy_common $1
@@ -761,7 +761,7 @@ start_iptables_redirect_gfwlist() {
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
 
-    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack -ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### TCP #########################
@@ -817,7 +817,7 @@ start_iptables_redirect_chnroute() {
 
     $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
 
-    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack -ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### TCP #########################
