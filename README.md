@@ -35,7 +35,7 @@ cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ss-tproxy stop
 ss-tproxy flush-dnsredir
 ss-tproxy delete-gfwlist
-rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 可选，删除脚本即配置
+rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 ```
 > 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
 
