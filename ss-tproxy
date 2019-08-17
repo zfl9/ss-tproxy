@@ -343,6 +343,12 @@ no-negcache
 no-resolv
 port = $dnsmasq_bind_port
 server = 127.0.0.1#$chinadns_bind_port
+$(
+{ cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-; } | while read domain_name; do
+    is_true "$ipv4" && echo "server = /$domain_name/$dns_remote"
+    is_true "$ipv6" && echo "server = /$domain_name/$dns_remote6"
+done
+)
 $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
 $(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_arg"; done)
 $(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
