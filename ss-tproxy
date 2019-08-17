@@ -851,9 +851,7 @@ start_iptables() {
 
 start() {
     ss_tproxy_is_started && { stop; status; echo; }
-
     waiting_network "$opts_ip_for_check_net"
-
     [ "$(type -t pre_start)" = 'function' ] && pre_start
 
     flush_dnsredir
