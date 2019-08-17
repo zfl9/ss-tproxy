@@ -890,14 +890,14 @@ status() {
     case "$mode" in
         gfwlist)
             echo "mode:     gfwlist"
-            tcp_port_is_exists $proxy_tcpport  && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-            udp_port_is_exists $proxy_udpport  && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
+            tcp_port_is_exists $proxy_tcpport       && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
+            udp_port_is_exists $proxy_udpport       && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
             process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
             ;;
         chnroute)
             echo "mode:     chnroute"
-            tcp_port_is_exists $proxy_tcpport  && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-            udp_port_is_exists $proxy_udpport  && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
+            tcp_port_is_exists $proxy_tcpport       && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
+            udp_port_is_exists $proxy_udpport       && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
             process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
             process_is_running $status_chinadns_pid && echo "chinadns: $(color_green '[running]')" || echo "chinadns: $(color_red '[stopped]')"
             ;;
@@ -920,6 +920,7 @@ COMMAND := {
     flush-dnsredir      flush dns redir rule
     flush-dnscache      flush dnsmasq cache
     flush-gfwlist       flush ipset@gfwlist
+    delete-gfwlist      delete ipset@gfwlist
     update-chnlist      update chnlist list
     update-gfwlist      update gfwlist list
     update-chnroute     update chnroute list
