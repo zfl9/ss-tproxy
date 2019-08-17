@@ -511,31 +511,51 @@ is_ipv4_ipts() {
     [ "$1" = 'iptables' ]
 }
 
-_check_dnsredir() {
+check_dnsredir() {
+    is_false "$ipts_reddns_onstop" && return
+
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
 
-    $1 -t nat -N SSTP_PREROUTING
-    $1 -t nat -N SSTP_POSTROUTING
+    $1 -t nat -N SSTP_PREROUTING  &>/dev/null
+    $1 -t nat -N SSTP_POSTROUTING &>/dev/null
     for intranet in "${intranet_array[@]}"; do
-        $1 -t nat -A SSTP_PREROUTING -s $intranet -d $intranet -p udp --dport 53 -j DNAT --to-destination $direct_dns_ip
+        $1 -t nat -A SSTP_PREROUTING  -s $intranet -d $intranet      -p udp --dport 53 -j DNAT --to-destination $direct_dns_ip
         $1 -t nat -A SSTP_POSTROUTING -s $intranet -d $direct_dns_ip -p udp --dport 53 -j MASQUERADE
     done
-    $1 -t nat -A PREROUTING -j SSTP_PREROUTING
-    $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
 }
 
-check_dnsredir() {
+check_snatrule() {
+    local set_snat_rule='false'
+    {   is_ipv4_ipts $1 && is_true "$ipts_set_snat";  } && set_snat_rule='true'
+    { ! is_ipv4_ipts $1 && is_true "$ipts_set_snat6"; } && set_snat_rule='true'
+    is_false "$set_snat_rule" && return
+
+    local intranet_array
+    is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
+
+    $1 -t nat -N SSTP_POSTROUTING &>/dev/null
+    for intranet in "${intranet_array[@]}"; do
+        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -j MASQUERADE
+    done
+}
+
+check_iptschain() {
+    $1 -t nat -L SSTP_PREROUTING  &>/dev/null && $1 -t nat -A PREROUTING  -j SSTP_PREROUTING
+    $1 -t nat -L SSTP_POSTROUTING &>/dev/null && $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
+}
+
+check_postrule() {
     ss_tproxy_is_started && return
-    is_false "$ipts_reddns_onstop" && return
-    is_true "$ipv4" && _check_dnsredir "iptables"
-    is_true "$ipv6" && _check_dnsredir "ip6tables"
+    { is_false "$ipts_reddns_onstop" && is_false "$ipts_set_snat" && is_false "$ipts_set_snat6"; } && return
+    is_true "$ipv4" && { check_dnsredir "iptables";  check_snatrule "iptables";  check_iptschain "iptables";  }
+    is_true "$ipv6" && { check_dnsredir "ip6tables"; check_snatrule "ip6tables"; check_iptschain "ip6tables"; }
 }
 
-_flush_dnsredir() {
+_flush_postrule() {
     $1 -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
     $1 -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
     $1 -t nat -F SSTP_PREROUTING  &>/dev/null
@@ -544,10 +564,10 @@ _flush_dnsredir() {
     $1 -t nat -X SSTP_POSTROUTING &>/dev/null
 }
 
-flush_dnsredir() {
+flush_postrule() {
     ss_tproxy_is_started && return
-    is_true "$ipv4" && _flush_dnsredir "iptables"
-    is_true "$ipv6" && _flush_dnsredir "ip6tables"
+    is_true "$ipv4" && _flush_postrule "iptables"
+    is_true "$ipv6" && _flush_postrule "ip6tables"
 }
 
 start_iptables_pre_rules() {
@@ -579,7 +599,7 @@ start_iptables_tproxy_common() {
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
-    local set_snat_rule
+    local set_snat_rule='false'
     {   is_ipv4_ipts $1 && is_true "$ipts_set_snat";  } && set_snat_rule='true'
     { ! is_ipv4_ipts $1 && is_true "$ipts_set_snat6"; } && set_snat_rule='true'
 
@@ -705,7 +725,7 @@ start_iptables_redirect_common() {
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
-    local set_snat_rule
+    local set_snat_rule='false'
     {   is_ipv4_ipts $1 && is_true "$ipts_set_snat";  } && set_snat_rule='true'
     { ! is_ipv4_ipts $1 && is_true "$ipts_set_snat6"; } && set_snat_rule='true'
 
@@ -873,7 +893,7 @@ start() {
     waiting_network "$opts_ip_for_check_net"
     [ "$(type -t pre_start)" = 'function' ] && pre_start
 
-    flush_dnsredir
+    flush_postrule
     enable_ipforward
     disable_icmpredir
     restore_resolvconf
@@ -895,7 +915,7 @@ stop() {
     delete_iproute2
     stop_dnsserver
     stop_proxy_proc
-    check_dnsredir
+    check_postrule
 
     [ "$(type -t post_stop)" = 'function' ] && post_stop
 }
@@ -931,7 +951,7 @@ COMMAND := {
     restart             restart ss-tproxy
     status              status of ss-tproxy
     show-iptables       show iptables rules
-    flush-dnsredir      flush dns redir rule
+    flush-postrule      flush legacy rules
     flush-dnscache      flush dnsmasq cache
     flush-gfwlist       flush ipset@gfwlist
     delete-gfwlist      delete ipset@gfwlist
@@ -955,7 +975,7 @@ main() {
         r*)              stop; status; echo; start; status;;
         status)          status;;
         show-iptables)   show_iptables;;
-        flush-dnsredir)  flush_dnsredir;;
+        flush-postrule)  flush_postrule;;
         flush-dnscache)  flush_dnscache;;
         flush-gfwlist)   flush_gfwlist;;
         delete-gfwlist)  delete_gfwlist;;
