@@ -24,11 +24,11 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 **ss-tproxy v4.0 简介**
 - 去除不常用的 `global` 分流模式
 - 支持 IPv4、IPv6 双协议栈的透明代理（可配置）
-- 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns
-- 完美兼容"端口映射"，只会代理"主动出站"的流量，规则更加细致化
+- 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，修复若干问题
+- 完美兼容"端口映射"，只代理"主动出站"的流量，规则更加细致化
 - 支持配置要代理的黑名单端口，这样可以比较好的处理 BT/PT 流量
-- 支持自定义 dnsmasq、chinadns-ng 监听端口，支持加载外部 dnsmasq 配置
-- 当 ss-tproxy stop 后，支持自动重定向内网主机发出的 DNS 到本地直连 DNS
+- 支持自定义 dnsmasq/chinadns 监听端口，支持加载外部 dnsmasq 配置
+- ss-tproxy stop 后，支持重定向内网主机发出的 DNS 到本地直连 DNS
 - 支持网络可用性检查，无需利用其它的 hook 来避免脚本自启失败问题
 - 脚本逻辑优化以及结构调整，尽量提高脚本的可移植性，去除非核心依赖
 
