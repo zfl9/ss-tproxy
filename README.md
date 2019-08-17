@@ -74,3 +74,14 @@ ss-tproxy delete-gfwlist
 rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 ```
 > 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
+
+## 文件列表
+- `ss-tproxy`：shell 脚本，欢迎各位大佬一起来改进此脚本。
+- `ss-tproxy.conf`：主配置文件，修改需重启 ss-tproxy 生效。
+- `ss-tproxy.service`：systemd 服务文件，用于 ss-tproxy 的开机自启。
+- `chnroute.set`：IPv6 国内地址及保留地址的 ipset 文件，不要手动修改。
+- `chnroute6.set`：IPv6 国内地址及保留地址的 ipset 文件，不要手动修改。
+- `gfwlist.txt`：存储 gfwlist、chnlist 模式的黑名单域名，不要手动修改。
+- `gfwlist.ext`：存储 gfwlist、chnlist 模式的扩展黑名单，可配置，重启生效。
+
+// TODO
