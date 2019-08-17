@@ -36,5 +36,6 @@ ss-tproxy flush-dnsredir
 ss-tproxy delete-gfwlist
 rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy
 ```
+> 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
 
 // TODO
