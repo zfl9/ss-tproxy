@@ -94,4 +94,4 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `proxy_svraddr4/6`、`proxy_svrport`、`proxy_tcpport`、`proxy_udpport`、`proxy_startcmd`、`proxy_stopcmd` 见后。
 - `dnsmasq_bind_port`：dnsmasq 监听端口，默认 53，如果端口已被占用则修改为其它未占用的端口，如 `60053`。
 - `dnsmasq_conf_dir/dnsmasq_conf_file`：dnsmasq 外部配置文件/目录，被作为 `conf-dir`、`conf-file` 选项值。
-- `ipts_set_snat`：是否设置 MASQUERADE 规则，通常保持为 false 即可，除非在当前配置无法正常代理的情况下，你才需要将它改为 true。即使你是在出口路由位置部署 ss-tproxy（也就是说当前主机有至少两块网卡，一张连接内网，一张连接外网），也不建议使用此选项，而是通过其它方式去设置 MASQUERADE 规则（因为这不是脚本所关心的问题），此选项设置的 MASQUERADE 规则在 ss-tproxy stop 之后就会被清空。
+- `ipts_set_snat`：是否设置 MASQUERADE 规则，通常保持为 false 即可，除非在当前配置无法正常代理的情况下（曾经遇到过这种情况，可能与路由器有关），你才需要将它改为 true。即使你是在出口路由位置部署 ss-tproxy（也就是说当前主机有至少两块网卡，一张连接内网，一张连接外网），也不建议使用此选项，而应该通过其它方式去设置 MASQUERADE 规则（因为这不是脚本所关心的问题），此选项设置的 MASQUERADE 规则在 ss-tproxy stop 之后就会被清空。
