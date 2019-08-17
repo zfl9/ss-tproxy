@@ -27,6 +27,7 @@ chmod +x ss-tproxy
 cp -af ss-tproxy /usr/local/bin
 mkdir -p /etc/ss-tproxy
 cp -af ss-tproxy.conf gfwlist* chnroute* /etc/ss-tproxy
+cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
 
 ## 卸载脚本
@@ -34,7 +35,7 @@ cp -af ss-tproxy.conf gfwlist* chnroute* /etc/ss-tproxy
 ss-tproxy stop
 ss-tproxy flush-dnsredir
 ss-tproxy delete-gfwlist
-rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy
+rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 可选，删除脚本即配置
 ```
 > 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
 
