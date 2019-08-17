@@ -42,10 +42,17 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 > 升级脚本前请先卸载脚本，如果有残留规则无法清除，请务必重启系统。
 
 ## 相关依赖
+核心依赖：
 - `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
 - `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
 - `ip`：通常位于 iproute2 软件包；用于配置策略路由（TPROXY）。
 - `ipset`：ipset 用于存储 gfwlist 的黑名单 IP，以及 chnroute 的白名单 IP。
 - `dnsmasq`：构建 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需要支持 `--ipset` 选项。
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
-- [ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
+
+可选依赖：
+- `curl`：用于更新 chnlist、gfwlist、chnroute 的相关列表。
+- `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
+- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `Adblock Plus` 规则，需进行转换。
+
+[ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
