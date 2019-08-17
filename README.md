@@ -87,7 +87,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 > ss-tproxy 只是一个 shell 脚本，并不是常驻后台的服务，因此所有的修改都需要 restart 来生效。
 
 ## 配置说明
-注释行：以井号开头的行均为注释行，因为配置文件本质上只是一个 shell 脚本，因此对于同名的变量或函数，后定义的会覆盖先定义的。<br>
-`mode`：指定分流模式，默认为 chnroute 模式，可根据需要修改为 gfwlist 模式，需要说明的是，`chnlist` 模式的 mode 也为 `gfwlist`。<br>
-`ipv4/ipv6`：是否启用 IPv4/IPv6 透明代理的支持，可同时启用，但你需要确保本机代理进程能正确处理 IPv4/IPv6 协议族，脚本不会检查它。<br>
-`tproxy`：true 表示纯 TPROXY 模式，false 表示 REDIRECT/TPROXY 混合模式，ss/ssr 只能使用混合模式，v2ray 通过配置后可使用 TPROXY 模式。<br>
+- 注释行：井号开头的行均为注释行，配置文件本质上是一个 shell 脚本，对于同名变量或函数，后定义的会覆盖先定义的。
+- `mode`：分流模式，默认为 chnroute，可根据需要修改为 gfwlist，需要说明的是，`chnlist` 模式的 mode 也为 `gfwlist`。
+- `ipv4/ipv6`：是否启用 IPv4/IPv6 透明代理，可同时启用，但你需要确保本机代理进程能正确处理 IPv4/IPv6 相关的数据包。
+- `tproxy`：true 为纯 TPROXY 模式，false 为 REDIRECT/TPROXY 混合，ss/ssr 只能使用 false，v2ray 通过配置后可用 true。
