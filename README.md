@@ -66,9 +66,11 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `dnsmasq`：构建 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需要支持 `--ipset` 选项。
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
 
+声明一点：如果某些模式或选项你基本用不上，那么对应的依赖就不用安装。比如，你不打算使用 IPv6 透明代理，那么就不用关心 ip6tables，又比如你不打算使用 chnroute 模式，那么就不用关心 chinadns-ng。
+
 可选依赖：
 - `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
 - `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
-- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `Adblock Plus` 规则，需进行转换。
+- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `Adblock Plus` 规则，要进行转换。
 
 [ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
