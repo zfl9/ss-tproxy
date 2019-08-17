@@ -77,7 +77,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 
 ## 文件列表
 - `ss-tproxy`：shell 脚本，欢迎各位大佬一起来改进此脚本。
-- `ss-tproxy.conf`：主配置文件，修改需重启 ss-tproxy 生效。
+- `ss-tproxy.conf`：配置文件，本质是 shell 脚本，修改需重启生效。
 - `ss-tproxy.service`：systemd 服务文件，用于 ss-tproxy 的开机自启。
 - `chnroute.set`：IPv4 国内地址及保留地址的 ipset 文件，不要手动修改。
 - `chnroute6.set`：IPv6 国内地址及保留地址的 ipset 文件，不要手动修改。
@@ -87,4 +87,4 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 > ss-tproxy 只是一个 shell 脚本，并不是常驻后台的服务，因此所有的修改都需要 restart 来生效。
 
 ## 配置说明
-// TODO
+- `mode`：用于指定
