@@ -47,4 +47,5 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `ip`：通常位于 iproute2 软件包；用于配置策略路由（TPROXY）。
 - `ipset`：ipset 用于存储 gfwlist 的黑名单 IP，以及 chnroute 的白名单 IP。
 - `dnsmasq`：构建无污染的 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需支持 `--ipset` 选项。
+- `chinadns-ng`：用于 chnroute 模式，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
 - [ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
