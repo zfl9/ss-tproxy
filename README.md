@@ -94,6 +94,6 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `proxy_svraddr4/6`、`proxy_svrport`、`proxy_tcpport`、`proxy_udpport`、`proxy_startcmd`、`proxy_stopcmd` 见后。
 - `dnsmasq_bind_port`：dnsmasq 监听端口，默认 53，如果端口已被占用则修改为其它未占用的端口，如 `60053`。
 - `dnsmasq_conf_dir/dnsmasq_conf_file`：dnsmasq 外部配置文件/目录，被作为 `conf-dir`、`conf-file` 选项值。
-- `ipts_set_snat`：是否设置 IPv4 的 MASQUERADE 规则，通常保持为 false 即可。有两种情况需要将其设置为 true：第一种，ss-tproxy 部署在出口路由位置且确实需要 MASQUERADE 规则（即该主机至少两张网卡，一张连接内网，一张连接公网，要进行源地址转换）；第二种，如果设置为 false 的情况下，代理不正常，那么也需要将其改为 true，曾经遇到过这种情况，可能与路由器的配置有关。注意，MASQUERADE 规则在 ss-tproxy stop 仍然是有效的，如果你想清空这些残留规则，可以使用 `ss-tproxy flush-postrule`。另外注意，设置 SNAT/MASQUERADE 规则后，内网主机的端口映射将无法兼容。
+- `ipts_set_snat`：是否设置 IPv4 的 MASQUERADE 规则，通常保持为 false 即可。有两种情况需要将其设置为 true：第一种，ss-tproxy 部署在出口路由位置且确实需要 MASQUERADE 规则（即该主机至少两张网卡，一张连接内网，一张连接公网，要进行源地址转换）；第二种，如果设置为 false 的情况下，代理不正常，那么也需要将其改为 true，曾经遇到过这种情况，可能与路由器的配置有关。注意，MASQUERADE 规则在 ss-tproxy stop 仍然是有效的，如果你想清空这些残留规则，可以使用 `ss-tproxy flush-postrule`。还有，设置 SNAT/MASQUERADE 规则后，内网主机的端口映射将无法兼容。
 - `ipts_set_snat6`：// TODO
 - `ipts_intranet/ipts_intranet6`：填写需要代理的内网网段，对于 IPv6，你从 ISP 分配到的应该是一个 GUA 公网地址，但是这个 GUA 地址是随时会变化的（DHCP），这对于透明代理来说是非常不利的，因为你不可能实时的去修改 ipts_intranet6 选项，因此通常的做法是，给内网设备分配一个固定 ULA 私有网段，这样每台内网设备就有了两个 IPv6 地址，一个是 GUA 公网地址，一个是 ULA 私有地址，ss-tproxy 主机的 IPv6 网关应保持不变，即还是原来的 GUA 自动分配的网关，以保证 IPv6 访问是没问题的，而其它内网主机的 IPv6 网关则需要修改为 ss-tproxy 主机的 ULA 地址，这样它们发出的流量才会经过 ss-tproxy，然后在 ipts_intranet6 中填写此私有地址段即可。此外还需注意，
