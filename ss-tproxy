@@ -501,6 +501,7 @@ is_ipv4_ipts() {
 }
 
 check_dnsredir() {
+    ss_tproxy_is_started && return
     is_false "$ipts_reddns_onstop" && return
     is_true "$ipv4" && {
         iptables -t nat -N SSTP_PREROUTING
@@ -607,7 +608,7 @@ start_iptables_tproxy_gfwlist() {
     is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
 
     local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
+    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
 
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
@@ -651,7 +652,7 @@ start_iptables_tproxy_chnroute() {
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
     local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
+    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
 
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
@@ -732,7 +733,7 @@ start_iptables_redirect_gfwlist() {
     is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
 
     local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
+    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
 
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
@@ -786,7 +787,7 @@ start_iptables_redirect_chnroute() {
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
     local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svraddr4[@]}") || svr_ip_array=("${proxy_svraddr6[@]}")
+    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
 
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
