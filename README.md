@@ -32,6 +32,11 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 - 支持网络可用性检查，无需利用其它的 hook 来避免脚本自启失败问题
 - 脚本逻辑优化及结构调整，尽量提高脚本的可移植性，去除非核心依赖
 
+v4.0 只剩下 `gfwlist`、`chnroute`、`chnonly` 3 种分流模式，相关介绍：
+- `gfwlist` 分流模式：`gfwlist.txt` 中的域名走代理，其余走直连，即黑名单模式。
+- `chnroute` 分流模式：除了国内地址、保留地址之外，其余均走代理，即白名单模式。
+- `chnlist` 分流模式：本质还是 `gfwlist` 模式，只是域名列表为国内域名，即回国模式。
+
 ## 安装脚本
 ```bash
 git clone https://github.com/zfl9/ss-tproxy
