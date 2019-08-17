@@ -1,6 +1,6 @@
 #!/bin/bash
 
-trap "exit 130" HUP INT QUIT TERM PIPE
+trap "exit 1" HUP INT QUIT TERM PIPE
 
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
