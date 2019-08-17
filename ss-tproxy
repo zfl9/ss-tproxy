@@ -152,7 +152,7 @@ load_pidfile() {
     source "$file_dnsserver_pid"
 }
 
-save_pidfile() {
+update_pidfile() {
     echo "status_dnsmasq_pid=$status_dnsmasq_pid" >$file_dnsserver_pid
     echo "status_chinadns_pid=$status_chinadns_pid" >>$file_dnsserver_pid
 }
@@ -375,7 +375,7 @@ start_dnsserver() {
             start_dnsserver_chnroute
             ;;
     esac
-    save_pidfile
+    update_pidfile
 }
 
 stop_dnsserver() {
