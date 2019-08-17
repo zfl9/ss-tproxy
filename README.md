@@ -91,3 +91,4 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `mode`：分流模式，默认为 chnroute，可根据需要改为 gfwlist，需要说明的是，`chnlist` 模式的 mode 为 `gfwlist`。
 - `ipv4/ipv6`：启用 IPv4/IPv6 透明代理，你需要确保本机代理进程能正确处理 IPv4/IPv6 相关数据包，脚本不检查它。
 - `tproxy`：true 为纯 TPROXY，false 为 REDIRECT/TPROXY 混合，ss/ssr 只能使用 false，v2ray 经配置后可使用 true。
+- `proxy_svraddr4/6`、`proxy_svrport`、`proxy_tcpport`、`proxy_udpport`、`proxy_startcmd`、`proxy_stopcmd` 见后。
