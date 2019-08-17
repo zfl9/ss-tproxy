@@ -61,7 +61,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 核心依赖：
 - `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
 - `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
-- `ip`：通常位于 iproute2 软件包；用于配置策略路由（TPROXY）。
+- `ip`：通常位于 iproute2 软件包，用于配置策略路由（TPROXY）。
 - `ipset`：ipset 用于存储 gfwlist 的黑名单 IP，以及 chnroute 的白名单 IP。
 - `dnsmasq`：构建 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需要支持 `--ipset` 选项。
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
