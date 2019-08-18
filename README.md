@@ -199,6 +199,7 @@ proxy_stopcmd='kill -9 $(pidof ssr-redir)'
 ```
 
 **钩子函数**
+
 ss-tproxy 脚本支持 4 个钩子函数，分别是 `pre_start`（启动前执行）、`post_start`（启动后执行）、`pre_stop`（停止前执行）、`post_stop`（停止后执行）。举个例子，在不修改 ss-tproxy 脚本的前提下，设置一些额外的 iptables 规则，假设我需要在 ss-tproxy 启动后添加某些规则，然后在 ss-tproxy 停止后再删除这些规则，则修改 ss-tproxy.conf，添加以下内容：
 ```bash
 post_start() {
