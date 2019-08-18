@@ -197,3 +197,37 @@ proxy_stopcmd='kill -9 $(pidof ssr-redir)'
   ]
 }
 ```
+
+**钩子函数**
+ss-tproxy 脚本支持 4 个钩子函数，分别是 `pre_start`（启动前执行）、`post_start`（启动后执行）、`pre_stop`（停止前执行）、`post_stop`（停止后执行）。举个例子，在不修改 ss-tproxy 脚本的前提下，设置一些额外的 iptables 规则，假设我需要在 ss-tproxy 启动后添加某些规则，然后在 ss-tproxy 停止后再删除这些规则，则修改 ss-tproxy.conf，添加以下内容：
+```bash
+post_start() {
+    iptables -A ...
+    iptables -A ...
+    iptables -A ...
+}
+
+post_stop() {
+    iptables -D ...
+    iptables -D ...
+    iptables -D ...
+}
+```
+需要注意的是，shell 中的函数是不允许重复定义的，虽然这不会有任何报错，但是实际只有最后一个函数生效。另外对于需要添加 iptables 规则的情况，可以考虑将 iptables 规则添加到 ss-tproxy 的自定义链上，这些自定义链在 ss-tproxy 停止后会自动删除，因此你只需要关心 `post_start()` 钩子函数的内容；目前有这几个自定义链：
+```bash
+$ipts -t mangle -N SSTP_PREROUTING
+$ipts -t mangle -N SSTP_OUTPUT
+$ipts -t nat    -N SSTP_PREROUTING
+$ipts -t nat    -N SSTP_OUTPUT
+$ipts -t nat    -N SSTP_POSTROUTING
+```
+它们分别挂接到去掉 `SSTP_` 前缀的同名预定义链上，如下：
+```bash
+$ipts -t mangle -A PREROUTING  -j SSTP_PREROUTING
+$ipts -t mangle -A OUTPUT      -j SSTP_OUTPUT
+$ipts -t nat    -A PREROUTING  -j SSTP_PREROUTING
+$ipts -t nat    -A OUTPUT      -j SSTP_OUTPUT
+$ipts -t nat    -A POSTROUTING -j SSTP_POSTROUTING
+```
+
+// TODO
