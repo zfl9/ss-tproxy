@@ -146,7 +146,7 @@ proxy_startcmd='(ss-redir -c /etc/ss.json -u </dev/null &>>/var/log/ss-redir.log
 proxy_stopcmd='kill -9 $(pidof ss-redir)'
 ```
 
-**ssr-redir** 也差不多，配置就不贴出来了，要注意的事项同上，`proxy_startcmd`、`proxy_stopcmd` 例子：
+**ssr-redir** 也差不多，配置就不贴出来了，网上一大堆，注意事项同上，`proxy_startcmd`、`proxy_stopcmd` 例子：
 ```bash
 #proxy_startcmd='(ssr-redir -c /etc/ssr.json -u -v </dev/null &>>/var/log/ssr-redir.log &)'
 proxy_startcmd='(ssr-redir -c /etc/ssr.json -u </dev/null &>>/var/log/ssr-redir.log &)'
