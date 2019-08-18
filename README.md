@@ -153,7 +153,7 @@ proxy_startcmd='(ssr-redir -c /etc/ssr.json -u </dev/null &>>/var/log/ssr-redir.
 proxy_stopcmd='kill -9 $(pidof ssr-redir)'
 ```
 
-最后说下 **v2ray**，只关心本机代理进程的配置，v2ray 的透明代理配置比较简单，只需要在原有配置的基础上，加个 `dokodemo-door` 入站协议即可，这里给个简单的示例，由于 v2ray 配置复杂，在报告透明代理有问题之前，请务必检查一遍配置是否有问题，这里并不想解答各种 v2ray 配置问题：
+最后说下 **v2ray**，只关心本机代理进程的配置，v2ray 的透明代理配置比较简单，只需要在原有客户端配置的基础上，加上一个 `dokodemo-door` 入站协议即可，这里给个简单的示例，由于 v2ray 配置复杂，在报告透明代理有问题之前，请务必检查你的配置是否有问题，这里并不想解答各种 v2ray 配置问题，谢谢：
 ```javascript
 {
   "log": {
