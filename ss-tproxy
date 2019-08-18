@@ -124,7 +124,7 @@ resolve_hostname4() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
         ipaddr=$(ping -4 -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
-        [ "$ipaddr" ] && break || sleep 1
+        [ -z "$ipaddr" ] && sleep 1
     done
     echo "$ipaddr"
 }
@@ -133,7 +133,7 @@ resolve_hostname6() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
         ipaddr=$(ping -6 -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
-        [ "$ipaddr" ] && break || sleep 1
+        [ -z "$ipaddr" ] && sleep 1
     done
     echo "$ipaddr"
 }
@@ -603,10 +603,6 @@ start_iptables_tproxy_common() {
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
-    local set_snat_rule='false'
-    {   is_ipv4_ipts $1 && is_true "$ipts_set_snat";  } && set_snat_rule='true'
-    { ! is_ipv4_ipts $1 && is_true "$ipts_set_snat6"; } && set_snat_rule='true'
-
     [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -o $loopback_ifname -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
     $1 -t mangle -A SSTP_OUTPUT -o $loopback_ifname -j RETURN
@@ -728,10 +724,6 @@ start_iptables_redirect_common() {
 
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
-
-    local set_snat_rule='false'
-    {   is_ipv4_ipts $1 && is_true "$ipts_set_snat";  } && set_snat_rule='true'
-    { ! is_ipv4_ipts $1 && is_true "$ipts_set_snat6"; } && set_snat_rule='true'
 
     [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -o $loopback_ifname -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
