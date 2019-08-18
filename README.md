@@ -142,7 +142,7 @@ ss-tproxy 的默认网关应保持不变，还是原有的 GUA 默认网关，�
 ```
 服务器地址、服务器端口、本地监听端口应与 ss-tproxy.conf 中填写的一致，如果仅代理 ss-tproxy 主机自身的流量，本地监听地址可以为 `127.0.0.1`、`::1`，否则必须为 `0.0.0.0`、`::`。然后 `proxy_startcmd`、`proxy_stopcmd` 可以这么写：
 ```bash
-#proxy_startcmd='(ss-redir -c /etc/ss-redir.json -v </dev/null &>>/var/log/ss-redir.log &)' # -v 选项表示记录详细日志
+#proxy_startcmd='(ss-redir -c /etc/ss-redir.json -v </dev/null &>>/var/log/ss-redir.log &)' # -v 表示记录详细日志
 proxy_startcmd='(ss-redir -c /etc/ss-redir.json </dev/null &>>/var/log/ss-redir.log &)' # 这里就不记录详细日志了
 proxy_stopcmd='kill -9 $(pidof ss-redir)'
 ```
