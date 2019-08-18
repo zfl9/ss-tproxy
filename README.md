@@ -260,6 +260,6 @@ systemctl enable ss-tproxy
 - `ss-tproxy flush-dnscache`：清空 dnsmasq 的查询缓存
 - `ss-tproxy flush-gfwlist`：清空 gfwlist 黑名单 ipset
 - `ss-tproxy delete-gfwlist`：删除 gfwlist 黑名单 ipset
-- `ss-tproxy update-chnlist`：更新 chnonly（restart 生效）
+- `ss-tproxy update-chnlist`：更新 chnlist（restart 生效）
 - `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
 - `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
