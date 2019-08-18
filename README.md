@@ -266,7 +266,7 @@ systemctl enable ss-tproxy
 
 `ss-tproxy flush-gfwlist` 的作用：在 `gfwlist/chnlist` 模式下，`ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会清空 `gfwlist` 这个 ipset，如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnlist` 操作，或者修改了 `/etc/ss-tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 gfwlist 列表导致奇怪的问题。注意，如果执行了 `ss-tproxy flush-gfwlist` 那么你可能还需要清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
 
-如果你需要修改 `ss-tproxy.conf` 中的某些特殊配置项，请先执行 `ss-tproxy stop`，然后再修改配置文件，最后再执行 `ss-tproxy start` 来生效，而不是改好配置后直接执行 `ss-tproxy restart`，这会出现不可预估的错误，目前需要遵循这个约定的配置项有：
+如果你需要修改 `ss-tproxy.conf` 的特殊配置项，请先执行 `ss-tproxy stop`，然后再修改配置文件，最后再执行 `ss-tproxy start` 来生效，而不是改好配置后执行 `ss-tproxy restart`，这会出现不可预估的错误，需要遵循这个约定的配置项有：
 - `ipv4`
 - `ipv6`
 - `proxy_stopcmd`
