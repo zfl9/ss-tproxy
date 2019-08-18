@@ -233,4 +233,17 @@ $ipts -t nat    -A OUTPUT      -j SSTP_OUTPUT
 $ipts -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 ```
 
+**脚本开机自启**
+
+比较简单，对于 `SysVinit` 发行版，直接在 `/etc/rc.d/rc.local` 开机脚本中加上 ss-tproxy 的启动命令即可：
+```bash
+/usr/local/bin/ss-tproxy start
+```
+
+对于 `Systemd` 发行版，将 ss-tproxy.service 服务文件放到 `/etc/systemd/system/ss-tproxy.service`，然后执行：
+```bash
+systemctl daemon-reload
+systemctl enable ss-tproxy
+```
+
 // TODO
