@@ -133,7 +133,7 @@ ss-tproxy 的默认网关应保持不变，还是原有的 GUA 默认网关，�
     "local_address": "本地监听地址",
     "local_port": 本地监听端口,
     "method": "加密方式",
-    "password": "端口密码",
+    "password": "用户密码",
     "no_delay": true,
     "fast_open": true,
     "reuse_port": true
@@ -153,4 +153,47 @@ proxy_startcmd='(ssr-redir -c /etc/ssr.json -u </dev/null &>>/var/log/ssr-redir.
 proxy_stopcmd='kill -9 $(pidof ssr-redir)'
 ```
 
-// TODO
+最后说下 **v2ray**，只关心本机代理进程的配置，v2ray 的透明代理配置比较简单，只需要在原有配置的基础上，加个 `dokodemo-door` 入站协议即可，这里给个简单的示例，由于 v2ray 配置复杂，在报告透明代理有问题之前，请务必检查一遍配置是否有问题，这里并不想解答各种 v2ray 配置问题：
+```javascript
+{
+  "log": {
+    "access": "/var/log/v2ray/access.log",
+    "error": "/var/log/v2ray/error.log",
+    "loglevel": "info" // 调试时请改为 debug
+  },
+
+  "inbounds": [
+    {
+      "protocol": "dokodemo-door",
+      "listen": "0.0.0.0", // 如果仅代理本机，可填环回地址
+      "port": 60080, // 本地监听端口必须与配置文件中的一致
+      "settings": {
+        "network": "tcp,udp", // 注意这里是 tcp + udp
+        "followRedirect": true
+      },
+      "streamSettings": {
+        "sockopt": {
+          //"tproxy": "tproxy" // tproxy + tproxy 模式
+          "tproxy": "redirect" // redirect + tproxy 模式
+        }
+      }
+    }
+  ],
+
+  "outbounds": [
+    {
+      "protocol": "shadowsocks",
+      "settings": {
+        "servers": [
+          {
+            "address": "node.proxy.net", // 服务器地址
+            "port": 12345,               // 服务器端口
+            "method": "aes-128-gcm",     // 加密方式
+            "password": "password"       // 用户密码
+          }
+        ]
+      }
+    }
+  ]
+}
+```
