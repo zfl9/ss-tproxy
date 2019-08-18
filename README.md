@@ -125,7 +125,7 @@ ss-tproxy 的默认网关应保持不变，还是原有的 GUA 默认网关，�
 
 **`proxy_startcmd`、`proxy_stopcmd`**
 
-先说 **ss-redir**，有两种选择，一种是使用 json 配置文件（建议，方便维护），如：
+先说 **ss-redir**，首先配置好 ss-redir 的配置文件，如：
 ```
 {
     "server": "服务器地址",
