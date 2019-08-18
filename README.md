@@ -124,4 +124,26 @@ ss-tproxy 的默认网关应保持不变，还是原有的 GUA 默认网关，�
 3. 另外还有一种方式，即在要走代理的设备上都分别部署 ss-tproxy 脚本，这样我们甚至不需要关心什么 GUA、ULA，因为我们只代理本机的流量，无需关心其它主机过来的流量，但这实际上并不太现实。
 
 **`proxy_startcmd`、`proxy_stopcmd`**
+
+先说 **ss-redir**，有两种选择，一种是使用 json 配置文件（建议，方便维护），如：
+```json
+{
+    "server": "服务器地址",
+    "server_port": 服务器端口,
+    "local_address": "本地监听地址",
+    "local_port": 本地监听端口,
+    "method": "加密方式",
+    "password": "端口密码",
+    "mode": "tcp_and_udp",
+    "no_delay": true,
+    "fast_open": true,
+    "reuse_port": true
+}
+```
+服务器地址、服务器端口、本地监听端口需要与 ss-tproxy.conf 中填写的一致，如果仅代理 ss-tproxy 主机自身的流量，那么本地监听地址可以为 `127.0.0.1`，否则必须为 `0.0.0.0`。然后 `proxy_startcmd` 和 `proxy_stopcmd` 可以这么写：
+```bash
+proxy_startcmd='(ss-redir -c /etc/ss-redir.json </dev/null &>>/var/log/ss-redir.log &)'
+proxy_stopcmd='kill -9 $(pidof ss-redir)'
+```
+
 // TODO
