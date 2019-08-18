@@ -198,6 +198,8 @@ load_config() {
     esac
 
     { is_false "$ipv4" && is_false "$ipv6"; } && log_error "both ipv4 and ipv6 are disabled, nothing to do"
+
+    [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
 }
 
 resolve_svraddr() {
