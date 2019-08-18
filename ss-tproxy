@@ -541,6 +541,7 @@ check_snatrule() {
     for intranet in "${intranet_array[@]}"; do
         $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p tcp --syn                      -j MASQUERADE
         $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p udp -m conntrack --ctstate NEW -j MASQUERADE
+        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p icmp                           -j MASQUERADE
     done
 }
 
