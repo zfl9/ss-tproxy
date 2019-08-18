@@ -214,6 +214,7 @@ post_stop() {
     iptables -D ...
 }
 ```
+
 需要注意的是，shell 中的函数是不允许重复定义的，虽然这不会有任何报错，但是实际只有最后一个函数生效。另外对于需要添加 iptables 规则的情况，可以考虑将 iptables 规则添加到 ss-tproxy 的自定义链上，这些自定义链在 ss-tproxy 停止后会自动删除，因此你只需要关心 `post_start()` 钩子函数的内容；目前有这几个自定义链：
 ```bash
 $ipts -t mangle -N SSTP_PREROUTING
@@ -222,6 +223,7 @@ $ipts -t nat    -N SSTP_PREROUTING
 $ipts -t nat    -N SSTP_OUTPUT
 $ipts -t nat    -N SSTP_POSTROUTING
 ```
+
 它们分别挂接到去掉 `SSTP_` 前缀的同名预定义链上，如下：
 ```bash
 $ipts -t mangle -A PREROUTING  -j SSTP_PREROUTING
