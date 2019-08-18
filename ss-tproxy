@@ -290,6 +290,7 @@ update_chnroute() {
 start_dnsserver_gfwlist() {
     local dnsmasq_config_string=$(cat <<EOF
 $(is_true "$dnsmasq_log_enable" && echo 'log-queries')
+log-facility = $dnsmasq_log_file
 log-async = 20
 domain-needed
 cache-size = $dnsmasq_cache_size
@@ -317,7 +318,7 @@ $(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_ar
 $(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
 EOF
 )
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
+    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" &>>$dnsmasq_log_file & echo $!)
 }
 
 start_dnsserver_chnroute() {
@@ -337,6 +338,7 @@ start_dnsserver_chnroute() {
 
     local dnsmasq_config_string=$(cat <<EOF
 $(is_true "$dnsmasq_log_enable" && echo 'log-queries')
+log-facility = $dnsmasq_log_file
 log-async = 20
 domain-needed
 cache-size = $dnsmasq_cache_size
@@ -356,7 +358,7 @@ $(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_ar
 $(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
 EOF
 )
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=<(echo "$dnsmasq_config_string") </dev/null &>>$dnsmasq_log_file & echo $!)
+    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" &>>$dnsmasq_log_file & echo $!)
 }
 
 start_dnsserver() {
