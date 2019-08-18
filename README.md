@@ -247,3 +247,19 @@ systemctl enable ss-tproxy
 ```
 
 如果使用 `Systemd` 管理 ss-tproxy，应避免使用 `ss-tproxy start|stop|restart` 这几个命令，当然除了这几个命令外，其它命令都是可以执行的，比如 `ss-tproxy status`、`ss-tproxy update-gfwlist`，为什么呢？因为 systemctl 启动一个脚本之后，systemctl 会在内部保存一个状态，即脚本已经 running，然后只有当你下次使用 systemctl 停止该脚本的时候，systemctl 内部才会将这个状态改为 stopped。所以当你执行 `systemctl start ss-tproxy` 后，这个服务的状态就是 running，如果你执行 `ss-tproxy stop` 来停止脚本，那么这个服务状态是不会变的，依旧是 running，但实际上它已经 stopped 了，而当你执行 `systemctl start ss-tproxy` 来启动脚本时，systemctl 并不会在内部执行 `ss-tproxy start`，因为这个服务的状态是 running，说明已经启动了，就不会再次启动了。这样一来就完全混乱了，你以为执行完毕后 ss-tproxy 就启动了，然而实际上，执行 `ss-tproxy status` 看下还是 stopped 的。为避免这种情况，请务必使用 `systemctl start|stop|restart ss-tproxy`，而不是 `ss-tproxy start|stop|restart`，换句话说，不要交叉使用这两套命令。
+
+**脚本命令行选项**
+- `ss-tproxy help`：查看帮助信息
+- `ss-tproxy version`：查看版本号
+- `ss-tproxy start`：启动透明代理
+- `ss-tproxy stop`：关闭透明代理
+- `ss-tproxy restart`：重启透明代理
+- `ss-tproxy status`：查看代理状态
+- `ss-tproxy show-iptables`：查看当前的 iptables 规则
+- `ss-tproxy flush-postrule`：清空遗留的 iptables 规则
+- `ss-tproxy flush-dnscache`：清空 dnsmasq 的查询缓存
+- `ss-tproxy flush-gfwlist`：清空 gfwlist 黑名单 ipset
+- `ss-tproxy delete-gfwlist`：删除 gfwlist 黑名单 ipset
+- `ss-tproxy update-chnlist`：更新 chnonly（restart 生效）
+- `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
+- `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
