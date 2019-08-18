@@ -281,6 +281,4 @@ systemctl enable ss-tproxy
 
 对于其它配置项，都可以直接改完配置后，执行 `ss-tproxy restart` 来生效，无需遵循上述约定。
 
-如果需要修改 `proxy_stopcmd`（比如将 ss 改为 ssr），请先执行 `ss-tproxy stop` 后再修改 `/etc/ss-tproxy/ss-tproxy.conf` 配置文件，否则之前的代理进程不会被 kill（因为 ss-tproxy 不可能再知道之前的 kill 命令是什么，毕竟 ss-tproxy 只是一个 shell 脚本，无法维持状态），这可能会造成端口冲突。当然也有一种取巧的办法，那就是在 proxy_kilcmd 中 kill 所有可能使用到的代理进程，比如你经常需要从 ss 切换为 ssr（或者从 ssr 切换为 ss），那么可以将 proxy_kilcmd 写为 `kill -9 $(pidof ss-redir) $(pidof ssr-redir)`，这样你就不需要先 stop 再改配置再 start 了，而是直接改好配置然后 restart。
-
 小技巧，如果你觉得切换代理时要修改 ss-tproxy.conf 很麻烦，也可以这么做：将 proxy_runcmd 和 proxy_kilcmd 改为空调用，如 `proxy_runcmd='true'`、`proxy_kilcmd='true'`，然后配置好 proxy_server，将所有可能会用到的服务器地址都放进去，当然 proxy_dports 也可以配置好要放行的服务器端口，最后执行 `ss-tproxy start` 来启动 ss-tproxy，因为我们没有写代理进程的启动和停止命令，所以会显示代理进程未运行，没关系，现在我们要做的就是启动对应的代理进程，假设为 ss-redir 且使用 systemd 进行管理，则执行 `systemctl start ss-redir`，现在你再执行 `ss-tproxy status` 就会看到对应的状态正常了，当然代理也是正常的，如果需要换为 v2ray，假设也是使用 systemd 进行管理，那么只需要先关闭 ss-redir，然后再启动 v2ray 就行了，即 `systemctl stop ss-redir`、`systemctl start v2ray`，相当于我现在启动的只是一个代理框架，ss-tproxy 启动之后基本就不需要管它了，可以随意切换代理。
