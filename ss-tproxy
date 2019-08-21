@@ -429,15 +429,25 @@ stop_proxy_proc() {
     eval "$proxy_stopcmd" &>/dev/null
 }
 
+set_sysctl_option() {
+    local option_name="$1" option_value="$2"
+    if command_is_exists "sysctl"; then
+        sysctl -w "$option_name=$option_value" >/dev/null
+    else
+        local option_path="/proc/sys/${option_name//.//}"
+        echo "$option_value" >$option_path
+    fi
+}
+
 enable_ipforward() {
-    is_true "$ipv4" && sysctl -w net.ipv4.ip_forward=1 >/dev/null
-    is_true "$ipv6" && sysctl -w net.ipv6.conf.all.forwarding=1 >/dev/null
+    is_true "$ipv4" && set_sysctl_option 'net.ipv4.ip_forward' 1
+    is_true "$ipv6" && set_sysctl_option 'net.ipv6.conf.all.forwarding' 1
 }
 
 disable_icmpredir() {
     is_false "$ipv4" && return
     for dir in $(ls /proc/sys/net/ipv4/conf); do
-        sysctl -w net.ipv4.conf.$dir.send_redirects=0 >/dev/null
+        set_sysctl_option "net.ipv4.conf.$dir.send_redirects" 0
     done
 }
 
