@@ -451,12 +451,8 @@ disable_icmpredir() {
     done
 }
 
-flush_gfwlist() {
-    is_true "$ipv4" && ipset -F gfwlist  &>/dev/null
-    is_true "$ipv6" && ipset -F gfwlist6 &>/dev/null
-}
-
 delete_gfwlist() {
+    ss_tproxy_is_started && return
     is_true "$ipv4" && ipset -X gfwlist  &>/dev/null
     is_true "$ipv6" && ipset -X gfwlist6 &>/dev/null
 }
@@ -961,7 +957,6 @@ COMMAND := {
     show-iptables       show iptables rules
     flush-postrule      flush legacy rules
     flush-dnscache      flush dnsmasq cache
-    flush-gfwlist       flush ipset@gfwlist
     delete-gfwlist      delete ipset@gfwlist
     update-chnlist      update chnlist list
     update-gfwlist      update gfwlist list
@@ -985,7 +980,6 @@ main() {
         show-iptables)   show_iptables;;
         flush-postrule)  flush_postrule;;
         flush-dnscache)  flush_dnscache;;
-        flush-gfwlist)   flush_gfwlist;;
         delete-gfwlist)  delete_gfwlist;;
         update-chnlist)  update_chnlist;;
         update-gfwlist)  update_gfwlist;;
