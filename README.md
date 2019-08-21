@@ -273,10 +273,6 @@ systemctl enable ss-tproxy
 - `ipts_rt_tab`
 - `ipts_rt_mark`
 - `opts_overwrite_resolv`
-- `file_gfwlist_txt`
-- `file_gfwlist_ext`
-- `file_chnroute_set`
-- `file_chnroute6_set`
 - `file_dnsserver_pid`
 
 对于其它配置项，都可以在改完配置后，执行 `ss-tproxy restart` 命令来生效，无需遵循上述约定。
