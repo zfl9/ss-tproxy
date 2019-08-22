@@ -308,6 +308,21 @@ post_start() {
     done
 }
 ```
+如果还想放行某些域名，可以利用 `dnsmasq_conf_file/dnsmasq_conf_dir` 选项，首先创建一个 dnsmasq 配置文件，比如在 /etc/ss-tproxy 目录下创建 `chnroute_ignore.conf`，假设想放行 github.com 以及 github.io 两个域名，让它们走国内直连，则配置内容如下：
+```ini
+server = /github.com/114.114.114.114
+server = /github.io/114.114.114.114
+ipset = /github.com/chnroute,chnroute6
+ipset = /github.io/chnroute,chnroute6
+```
+然后在 ss-tproxy.conf 的 `dnsmasq_conf_file` 数组中写上该配置文件的绝对路径，如 `dnsmasq_conf_file=(/etc/ss-tproxy/dnsmasq_ignore.conf)`，注意这只适合 chnroute 模式，如果想让配置更加智能些，即只在 chnroute 模式下加载该 dnsmasq 配置，可以将原有的 `dnsmasq_conf_file` 注释掉，然后在它下面写上一个简单的判断语句：
+```bash
+if [ "$mode" = 'chnroute' ]; then
+    dnsmasq_conf_file=(/etc/ss-tproxy/dnsmasq_ignore.conf)
+else
+    dnsmasq_conf_file=()
+fi
+```
 
 3、不想让某些内网主机走 ss-tproxy 的透明代理，即使它们将网关设为 ss-tproxy 主机，那么可以这么做：
 ```bash
