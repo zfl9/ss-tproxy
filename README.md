@@ -315,10 +315,10 @@ server = /github.io/114.114.114.114
 ipset = /github.com/chnroute,chnroute6
 ipset = /github.io/chnroute,chnroute6
 ```
-然后在 ss-tproxy.conf 的 `dnsmasq_conf_file` 数组中写上该配置文件的绝对路径，如 `dnsmasq_conf_file=(/etc/ss-tproxy/dnsmasq_ignore.conf)`，注意这只适合 chnroute 模式，如果想让配置更加智能些，即只在 chnroute 模式下加载该 dnsmasq 配置，可以将原有的 `dnsmasq_conf_file` 注释掉，然后在它下面写上一个简单的判断语句：
+然后在 ss-tproxy.conf 的 `dnsmasq_conf_file` 数组中写上该配置文件的绝对路径，如 `dnsmasq_conf_file=(/etc/ss-tproxy/chnroute_ignore.conf)`，注意这只适合 chnroute 模式，如果想让配置更加智能些，即只在 chnroute 模式下加载该 dnsmasq 配置，可以将原有的 `dnsmasq_conf_file` 注释掉，然后在它下面写上一个简单的判断语句：
 ```bash
 if [ "$mode" = 'chnroute' ]; then
-    dnsmasq_conf_file=(/etc/ss-tproxy/dnsmasq_ignore.conf)
+    dnsmasq_conf_file=(/etc/ss-tproxy/chnroute_ignore.conf)
 else
     dnsmasq_conf_file=()
 fi
