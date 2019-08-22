@@ -308,7 +308,7 @@ post_start() {
     done
 }
 ```
-如果还想放行某些域名，可以利用 `dnsmasq_conf_file/dnsmasq_conf_dir` 选项，首先创建一个 dnsmasq 配置文件，比如在 /etc/ss-tproxy 目录下创建 `chnroute_ignore.conf`，假设想放行 github.com 以及 github.io 两个域名，让它们走国内直连，则配置内容如下：
+如果还想放行某些域名，可以利用 `dnsmasq_conf_file/dnsmasq_conf_dir` 选项，首先创建一个 dnsmasq 配置文件，比如在 /etc/ss-tproxy 目录下创建 `chnroute_ignore.conf`，假设想放行 github.com 以及 github.io 两个域名，则配置内容如下：
 ```ini
 server = /github.com/114.114.114.114
 server = /github.io/114.114.114.114
