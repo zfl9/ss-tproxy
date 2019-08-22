@@ -54,7 +54,7 @@ v4.0 只剩下 `gfwlist`、`chnroute`、`chnlist` 3 种分流模式，相关介�
 可选依赖：
 - `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
 - `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
-- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `Adblock Plus` 规则，要进行转换。
+- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `adblock plus` 规则，要进行转换。
 
 [ss-tproxy 脚本相关依赖的安装方式参考](https://www.zfl9.com/ss-redir.html#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 
