@@ -320,8 +320,8 @@ post_start() {
     done
 
     # 定义要放行的 IPv6 地址
-    local intranet_ignore_list=(fd00:abcd::1111 fd00:abcd::2222)
-    for ipaddr in "${intranet_ignore_list[@]}"; do
+    local intranet_ignore_list6=(fd00:abcd::1111 fd00:abcd::2222)
+    for ipaddr in "${intranet_ignore_list6[@]}"; do
         ip6tables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
         ip6tables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
     done
