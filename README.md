@@ -197,6 +197,11 @@ proxy_stopcmd='kill -9 $(pidof ssr-redir)'
   ]
 }
 ```
+v2ray 的 `proxy_startcmd`、`proxy_stopcmd` 例子，假设使用 systemctl 进行启动与停止，则：
+```bash
+proxy_startcmd='systemctl start v2ray'
+proxy_stopcmd='systemctl stop v2ray'
+```
 
 **钩子函数**
 
