@@ -948,7 +948,7 @@ version() {
 
 help() {
     cat <<EOF
-Usage: ss-tproxy <COMMAND>
+Usage: ss-tproxy <COMMAND> [-x]
 COMMAND := {
     start               start ss-tproxy
     stop                stop ss-tproxy
@@ -964,29 +964,36 @@ COMMAND := {
     version             show version and exit
     help                show help and exit
 }
-Issues or Bug report: https://github.com/zfl9/ss-tproxy
-See https://www.zfl9.com/ss-redir.html for more details
+Specify the -x option for debugging of bash scripts
+Issues or bug report: https://github.com/zfl9/ss-tproxy
+See the https://www.zfl9.com/ss-redir.html for more details
 EOF
 }
 
 main() {
-    load_config "$@"
+    local arguments=()
+    for arg in "$@"; do
+        [ "$arg" = '-x' ] && set -x || arguments+=("$arg")
+    done
+
+    load_config "${arguments[@]}"
     check_depend
-    case $1 in
+
+    case "${arguments[0]}" in
         start)           start; status;;
         stop)            stop; status;;
         r*)              stop; status; echo; start; status;;
         status)          status;;
-        show-iptables)   show_iptables;;
+        show*)           show_iptables;;
         flush-postrule)  flush_postrule;;
         flush-dnscache)  flush_dnscache;;
-        delete-gfwlist)  delete_gfwlist;;
+        delete*)         delete_gfwlist;;
         update-chnlist)  update_chnlist;;
         update-gfwlist)  update_gfwlist;;
         update-chnroute) update_chnroute;;
         v*)              version;;
         h*)              help;;
-        *)               help; return 1;;
+        *)               echo "$(color_yellow "Unknown option: $arg")"; help; return 1;;
     esac
     return 0
 }
