@@ -81,7 +81,7 @@ file_is_exists() {
 }
 
 file_is_not_empty() {
-	[ -s "$1" ]
+    [ -s "$1" ]
 }
 
 command_is_exists() {
@@ -169,8 +169,8 @@ load_config() {
     file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
 
     if ss_tproxy_is_started; then
-		file_is_exists "$file_dnsserver_pid" || log_error "file not found: $file_dnsserver_pid"
-		file_is_not_empty "$file_dnsserver_pid" || log_error "file is empty: $file_dnsserver_pid"
+        file_is_exists "$file_dnsserver_pid" || log_error "file not found: $file_dnsserver_pid"
+        file_is_not_empty "$file_dnsserver_pid" || log_error "file is empty: $file_dnsserver_pid"
         load_pidfile
     else
         delete_pidfile
@@ -458,7 +458,7 @@ delete_gfwlist() {
 }
 
 delete_chnroute() {
-	is_true "$ipv4" && ipset -X chnroute  &>/dev/null
+    is_true "$ipv4" && ipset -X chnroute  &>/dev/null
     is_true "$ipv6" && ipset -X chnroute6 &>/dev/null
 }
 
