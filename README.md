@@ -24,6 +24,7 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 **ss-tproxy v4.5 简介**
 - 去除不常用的 `global` 分流模式
 - 支持 IPv4、IPv6 双栈透明代理（v4.0 优化版）
+- 无需指定内网网段，利用 `addrtype` 模块进行匹配
 - 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，修复若干问题
 - 完美兼容"端口映射"，只代理"主动出站"的流量，规则更加细致化
 - 支持配置要代理的黑名单端口，这样可以比较好的处理 BT/PT 流量
