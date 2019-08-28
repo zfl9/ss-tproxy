@@ -393,7 +393,8 @@ stop_dnsserver() {
 }
 
 flush_dnscache() {
-    kill -HUP "$status_dnsmasq_pid" &>/dev/null
+    ss_tproxy_is_started || return
+    kill -HUP "$status_dnsmasq_pid"
 }
 
 modify_resolvconf() {
@@ -595,11 +596,11 @@ start_iptables_pre_rules() {
 }
 
 start_iptables_post_rules() {
-    $1 -t mangle -A PREROUTING  -j SSTP_PREROUTING
-    $1 -t mangle -A OUTPUT      -j SSTP_OUTPUT
-    $1 -t nat    -A PREROUTING  -j SSTP_PREROUTING
-    $1 -t nat    -A OUTPUT      -j SSTP_OUTPUT
-    $1 -t nat    -A POSTROUTING -j SSTP_POSTROUTING
+    $1 -t mangle -I PREROUTING  -j SSTP_PREROUTING
+    $1 -t mangle -I OUTPUT      -j SSTP_OUTPUT
+    $1 -t nat    -I PREROUTING  -j SSTP_PREROUTING
+    $1 -t nat    -I OUTPUT      -j SSTP_OUTPUT
+    $1 -t nat    -I POSTROUTING -j SSTP_POSTROUTING
 }
 
 start_iptables_tproxy_common() {
