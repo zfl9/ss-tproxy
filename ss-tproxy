@@ -603,8 +603,10 @@ start_iptables_tproxy_common() {
     fi
 
     $1 -t mangle -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
-    $1 -t mangle -A SSTP_OUTPUT -p tcp -j SSTP_RULE
-    $1 -t mangle -A SSTP_OUTPUT -p udp -j SSTP_RULE
+    $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
+    $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+
+    $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
 
     if is_false "$selfonly"; then
         $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j RETURN
@@ -718,8 +720,10 @@ start_iptables_redirect_common() {
 
     $1 -t nat    -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
     $1 -t mangle -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
-    $1 -t nat    -A SSTP_OUTPUT -p tcp -j SSTP_RULE
-    $1 -t mangle -A SSTP_OUTPUT -p udp -j SSTP_RULE
+    $1 -t nat    -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
+    $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+
+    $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
 
     if is_false "$selfonly"; then
         $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j RETURN
