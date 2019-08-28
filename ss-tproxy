@@ -523,18 +523,14 @@ is_ipv4_ipts() {
 check_dnsredir() {
     is_false "$ipts_reddns_onstop" && return
 
-    local intranet_array
-    is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
-
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
 
     $1 -t nat -N SSTP_PREROUTING  &>/dev/null
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-    for intranet in "${intranet_array[@]}"; do
-        $1 -t nat -A SSTP_PREROUTING  -s $intranet -d $intranet      -p udp --dport 53 -j DNAT --to-destination $direct_dns_ip
-        $1 -t nat -A SSTP_POSTROUTING -s $intranet -d $direct_dns_ip -p udp --dport 53 -j MASQUERADE
-    done
+
+    $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j DNAT --to-destination $direct_dns_ip
+    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
 }
 
 check_snatrule() {
