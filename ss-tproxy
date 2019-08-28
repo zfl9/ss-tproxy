@@ -712,33 +712,26 @@ start_iptables_redirect_common() {
     local loopback_addr
     is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
 
-    local intranet_array
-    is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
+    if [ "$dnsmasq_bind_port" != '53' ]; then
+        $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+    fi
 
-    [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -o $ipts_if_lo -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
-
-    $1 -t nat    -A SSTP_OUTPUT ! -p tcp       -j RETURN
-    $1 -t nat    -A SSTP_OUTPUT -o $ipts_if_lo -j RETURN
-    $1 -t mangle -A SSTP_OUTPUT ! -p udp       -j RETURN
-    $1 -t mangle -A SSTP_OUTPUT -o $ipts_if_lo -j RETURN
-
-    for intranet in "${intranet_array[@]}"; do
-        $1 -t nat    -A SSTP_OUTPUT -d $intranet -j RETURN
-        $1 -t mangle -A SSTP_OUTPUT -d $intranet -j RETURN
-
-        $1 -t mangle -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet --dport 53 -j RETURN
-        $1 -t nat    -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
-
-        $1 -t nat    -A SSTP_PREROUTING ! -i $ipts_if_lo -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet ! -d $intranet -j SSTP_RULE
-    done
-
-    check_snatrule $1
-
+    $1 -t nat    -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
+    $1 -t mangle -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
     $1 -t nat    -A SSTP_OUTPUT -p tcp -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT -p udp -j SSTP_RULE
 
+    if is_false "$selfonly"; then
+        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j RETURN
+        $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+
+        $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+    fi
+
     $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
+
+    check_snatrule $1
 }
 
 start_iptables_redirect_gfwlist() {
