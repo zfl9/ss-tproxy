@@ -6,8 +6,6 @@ PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 
-loopback_ifname='lo'
-
 ipv4_reserved_ipaddrs=(
     0.0.0.0/8
     10.0.0.0/8
@@ -592,8 +590,8 @@ start_iptables_pre_rules() {
     $1 -t nat    -N SSTP_OUTPUT
     $1 -t nat    -N SSTP_POSTROUTING
 
-    ip $iproute2_family route add local default dev $loopback_ifname table $ipts_rt_tab
-    ip $iproute2_family rule  add fwmark $ipts_rt_mark               table $ipts_rt_tab
+    ip $iproute2_family route add local default dev $ipts_if_lo table $ipts_rt_tab
+    ip $iproute2_family rule  add fwmark $ipts_rt_mark          table $ipts_rt_tab
 }
 
 start_iptables_post_rules() {
@@ -611,18 +609,18 @@ start_iptables_tproxy_common() {
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
-    [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -o $loopback_ifname -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+    [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -o $ipts_if_lo -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
-    $1 -t mangle -A SSTP_OUTPUT -o $loopback_ifname -j RETURN
+    $1 -t mangle -A SSTP_OUTPUT -o $ipts_if_lo -j RETURN
 
     for intranet in "${intranet_array[@]}"; do
         $1 -t mangle -A SSTP_OUTPUT -d $intranet -j RETURN
 
-        $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet --dport 53 -j RETURN
-        $1 -t nat    -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+        $1 -t mangle -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet --dport 53 -j RETURN
+        $1 -t nat    -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
-        $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet ! -d $intranet -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING ! -i $ipts_if_lo -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet ! -d $intranet -j SSTP_RULE
     done
 
     check_snatrule $1
@@ -733,22 +731,22 @@ start_iptables_redirect_common() {
     local intranet_array
     is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
 
-    [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -o $loopback_ifname -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+    [ "$dnsmasq_bind_port" != '53' ] && $1 -t nat -A SSTP_OUTPUT -o $ipts_if_lo -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
-    $1 -t nat    -A SSTP_OUTPUT ! -p tcp            -j RETURN
-    $1 -t nat    -A SSTP_OUTPUT -o $loopback_ifname -j RETURN
-    $1 -t mangle -A SSTP_OUTPUT ! -p udp            -j RETURN
-    $1 -t mangle -A SSTP_OUTPUT -o $loopback_ifname -j RETURN
+    $1 -t nat    -A SSTP_OUTPUT ! -p tcp       -j RETURN
+    $1 -t nat    -A SSTP_OUTPUT -o $ipts_if_lo -j RETURN
+    $1 -t mangle -A SSTP_OUTPUT ! -p udp       -j RETURN
+    $1 -t mangle -A SSTP_OUTPUT -o $ipts_if_lo -j RETURN
 
     for intranet in "${intranet_array[@]}"; do
         $1 -t nat    -A SSTP_OUTPUT -d $intranet -j RETURN
         $1 -t mangle -A SSTP_OUTPUT -d $intranet -j RETURN
 
-        $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet --dport 53 -j RETURN
-        $1 -t nat    -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+        $1 -t mangle -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet --dport 53 -j RETURN
+        $1 -t nat    -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
-        $1 -t nat    -A SSTP_PREROUTING ! -i $loopback_ifname -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING ! -i $loopback_ifname -p udp -s $intranet ! -d $intranet -j SSTP_RULE
+        $1 -t nat    -A SSTP_PREROUTING ! -i $ipts_if_lo -p tcp -s $intranet ! -d $intranet -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING ! -i $ipts_if_lo -p udp -s $intranet ! -d $intranet -j SSTP_RULE
     done
 
     check_snatrule $1
