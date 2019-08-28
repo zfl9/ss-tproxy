@@ -546,8 +546,8 @@ check_snatrule() {
 }
 
 check_iptschain() {
-    $1 -t nat -nL SSTP_PREROUTING  &>/dev/null && $1 -t nat -A PREROUTING  -j SSTP_PREROUTING
-    $1 -t nat -nL SSTP_POSTROUTING &>/dev/null && $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
+    $1 -t nat -nL SSTP_PREROUTING  &>/dev/null && $1 -t nat -I PREROUTING  -j SSTP_PREROUTING
+    $1 -t nat -nL SSTP_POSTROUTING &>/dev/null && $1 -t nat -I POSTROUTING -j SSTP_POSTROUTING
 }
 
 check_postrule() {
