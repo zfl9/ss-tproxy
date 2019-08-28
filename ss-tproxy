@@ -602,7 +602,6 @@ start_iptables_tproxy_common() {
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
     fi
 
-    $1 -t mangle -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
     $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
 
@@ -718,8 +717,6 @@ start_iptables_redirect_common() {
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
     fi
 
-    $1 -t nat    -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
-    $1 -t mangle -A SSTP_OUTPUT -m addrtype --dst-type LOCAL -j RETURN
     $1 -t nat    -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
 
