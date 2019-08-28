@@ -21,9 +21,9 @@
 
 ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境中，可以透明代理 ss-tproxy 主机本身以及所有网关指向 ss-tproxy 主机的其它主机的 TCP、UDP 流量。也就是说，你可以在任意一台 Linux 主机上部署 ss-tproxy 脚本，然后同一局域网内的其它主机可以随时将其网关及 DNS 指向 ss-tproxy 主机，这样它们的 TCP 和 UDP 流量就会自动走代理了。
 
-**ss-tproxy v4.0 简介**
+**ss-tproxy v4.5 简介**
 - 去除不常用的 `global` 分流模式
-- 支持 IPv4、IPv6 双协议栈的透明代理（可配置）
+- 支持 IPv4、IPv6 双栈透明代理（v4.0 优化版）
 - 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，修复若干问题
 - 完美兼容"端口映射"，只代理"主动出站"的流量，规则更加细致化
 - 支持配置要代理的黑名单端口，这样可以比较好的处理 BT/PT 流量
@@ -32,7 +32,7 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 - 支持网络可用性检查，无需利用其它的 hook 来避免脚本自启失败问题
 - 脚本逻辑优化及结构调整，尽量提高脚本的可移植性，去除非核心依赖
 
-v4.0 只剩下 `gfwlist`、`chnroute`、`chnlist` 3 种分流模式，相关介绍：
+v4.5 只剩下 `gfwlist`、`chnroute`、`chnlist` 3 种分流模式，相关介绍：
 - `gfwlist` 分流模式：`gfwlist.txt` 中的域名走代理，其余走直连，即黑名单模式。
 - `chnroute` 分流模式：除了国内地址、保留地址之外，其余均走代理，即白名单模式。
 - `chnlist` 分流模式：本质还是 `gfwlist` 模式，只是域名列表为国内域名，即回国模式。
