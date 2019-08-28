@@ -111,7 +111,8 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `opts_ip_for_check_net`：指定一个允许 Ping 的 IP 地址（IPv4 或 IPv6 都行），用于检查外部网络的连通情况，默认为 `114.114.114.114`，注意这个 IP 地址应该为公网 IP，如果你填一个私有 IP，即使检测成功，也不能保证外网是可访问的，因为这仅代表我可以访问这个内网。根据实际网络环境进行更改，一般改为延迟较低且较稳定的一个 IP。
 
 **IPv6 透明代理的实施方式**
-v4.0 版本需要利用 ULA 私有地址进行 IPv6 的透明代理，但 v4.5 版本不需要任何额外的配置，直接启用 `ipv6` 选项即可，这得益于 iptables 的 `-m addrtype` 地址类型匹配模块。
+
+ss-tproxy v4.0 版本需要利用 ULA 私有地址进行 IPv6 的透明代理，而且还有许多要注意的事项，体验不是很好；但 v4.5 版本不需要任何额外的配置，如果想使用 IPv6 透明代理，直接启用 `ipv6` 选项即可，这得益于 iptables 的 `-m addrtype` 匹配模块。
 
 **`proxy_startcmd`、`proxy_stopcmd`**
 
