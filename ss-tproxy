@@ -606,11 +606,13 @@ start_iptables_tproxy_common() {
     $1 -t mangle -A SSTP_OUTPUT -p tcp -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT -p udp -j SSTP_RULE
 
-    $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j RETURN
-    $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+    if is_false "$selfonly"; then
+        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j RETURN
+        $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
 
-    $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-    $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+    fi
 
     $1 -t mangle -A SSTP_PREROUTING -p tcp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport
     $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
