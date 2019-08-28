@@ -528,7 +528,6 @@ check_dnsredir() {
 
     $1 -t nat -N SSTP_PREROUTING  &>/dev/null
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-
     $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j DNAT --to-destination $direct_dns_ip
     $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
 }
@@ -539,15 +538,11 @@ check_snatrule() {
     { ! is_ipv4_ipts $1 && is_true "$ipts_set_snat6"; } && set_snat_rule='true'
     is_false "$set_snat_rule" && return
 
-    local intranet_array
-    is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
-
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-    for intranet in "${intranet_array[@]}"; do
-        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p tcp --syn                       -j MASQUERADE
-        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p udp -m conntrack --ctstate NEW  -j MASQUERADE
-        $1 -t nat -A SSTP_POSTROUTING -s $intranet ! -d $intranet -p icmp -m conntrack --ctstate NEW -j MASQUERADE
-    done
+    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -m conntrack --ctstate DNAT,SNAT   -j RETURN
+    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p tcp --syn                       -j MASQUERADE
+    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -m conntrack --ctstate NEW  -j MASQUERADE
+    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p icmp -m conntrack --ctstate NEW -j MASQUERADE
 }
 
 check_iptschain() {
