@@ -671,9 +671,6 @@ start_iptables_tproxy_chnroute() {
     is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
     is_ipv4_ipts $1 && chnroute_setfile="$file_chnroute_set" || chnroute_setfile="$file_chnroute6_set"
 
-    local intranet_array
-    is_ipv4_ipts $1 && intranet_array=("${ipts_intranet[@]}") || intranet_array=("${ipts_intranet6[@]}")
-
     local svr_ip_array
     is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
 
@@ -686,7 +683,6 @@ start_iptables_tproxy_chnroute() {
 
     ipset -X $chnroute_setname &>/dev/null
     ipset -R <$chnroute_setfile
-    for intranet in "${intranet_array[@]}"; do echo "-A $chnroute_setname $intranet"; done | ipset -R &>/dev/null
 
     $1 -t mangle -N SSTP_RULE
 
