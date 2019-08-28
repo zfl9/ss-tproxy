@@ -112,7 +112,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 
 **IPv6 透明代理的实施方式**
 
-ss-tproxy v4.0 版本需要利用 ULA 私有地址进行 IPv6 的透明代理，而且还有许多要注意的事项，体验不是很好；但 v4.5 版本不需要任何额外的配置，如果想使用 IPv6 透明代理，直接启用 `ipv6` 选项即可，这得益于 iptables 的 `-m addrtype` 匹配模块。
+ss-tproxy v4.0 版本需要利用 ULA 地址进行 IPv6 透明代理，而且还有许多要注意的事项，体验不是很好；但 v4.5 版本不需要任何额外的配置，如果想使用 IPv6 透明代理，直接启用 `ipv6` 选项即可，这得益于 iptables 的 `-m addrtype` 匹配模块。
 
 **`proxy_startcmd`、`proxy_stopcmd`**
 
