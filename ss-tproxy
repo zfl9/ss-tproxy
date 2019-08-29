@@ -138,9 +138,15 @@ resolve_hostname6() {
 
 waiting_network() {
     if is_ipv4_address "$1"; then
-        until ping -4 -nq -c1 -W1 "$1" >/dev/null; do sleep 1; done
+        until ping -4 -nq -c1 -W1 "$1" >/dev/null; do
+            echo "waiting for network available..."
+            sleep 1
+        done
     elif is_ipv6_address "$1"; then
-        until ping -6 -nq -c1 -W1 "$1" >/dev/null; do sleep 1; done
+        until ping -6 -nq -c1 -W1 "$1" >/dev/null; do
+            echo "waiting for network available..."
+            sleep 1
+        done
     else
         log_error "ip address format is incorrect: $1"
     fi
