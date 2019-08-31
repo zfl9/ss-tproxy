@@ -948,6 +948,12 @@ main() {
         [ "$arg" = '-x' ] && set -x || arguments+=("$arg")
     done
 
+    if [ "${#arguments[@]}" -eq 0 ]; then
+        echo "$(color_yellow "Missing necessary options")"
+        help
+        return 1
+    fi
+
     load_config "${arguments[@]}"
     check_depend
 
