@@ -338,6 +338,8 @@ start_dnsserver_chnroute() {
         chinadns_args+=" -c $dns_direct6"
         chinadns_args+=" -t $dns_remote6"
     fi
+    ipset -R <$file_chnroute_set
+    ipset -R <$file_chnroute6_set
     status_chinadns_pid=$(chinadns-ng $chinadns_args </dev/null &>>$chinadns_logfile & echo $!)
 
     local dnsmasq_config_string=$(cat <<EOF
@@ -463,8 +465,8 @@ delete_gfwlist() {
 }
 
 delete_chnroute() {
-    is_true "$ipv4" && ipset -X chnroute  &>/dev/null
-    is_true "$ipv6" && ipset -X chnroute6 &>/dev/null
+    ipset -X chnroute  &>/dev/null
+    ipset -X chnroute6 &>/dev/null
 }
 
 delete_iproute2() {
@@ -674,9 +676,8 @@ start_iptables_tproxy_gfwlist() {
 }
 
 start_iptables_tproxy_chnroute() {
-    local chnroute_setname chnroute_setfile
+    local chnroute_setname
     is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
-    is_ipv4_ipts $1 && chnroute_setfile="$file_chnroute_set" || chnroute_setfile="$file_chnroute6_set"
 
     local svr_ip_array
     is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
@@ -687,9 +688,6 @@ start_iptables_tproxy_chnroute() {
     local remote_dns_ip remote_dns_port
     is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
     is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
-
-    ipset -X $chnroute_setname &>/dev/null
-    ipset -R <$chnroute_setfile
 
     $1 -t mangle -N SSTP_RULE
 
@@ -798,9 +796,8 @@ start_iptables_redirect_gfwlist() {
 }
 
 start_iptables_redirect_chnroute() {
-    local chnroute_setname chnroute_setfile
+    local chnroute_setname
     is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
-    is_ipv4_ipts $1 && chnroute_setfile="$file_chnroute_set" || chnroute_setfile="$file_chnroute6_set"
 
     local svr_ip_array
     is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
@@ -811,9 +808,6 @@ start_iptables_redirect_chnroute() {
     local remote_dns_ip remote_dns_port
     is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
     is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
-
-    ipset -X $chnroute_setname &>/dev/null
-    ipset -R <$chnroute_setfile
 
     ######################### TCP #########################
 
