@@ -281,12 +281,10 @@ update_chnroute() {
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     {
         echo "create chnroute hash:net family inet"
-        for reserved_ipaddr in "${ipv4_reserved_ipaddrs[@]}"; do echo "add chnroute $reserved_ipaddr"; done
         echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("add chnroute %s/%d\n", $4, 32-log($5)/log(2))}'
     } >$file_chnroute_set
     {
         echo "create chnroute6 hash:net family inet6"
-        for reserved_ipaddr in "${ipv6_reserved_ipaddrs[@]}"; do echo "add chnroute6 $reserved_ipaddr"; done
         echo "$data" | grep CN | grep ipv6 | gawk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}'
     } >$file_chnroute6_set
 }
@@ -326,7 +324,8 @@ EOF
 }
 
 start_dnsserver_chnroute() {
-    local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port"
+    local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -o $chinadns_timeout -p $chinadns_repeat"
+    is_true "$chinadns_fairmode" && chinadns_args+=" -f"
     is_true "$chinadns_verbose" && chinadns_args+=" -v"
     if is_true "$ipv4" && is_true "$ipv6"; then
         chinadns_args+=" -c $dns_direct,$dns_direct6"
@@ -338,8 +337,12 @@ start_dnsserver_chnroute() {
         chinadns_args+=" -c $dns_direct6"
         chinadns_args+=" -t $dns_remote6"
     fi
+    ipset -X chnroute &>/dev/null
+    ipset -X chnroute6 &>/dev/null
     ipset -R <$file_chnroute_set
     ipset -R <$file_chnroute6_set
+    for privaddr in "${chinadns_privaddr4[@]}"; do echo "-A chnroute $privaddr"; done | ipset -R &>/dev/null
+    for privaddr in "${chinadns_privaddr6[@]}"; do echo "-A chnroute6 $privaddr"; done | ipset -R &>/dev/null
     status_chinadns_pid=$(chinadns-ng $chinadns_args </dev/null &>>$chinadns_logfile & echo $!)
 
     local dnsmasq_config_string=$(cat <<EOF
@@ -353,12 +356,6 @@ no-negcache
 no-resolv
 port = $dnsmasq_bind_port
 server = 127.0.0.1#$chinadns_bind_port
-$(
-{ cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-; } | while read domain_name; do
-    is_true "$ipv4" && echo "server = /$domain_name/$dns_remote"
-    is_true "$ipv6" && echo "server = /$domain_name/$dns_remote6"
-done
-)
 $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
 $(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_arg"; done)
 $(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
@@ -401,7 +398,7 @@ stop_dnsserver() {
 }
 
 flush_dnscache() {
-    ss_tproxy_is_started || return
+    ! ss_tproxy_is_started && return
     kill -HUP "$status_dnsmasq_pid"
 }
 
@@ -465,6 +462,8 @@ delete_gfwlist() {
 }
 
 delete_chnroute() {
+    ipset -X privaddr  &>/dev/null
+    ipset -X privaddr6 &>/dev/null
     ipset -X chnroute  &>/dev/null
     ipset -X chnroute6 &>/dev/null
 }
@@ -526,6 +525,14 @@ show_iptables() {
 
 is_ipv4_ipts() {
     [ "$1" = 'iptables' ]
+}
+
+is_gfwlist_mode() {
+    [ "$mode" = 'gfwlist' ]
+}
+
+is_chnroute_mode() {
+    [ "$mode" = 'chnroute' ]
 }
 
 check_dnsredir() {
@@ -602,9 +609,78 @@ start_iptables_post_rules() {
     $1 -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 }
 
-start_iptables_tproxy_common() {
+start_iptables_tproxy_mode() {
     local loopback_addr
     is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
+
+    local gfwlist_setname
+    is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
+
+    local gfwlist_setfamily
+    is_ipv4_ipts $1 && gfwlist_setfamily="inet" || gfwlist_setfamily="inet6"
+
+    local grep_pattern
+    is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
+
+    local svr_ip_array
+    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
+
+    local direct_dns_ip
+    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+
+    local remote_dns_ip remote_dns_port
+    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
+    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
+
+    local chnroute_setname
+    is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
+
+    local privaddr_setname
+    is_ipv4_ipts $1 && privaddr_setname="privaddr" || privaddr_setname="privaddr6"
+
+    local privaddr_array
+    is_ipv4_ipts $1 && privaddr_array=("${ipv4_reserved_ipaddrs[@]}") || privaddr_array=("${ipv6_reserved_ipaddrs[@]}")
+
+    if is_gfwlist_mode; then
+        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
+        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
+    elif is_chnroute_mode; then
+        ipset -X $privaddr_setname &>/dev/null
+        ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
+        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
+    fi
+
+    ######################### SSTP_RULE (tcp and udp) #########################
+
+    $1 -t mangle -N SSTP_RULE
+
+    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
+    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
+
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
+
+    $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
+
+    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+
+    if is_gfwlist_mode; then
+        $1 -t mangle -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
+        $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    elif is_chnroute_mode; then
+        $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
+        $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
+        $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
+        $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    fi
+
+    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
+
+    ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
 
     if [ "$dnsmasq_bind_port" != '53' ]; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
@@ -629,7 +705,10 @@ start_iptables_tproxy_common() {
     check_snatrule $1
 }
 
-start_iptables_tproxy_gfwlist() {
+start_iptables_redirect_mode() {
+    local loopback_addr
+    is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
+    
     local gfwlist_setname
     is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
 
@@ -649,45 +728,42 @@ start_iptables_tproxy_gfwlist() {
     is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
     is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
 
-    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
-    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
-
-    $1 -t mangle -N SSTP_RULE
-
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
-    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
-
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
-
-    $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
-
-    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
-
-    $1 -t mangle -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
-
-    start_iptables_tproxy_common $1
-}
-
-start_iptables_tproxy_chnroute() {
     local chnroute_setname
     is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
 
-    local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
+    local privaddr_setname
+    is_ipv4_ipts $1 && privaddr_setname="privaddr" || privaddr_setname="privaddr6"
 
-    local direct_dns_ip
-    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+    local privaddr_array
+    is_ipv4_ipts $1 && privaddr_array=("${ipv4_reserved_ipaddrs[@]}") || privaddr_array=("${ipv6_reserved_ipaddrs[@]}")
 
-    local remote_dns_ip remote_dns_port
-    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
-    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
+    if is_gfwlist_mode; then
+        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
+        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
+    elif is_chnroute_mode; then
+        ipset -X $privaddr_setname &>/dev/null
+        ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
+        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
+    fi
+
+    ######################### SSTP_RULE (for tcp) #########################
+
+    $1 -t nat -N SSTP_RULE
+
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
+
+    if is_gfwlist_mode; then
+        $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
+    elif is_chnroute_mode; then
+        $1 -t nat -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
+        $1 -t nat -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
+        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
+    fi
+
+    ######################### SSTP_RULE (for udp) #########################
 
     $1 -t mangle -N SSTP_RULE
 
@@ -695,7 +771,6 @@ start_iptables_tproxy_chnroute() {
     $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
     for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
         $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
     done
 
@@ -704,18 +779,17 @@ start_iptables_tproxy_chnroute() {
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
 
-    $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
+    if is_gfwlist_mode; then
+        $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    elif is_chnroute_mode; then
+        $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
+        $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
+        $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+    fi
 
-    $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
-    start_iptables_tproxy_common $1
-}
-
-start_iptables_redirect_common() {
-    local loopback_addr
-    is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
+    ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
 
     if [ "$dnsmasq_bind_port" != '53' ]; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
@@ -739,126 +813,17 @@ start_iptables_redirect_common() {
     check_snatrule $1
 }
 
-start_iptables_redirect_gfwlist() {
-    local gfwlist_setname
-    is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
-
-    local gfwlist_setfamily
-    is_ipv4_ipts $1 && gfwlist_setfamily="inet" || gfwlist_setfamily="inet6"
-
-    local grep_pattern
-    is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
-
-    local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
-
-    local direct_dns_ip
-    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
-
-    local remote_dns_ip remote_dns_port
-    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
-    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
-
-    ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-    grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
-    for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
-
-    ######################### TCP #########################
-
-    $1 -t nat -N SSTP_RULE
-
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
-
-    $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
-
-    ######################### UDP #########################
-
-    $1 -t mangle -N SSTP_RULE
-
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
-    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
-
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
-
-    $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
-
-    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
-
-    $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
-
-    start_iptables_redirect_common $1
-}
-
-start_iptables_redirect_chnroute() {
-    local chnroute_setname
-    is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
-
-    local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
-
-    local direct_dns_ip
-    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
-
-    local remote_dns_ip remote_dns_port
-    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
-    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
-
-    ######################### TCP #########################
-
-    $1 -t nat -N SSTP_RULE
-
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
-
-    $1 -t nat -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-
-    $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
-
-    ######################### UDP #########################
-
-    $1 -t mangle -N SSTP_RULE
-
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
-    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
-
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
-
-    $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
-
-    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
-
-    $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-
-    $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
-
-    start_iptables_redirect_common $1
-}
-
 start_iptables() {
     is_true "$ipv4" && start_iptables_pre_rules "iptables"
     is_true "$ipv6" && start_iptables_pre_rules "ip6tables"
 
-    case "$mode" in
-        gfwlist)
-            is_true "$ipv4" && { is_true "$tproxy" && start_iptables_tproxy_gfwlist "iptables"  || start_iptables_redirect_gfwlist "iptables";  }
-            is_true "$ipv6" && { is_true "$tproxy" && start_iptables_tproxy_gfwlist "ip6tables" || start_iptables_redirect_gfwlist "ip6tables"; }
-            ;;
-        chnroute)
-            is_true "$ipv4" && { is_true "$tproxy" && start_iptables_tproxy_chnroute "iptables"  || start_iptables_redirect_chnroute "iptables";  }
-            is_true "$ipv6" && { is_true "$tproxy" && start_iptables_tproxy_chnroute "ip6tables" || start_iptables_redirect_chnroute "ip6tables"; }
-            ;;
-    esac
+    if is_true "$tproxy"; then
+        is_true "$ipv4" && start_iptables_tproxy_mode "iptables"
+        is_true "$ipv6" && start_iptables_tproxy_mode "ip6tables"
+    else
+        is_true "$ipv4" && start_iptables_redirect_mode "iptables"
+        is_true "$ipv6" && start_iptables_redirect_mode "ip6tables"
+    fi
 
     is_true "$ipv4" && start_iptables_post_rules "iptables"
     is_true "$ipv6" && start_iptables_post_rules "ip6tables"
