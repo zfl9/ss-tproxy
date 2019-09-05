@@ -300,17 +300,21 @@ pre_start() {
 ```bash
 post_start() {
     if is_chnroute_mode; then
-        # 定义要放行的 IPv4 地址
-        local chnroute_append_list=(11.22.33.44 44.33.22.11)
-        for ipaddr in "${chnroute_append_list[@]}"; do
-            ipset add chnroute $ipaddr &>/dev/null
-        done
+        if is_true "$ipv4"; then
+            # 定义要放行的 IPv4 地址
+            local chnroute_append_list=(11.22.33.44 44.33.22.11)
+            for ipaddr in "${chnroute_append_list[@]}"; do
+                ipset add chnroute $ipaddr &>/dev/null
+            done
+        fi
 
-        # 定义要放行的 IPv6 地址
-        local chnroute_append_list6=(2400:da00::6666 2001:dc7:1000::1)
-        for ipaddr in "${chnroute_append_list6[@]}"; do
-            ipset add chnroute6 $ipaddr &>/dev/null
-        done
+        if is_true "$ipv6"; then
+            # 定义要放行的 IPv6 地址
+            local chnroute_append_list6=(2400:da00::6666 2001:dc7:1000::1)
+            for ipaddr in "${chnroute_append_list6[@]}"; do
+                ipset add chnroute6 $ipaddr &>/dev/null
+            done
+        fi
     fi
 }
 ```
@@ -334,18 +338,22 @@ fi
 ```bash
 post_start() {
     # 定义要放行的 IPv4 地址
-    local intranet_ignore_list=(192.168.1.100 192.168.1.200)
-    for ipaddr in "${intranet_ignore_list[@]}"; do
-        iptables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
-        iptables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
-    done
+    if is_true "$ipv4"; then
+        local intranet_ignore_list=(192.168.1.100 192.168.1.200)
+        for ipaddr in "${intranet_ignore_list[@]}"; do
+            iptables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
+            iptables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
+        done
+    fi
 
-    # 定义要放行的 IPv6 地址
-    local intranet_ignore_list6=(fd00:abcd::1111 fd00:abcd::2222)
-    for ipaddr in "${intranet_ignore_list6[@]}"; do
-        ip6tables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
-        ip6tables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
-    done
+    if is_true "$ipv6"; then
+        # 定义要放行的 IPv6 地址
+        local intranet_ignore_list6=(fd00:abcd::1111 fd00:abcd::2222)
+        for ipaddr in "${intranet_ignore_list6[@]}"; do
+            ip6tables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
+            ip6tables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
+        done
+    fi
 }
 ```
 
