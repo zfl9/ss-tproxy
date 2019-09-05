@@ -299,17 +299,19 @@ pre_start() {
 2、chnroute 模式下，想放行某些不在 chnroute 中的 IP，可以利用 `post_start()` 将它们加到 ipset 中：
 ```bash
 post_start() {
-    # 定义要放行的 IPv4 地址
-    local chnroute_append_list=(11.22.33.44 44.33.22.11)
-    for ipaddr in "${chnroute_append_list[@]}"; do
-        ipset add chnroute $ipaddr &>/dev/null
-    done
+    if is_chnroute_mode; then
+        # 定义要放行的 IPv4 地址
+        local chnroute_append_list=(11.22.33.44 44.33.22.11)
+        for ipaddr in "${chnroute_append_list[@]}"; do
+            ipset add chnroute $ipaddr &>/dev/null
+        done
 
-    # 定义要放行的 IPv6 地址
-    local chnroute_append_list6=(2400:da00::6666 2001:dc7:1000::1)
-    for ipaddr in "${chnroute_append_list6[@]}"; do
-        ipset add chnroute6 $ipaddr &>/dev/null
-    done
+        # 定义要放行的 IPv6 地址
+        local chnroute_append_list6=(2400:da00::6666 2001:dc7:1000::1)
+        for ipaddr in "${chnroute_append_list6[@]}"; do
+            ipset add chnroute6 $ipaddr &>/dev/null
+        done
+    fi
 }
 ```
 如果还想放行某些域名，可以利用 `dnsmasq_conf_file/dnsmasq_conf_dir` 选项，首先创建一个 dnsmasq 配置文件，比如在 /etc/ss-tproxy 目录下创建 `chnroute_ignore.conf`，假设想放行 github.com 以及 github.io 两个域名，则配置内容如下：
@@ -321,7 +323,7 @@ ipset = /github.io/chnroute,chnroute6
 ```
 然后在 ss-tproxy.conf 的 `dnsmasq_conf_file` 数组中写上该配置文件的绝对路径，如 `dnsmasq_conf_file=(/etc/ss-tproxy/chnroute_ignore.conf)`，注意这只适合 chnroute 模式，如果想让配置更加智能些，即只在 chnroute 模式下加载该 dnsmasq 配置，可以将原有的 `dnsmasq_conf_file` 注释掉，然后在它下面写上一个简单的判断语句即可：
 ```bash
-if [ "$mode" = 'chnroute' ]; then
+if is_chnroute_mode; then
     dnsmasq_conf_file=(/etc/ss-tproxy/chnroute_ignore.conf)
 else
     dnsmasq_conf_file=()
