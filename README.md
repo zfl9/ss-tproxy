@@ -102,6 +102,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `proxy_startcmd/proxy_stopcmd`：前者是启动本机代理进程的 shell 命令，后者是关闭本机代理进程的 shell 命令。这些命令应该能快速执行完毕，否则会导致透明代理长期处于半启动或半关闭状态。具体的 startcmd、stopcmd 示例见后。
 - `dnsmasq_bind_port`：dnsmasq 监听端口，默认 53，如果端口已被占用则修改为其它未占用的端口，如 `60053`。
 - `dnsmasq_conf_dir/dnsmasq_conf_file`：dnsmasq 外部配置文件/目录，被作为 `conf-dir`、`conf-file` 选项值。
+- `chinadns_privaddr4/chinadns_privaddr6`：如果你的 `dns_direct/dns_direct6` 为私人 DNS 服务器，且该 DNS 服务器会返回某些特殊的解析记录（即：包含保留地址的解析记录，如 192.168.1.100），且你希望 chinadns-ng 会接受这些特殊的 DNS 响应（即：将它们判定为国内 IP），那么你就需要在该选项中加入对应的保留地址段，比如 `192.168.1.0/24`。前者为 IPv4 地址段数组、后者为 IPv6 地址段数组，多个用空格隔开，默认为空数组。
 - `ipts_set_snat`：是否设置 IPv4 的 MASQUERADE 规则，通常保持为 false 即可。有两种情况需要将其设置为 true：第一种，ss-tproxy 部署在出口路由位置且确实需要 MASQUERADE 规则（即该主机至少两张网卡，一张连接内网，一张连接公网，要进行源地址转换）；第二种，在设置为 false 的情况下，代理不正常（典型的如：白名单地址无法访问，黑名单地址正常访问），也需要将其改为 true。注意，MASQUERADE 规则在 ss-tproxy stop 仍然是有效的，如果你想清空这些残留规则，可以执行 `ss-tproxy flush-postrule` 命令。
 - `ipts_set_snat6`：是否设置 IPv6 的 MASQUERADE 规则，通常保持为 false 即可。注意 v4.5 版本的 IPv6 透明代理不再需要配置 ULA 私有地址，可直接利用 GUA 公网地址进行透明代理。其它注意事项同 `ipts_intranet` 选项。
 - `ipts_reddns_onstop`：当 ss-tproxy stop 之后，是否使用 iptables 规则将内网主机发往 ss-tproxy 主机的 DNS 请求重定向至本地直连 DNS（即 `dns_direct/dns_direct6`），为什么要这么做呢？因为其它内网主机的 DNS 是指向 ss-tproxy 主机的，但是现在我们已经关闭了 ss-tproxy（dnsmasq 进程关闭了），所以这些内网主机会因为无法解析 DNS 而无法正常上网，而设置此选项后，这些 DNS 请求会被重定向给 114.114.114.114 等国内直连 DNS，这样它们就又可以正常上网了，在 ss-tproxy start 前，这些规则会自动删除，如果你需要手动删除这些规则，可以执行 `ss-tproxy flush-postrule` 命令。该选项的默认值为 true，如果 ss-tproxy 主机上有正常运行的 DNS 服务，那么这个选项应该设置为 false。
