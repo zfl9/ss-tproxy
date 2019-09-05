@@ -337,8 +337,8 @@ fi
 3、不想让某些内网主机走 ss-tproxy 的透明代理，即使它们将网关设为 ss-tproxy 主机，那么可以这么做：
 ```bash
 post_start() {
-    # 定义要放行的 IPv4 地址
     if is_true "$ipv4"; then
+        # 定义要放行的 IPv4 地址
         local intranet_ignore_list=(192.168.1.100 192.168.1.200)
         for ipaddr in "${intranet_ignore_list[@]}"; do
             iptables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
