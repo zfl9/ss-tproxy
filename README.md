@@ -22,7 +22,7 @@
 ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境中，可以透明代理 ss-tproxy 主机本身以及所有网关指向 ss-tproxy 主机的其它主机的 TCP、UDP 流量。也就是说，你可以在任意一台 Linux 主机上部署 ss-tproxy 脚本，然后同一局域网内的其它主机可以随时将其网关及 DNS 指向 ss-tproxy 主机，这样它们的 TCP 和 UDP 流量就会自动走代理了。
 
 **ss-tproxy v4.5 简介**
-- 去除不常用的 `global` 分流模式
+- ~~去除不常用的 `global` 分流模式~~（已保留）
 - 支持 IPv4、IPv6 双栈透明代理（v4.0 优化版）
 - 无需指定内网网段，利用 `addrtype` 模块进行匹配
 - 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，修复若干问题
