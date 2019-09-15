@@ -93,7 +93,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 
 ## 配置说明
 - 注释：井号开头的行为注释行，配置文件本质上是一个 shell 脚本，对于同名变量或函数，后定义的会覆盖先定义的。
-- `mode`：分流模式，默认为 chnroute 模式，可根据需要修改为 gfwlist 模式；需要说明的是，如果想使用 `chnlist` 回国模式，那么 mode 依旧为 `gfwlist`，gfwlist 模式与 chnlist 模式共享 `gfwlist.txt`、`gfwlist.ext` 文件，因此使用 chnlist 模式前，需要先执行 `ss-tproxy update-chnlist` 将 gfwlist.txt 替换为国内域名，同时手动编辑 gfwlist.ext 扩展黑名单，将其中的 Telegram IPv4/IPv6 地址段注释，此外你还需要修改 `dns_direct/dns_direct6` 为本地直连 DNS（如 Google 公共 DNS），然后修改 `dns_remote/dns_remote6` 为大陆 DNS（如 114 公共 DNS，走国内代理）。
+- `mode`：分流模式，默认为 chnroute 模式，可根据需要修改为 global/gfwlist 模式；需说明的是，如果想使用 `chnlist` 回国模式，那么 mode 依旧为 `gfwlist`，gfwlist 模式与 chnlist 模式共享 `gfwlist.txt`、`gfwlist.ext` 文件，因此使用 chnlist 模式前，需要先执行 `ss-tproxy update-chnlist` 将 gfwlist.txt 替换为国内域名，同时手动编辑 gfwlist.ext 扩展黑名单，将其中的 Telegram IPv4/IPv6 地址段注释，此外你还需要修改 `dns_direct/dns_direct6` 为本地直连 DNS（如 Google 公共 DNS），然后修改 `dns_remote/dns_remote6` 为大陆 DNS（如 114 公共 DNS，走国内代理）。
 - `ipv4/ipv6`：启用 IPv4/IPv6 透明代理，你需要确保本机代理进程能正确处理 IPv4/IPv6 相关数据包，脚本不检查它。注意，启用 IPv6 透明代理应检查当前的 Linux 内核版本是否为 `v3.9.0+`，以及 ip6tables 的版本是否为 `v1.4.18+`。
 - `tproxy`：true 为纯 TPROXY，false 为 REDIRECT/TPROXY 混合，ss/ssr 只能使用 false，v2ray 经配置后可使用 true。
 - `selfonly`：true 表示仅代理 ss-tproxy 主机自身的流量，false 表示代理 ss-tproxy 主机自身以及所有网关指向 ss-tproxy 主机的流量，默认为 false。该选项是用来替代之前的 `ipts_intranet/ipts_intranet6` 选项的，根据需要进行修改。
