@@ -48,7 +48,7 @@ v4.0/v4.5 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模
 - `xt_TPROXY`：TPROXY 内核模块，这是必须的，无论什么模式。
 - `ip`：通常位于 iproute2 软件包，用于配置策略路由（TPROXY）。
 - `ipset`：用于存储 gfwlist/chnlist 的黑名单 IP、global/chnroute 的白名单 IP。
-- `dnsmasq`：基础 DNS 服务，对于 gfwlist 模式，该 dnsmasq 需要支持 `--ipset` 选项。
+- `dnsmasq`：DNS 服务，对于 gfwlist/chnlist 模式，该 dnsmasq 需支持 `--ipset` 选项。
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
 
 > 如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng，安装依赖之前先检查当前系统是否已有对应依赖。
