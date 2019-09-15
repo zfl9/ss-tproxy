@@ -101,7 +101,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `proxy_svrport`：填写 VPS 上代理服务器的外部监听端口，格式同 `ipts_proxy_dst_port`，填写不正确会导致 iptables 规则死循环。如果是 v2ray 动态端口，如端口号 1000 到 2000 都是代理监听端口，则填 `1000:2000`（含边界）。
 - `proxy_tcpport/proxy_udpport`：本机代理进程的透明代理监听端口，前者为 TCP 端口，后者为 UDP 端口，通常情况下它们是相同的，根据实际情况修改。需要注意的是，ss-tproxy v3.0 之后都要求代理软件支持 UDP，否则 DNS 是无法正常解析的，请务必检查 UDP 代理的连通情况，对于 ss/ssr，它们的 UDP 代理数据是通过 UDP 协议进行传递的，某些 ISP 可能会对 UDP 恶意丢包，v2ray 某些协议则为 UDP over TCP，对于这种情况则无需担心 UDP 丢包问题。
 - `proxy_startcmd/proxy_stopcmd`：前者是启动本机代理进程的 shell 命令，后者是关闭本机代理进程的 shell 命令。这些命令应该能快速执行完毕，否则会导致透明代理长期处于半启动或半关闭状态。具体的 startcmd、stopcmd 示例见后。
-- `dnsmasq_bind_port`：dnsmasq 监听端口，默认 53，如果端口已被占用则修改为其它未占用的端口，如 `60053`。注意，在某些系统中，如果将其监听端口改为非 53 端口，可能会导致内网主机的 DNS 解析异常，具体原因未知，这种情况下让 dnsmasq 独占 53 端口。
+- `dnsmasq_bind_port`：dnsmasq 监听端口，默认 53，如果端口已被占用则修改为其它未占用的端口，如 `60053`。注意，在某些系统中，如果将 dnsmasq 的监听端口改为非 53 端口，可能会导致内网主机的 DNS 解析异常，具体原因暂不清楚，如果出现此问题，请让 dnsmasq 独占 53 端口。
 - `dnsmasq_conf_dir/dnsmasq_conf_file`：dnsmasq 外部配置文件/目录，被作为 `conf-dir`、`conf-file` 选项值。
 - `chinadns_privaddr4/chinadns_privaddr6`：如果你的 `dns_direct/dns_direct6` 为私人 DNS 服务器，且该 DNS 服务器会返回某些特殊的解析记录（即：包含保留地址的解析记录，如 192.168.1.100），且你希望 chinadns-ng 会接受这些特殊的 DNS 响应（即：将它们判定为国内 IP），那么你就需要在该选项中加入对应的保留地址段，比如 `192.168.1.0/24`。前者为 IPv4 地址段数组、后者为 IPv6 地址段数组，多个用空格隔开，默认为空数组。
 - `ipts_set_snat`：是否设置 IPv4 的 MASQUERADE 规则，通常保持为 false 即可。有两种情况需要将其设置为 true：第一种，ss-tproxy 部署在出口路由位置且确实需要 MASQUERADE 规则（即该主机至少两张网卡，一张连接内网，一张连接公网，要进行源地址转换）；第二种，在设置为 false 的情况下，代理不正常（典型的如：白名单地址无法访问，黑名单地址正常访问），也需要将其改为 true。注意，MASQUERADE 规则在 ss-tproxy stop 仍然是有效的，如果你想清空这些残留规则，可以执行 `ss-tproxy flush-postrule` 命令。
