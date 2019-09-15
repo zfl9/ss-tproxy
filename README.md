@@ -45,7 +45,7 @@ v4.0/v4.5 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模
 核心依赖：
 - `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
 - `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
-- `xt_TPROXY`：TPROXY 内核模块，这是必须的，无论什么模式。
+- `xt_TPROXY`：xt_TPROXY 内核模块，用于透明代理 UDP 流量。
 - `ip`：通常位于 iproute2 软件包，用于配置策略路由（TPROXY）。
 - `ipset`：用于存储 gfwlist/chnlist 的黑名单 IP、global/chnroute 的白名单 IP。
 - `dnsmasq`：DNS 服务，对于 gfwlist/chnlist 模式，该 dnsmasq 需支持 `--ipset` 选项。
