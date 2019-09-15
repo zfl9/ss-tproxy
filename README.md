@@ -258,7 +258,7 @@ systemctl daemon-reload
 systemctl enable ss-tproxy
 ```
 
-> 不建议使用 `systemctl start|stop|restart ss-tproxy` 来操作 ss-tproxy 脚本，当然自启动除外。
+> 不建议使用 `systemctl start|stop|restart ss-tproxy` 来操作 ss-tproxy，此服务文件应仅作开机自启用。
 
 **脚本命令行选项**
 - `ss-tproxy help`：查看帮助信息
