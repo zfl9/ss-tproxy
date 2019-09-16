@@ -99,7 +99,7 @@ udp_port_is_exists() {
 }
 
 ss_tproxy_is_started() {
-    [ $(ip -4 rule | grep -c "fwmark $ipts_rt_mark") -ne 0 -o $(ip -6 rule | grep -c "fwmark $ipts_rt_mark") -ne 0 ]
+    [ $({ ip -4 rule; ip -6 rule; } | grep -c "fwmark $ipts_rt_mark") -ne 0 ]
 }
 
 is_ipv4_ipts() {
