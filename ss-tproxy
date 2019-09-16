@@ -196,18 +196,49 @@ delete_pidfile() {
 }
 
 load_config() {
-    file_is_exists "$ss_tproxy_config"   || log_error "file not found: $ss_tproxy_config" && source "$ss_tproxy_config" "$@"
+    for optentry in "${optentries[@]}"; do eval "$optentry"; done
+    if file_is_exists "$ss_tproxy_config"; then
+        source "$ss_tproxy_config" "$@"
+    else
+        log_error "file not found: $ss_tproxy_config"
+    fi
+    for optentry in "${optentries[@]}"; do eval "$optentry"; done
+}
+
+check_config() {
     file_is_exists "$file_gfwlist_txt"   || log_error "file not found: $file_gfwlist_txt"
     file_is_exists "$file_gfwlist_ext"   || log_error "file not found: $file_gfwlist_ext"
     file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
     file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
 
     if ss_tproxy_is_started; then
-        file_is_exists "$file_dnsserver_pid" || log_error "file not found: $file_dnsserver_pid"
+        file_is_exists    "$file_dnsserver_pid" || log_error "file not found: $file_dnsserver_pid"
         file_is_not_empty "$file_dnsserver_pid" || log_error "file is empty: $file_dnsserver_pid"
         load_pidfile
     else
         delete_pidfile
+    fi
+
+    { ! is_global_mode && ! is_gfwlist_mode && ! is_chnroute_mode; } && log_error "the value of the mode option is invalid: $mode"
+
+    { is_false "$ipv4" && is_false "$ipv6"; } && log_error "both ipv4 and ipv6 are disabled, nothing to do"
+
+    [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
+
+    command_is_exists 'ip'      || log_error "command not found: ip"
+    command_is_exists 'ipset'   || log_error "command not found: ipset"
+    command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
+
+    is_true "$ipv4" && { command_is_exists 'iptables'  || log_error "command not found: iptables";  }
+    is_true "$ipv6" && { command_is_exists 'ip6tables' || log_error "command not found: ip6tables"; }
+
+    if is_gfwlist_mode; then
+        command_is_exists 'curl'   || log_warn "command not found: curl"
+        command_is_exists 'perl'   || log_warn "command not found: perl"
+        command_is_exists 'base64' || log_warn "command not found: base64"
+    elif is_chnroute_mode; then
+        command_is_exists 'curl'        || log_warn  "command not found: curl"
+        command_is_exists 'chinadns-ng' || log_error "command not found: chinadns-ng"
     fi
 
     case "$opts_ss_netstat" in
@@ -227,13 +258,9 @@ load_config() {
             command_is_exists 'netstat' && netstat='netstat' || log_error "command not found: netstat"
             ;;
         *)
-            log_error "opts_ss_netstat option value is invalid: $opts_ss_netstat"
+            log_error "the value of the opts_ss_netstat option is invalid: $opts_ss_netstat"
             ;;
     esac
-
-    { is_false "$ipv4" && is_false "$ipv6"; } && log_error "both ipv4 and ipv6 are disabled, nothing to do"
-
-    [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
 }
 
 resolve_svraddr() {
@@ -246,24 +273,6 @@ resolve_svraddr() {
     for svraddr in "${proxy_svraddr6[@]}"; do
         proxy_svripv6+=($(resolve_hostname6 "$svraddr"))
     done
-}
-
-check_depend() {
-    command_is_exists 'ip'      || log_error "command not found: ip"
-    command_is_exists 'ipset'   || log_error "command not found: ipset"
-    command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
-
-    is_true "$ipv4" && { command_is_exists 'iptables'  || log_error "command not found: iptables";  }
-    is_true "$ipv6" && { command_is_exists 'ip6tables' || log_error "command not found: ip6tables"; }
-
-    if is_gfwlist_mode; then
-        command_is_exists 'curl'   || log_warn "command not found: curl"
-        command_is_exists 'perl'   || log_warn "command not found: perl"
-        command_is_exists 'base64' || log_warn "command not found: base64"
-    elif is_chnroute_mode; then
-        command_is_exists 'curl'        || log_warn  "command not found: curl"
-        command_is_exists 'chinadns-ng' || log_error "command not found: chinadns-ng"
-    fi
 }
 
 update_chnlist() {
@@ -976,8 +985,7 @@ main() {
     fi
 
     load_config "${arguments[@]}"
-    for optentry in "${optentries[@]}"; do eval "$optentry"; done
-    check_depend
+    check_config
 
     case "${arguments[0]}" in
         start)           start; status;;
