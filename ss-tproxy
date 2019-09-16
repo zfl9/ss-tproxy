@@ -198,7 +198,7 @@ delete_pidfile() {
 load_config() {
     for optentry in "${optentries[@]}"; do eval "$optentry"; done
     if file_is_exists "$ss_tproxy_config"; then
-        source "$ss_tproxy_config" "$@"
+        source "$ss_tproxy_config" "${arguments[@]}"
     else
         log_error "file not found: $ss_tproxy_config"
     fi
@@ -984,7 +984,7 @@ main() {
         return 1
     fi
 
-    load_config "${arguments[@]}"
+    load_config
     check_config
 
     case "${arguments[0]}" in
