@@ -731,14 +731,14 @@ start_iptables_tproxy_mode() {
     local privaddr_array
     is_ipv4_ipts $1 && privaddr_array=("${IPV4_RESERVED_IPADDRS[@]}") || privaddr_array=("${IPV6_RESERVED_IPADDRS[@]}")
 
-    if is_gfwlist_mode; then
-        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
-        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
-    elif is_global_mode || is_chnroute_mode; then
+    if is_global_mode || is_chnroute_mode; then
         ipset -X $privaddr_setname &>/dev/null
         ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
         for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
+    elif is_gfwlist_mode; then
+        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
+        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
     fi
 
     ######################### SSTP_RULE (tcp and udp) #########################
@@ -835,14 +835,14 @@ start_iptables_redirect_mode() {
     local privaddr_array
     is_ipv4_ipts $1 && privaddr_array=("${IPV4_RESERVED_IPADDRS[@]}") || privaddr_array=("${IPV6_RESERVED_IPADDRS[@]}")
 
-    if is_gfwlist_mode; then
-        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
-        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
-    elif is_global_mode || is_chnroute_mode; then
+    if is_global_mode || is_chnroute_mode; then
         ipset -X $privaddr_setname &>/dev/null
         ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
         for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
+    elif is_gfwlist_mode; then
+        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
+        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
     fi
 
     ######################### SSTP_RULE (for tcp) #########################
