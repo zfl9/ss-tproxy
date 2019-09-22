@@ -747,57 +747,70 @@ start_iptables_tproxy_mode() {
     $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
     $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
+    if ! is_uidmatch_mode; then
+        for svr_ip in "${svr_ip_array[@]}"; do
+            $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+            is_false "$tcponly" && $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+        done
+    fi
 
-    if ! is_global_mode; then
+    if is_false "$tcponly"; then
         $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
-
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+        if ! is_global_mode; then
+            $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+            $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+        fi
+    else
+        if ! is_global_mode; then
+            $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+            $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+        fi
     fi
 
     if is_gfwlist_mode; then
-        $1 -t mangle -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+        $1 -t mangle -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
+        is_false "$tcponly" && $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     elif is_global_mode; then
         $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+        $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
+        is_false "$tcponly" && $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     elif is_chnroute_mode; then
         $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
         $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn                      -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+        $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
+        is_false "$tcponly" && $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
     fi
 
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
 
+    if is_uidmatch_mode; then
+        $1 -t mangle -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
+        $1 -t nat    -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -p udp -d $loopback_addr --dport 53 -j DNAT --to-destination $direct_dns_ip
+    fi
+
     if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
     fi
 
     $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-    $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+    is_false "$tcponly" && $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
 
     $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
 
     if is_false "$selfonly"; then
         if is_nonstd_dnsport "$dnsmasq_bind_port"; then
-            $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
-            $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+            is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
+            $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
         fi
 
         $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+        is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
     fi
 
     $1 -t mangle -A SSTP_PREROUTING -p tcp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport
-    $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
+    is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
 
     check_snatrule $1
 }
@@ -847,9 +860,15 @@ start_iptables_redirect_mode() {
 
     $1 -t nat -N SSTP_RULE
 
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
+    if ! is_uidmatch_mode; then
+        for svr_ip in "${svr_ip_array[@]}"; do
+            $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+        done
+    fi
+
+    if is_true "$tcponly" && ! is_global_mode; then
+        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j REDIRECT --to-ports $proxy_tcpport
+    fi
 
     if is_gfwlist_mode; then
         $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
@@ -864,57 +883,66 @@ start_iptables_redirect_mode() {
 
     ######################### SSTP_RULE (for udp) #########################
 
-    $1 -t mangle -N SSTP_RULE
+    if is_false "$tcponly"; then
+        $1 -t mangle -N SSTP_RULE
 
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
-    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
+        $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
+        $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
+        if ! is_uidmatch_mode; then
+            for svr_ip in "${svr_ip_array[@]}"; do
+                $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+            done
+        fi
 
-    if ! is_global_mode; then
         $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
+        if ! is_global_mode; then
+            $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+            $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+        fi
 
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+        if is_gfwlist_mode; then
+            $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+        elif is_global_mode; then
+            $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
+            $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+        elif is_chnroute_mode; then
+            $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
+            $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
+            $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
+        fi
+
+        $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
     fi
-
-    if is_gfwlist_mode; then
-        $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    elif is_global_mode; then
-        $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    elif is_chnroute_mode; then
-        $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    fi
-
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
+
+    if is_uidmatch_mode; then
+        is_false "$tcponly" && $1 -t mangle -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
+        $1 -t nat -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -p udp -d $loopback_addr --dport 53 -j DNAT --to-destination $direct_dns_ip
+        $1 -t nat -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
+    fi
 
     if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
     fi
 
-    $1 -t nat    -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-    $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+    $1 -t nat -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
+    is_false "$tcponly" && $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
 
-    $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
+    is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
 
     if is_false "$selfonly"; then
         if is_nonstd_dnsport "$dnsmasq_bind_port"; then
-            $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
-            $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
+            is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
+            $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
         fi
 
-        $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+        $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
+        is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
     fi
 
-    $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
+    is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
 
     check_snatrule $1
 }
