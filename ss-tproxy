@@ -738,7 +738,6 @@ start_iptables_tproxy_mode() {
     elif is_gfwlist_mode; then
         ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
         grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
-        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
     fi
 
     ######################### SSTP_RULE (tcp and udp) #########################
@@ -842,7 +841,6 @@ start_iptables_redirect_mode() {
     elif is_gfwlist_mode; then
         ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
         grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
-        for svr_ip in "${svr_ip_array[@]}"; do echo "-A $gfwlist_setname $svr_ip"; done | ipset -R &>/dev/null
     fi
 
     ######################### SSTP_RULE (for tcp) #########################
