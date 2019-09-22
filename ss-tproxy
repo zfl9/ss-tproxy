@@ -134,6 +134,10 @@ is_domain_name() {
     ! is_ipv4_address "$1" && ! is_ipv6_address "$1"
 }
 
+is_nonstd_dnsport() {
+    [ "$1" != '53' ]
+}
+
 set_sysctl_option() {
     local option_name="$1" option_value="$2"
     if command_is_exists "sysctl"; then
@@ -721,7 +725,7 @@ start_iptables_tproxy_mode() {
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
 
-    if [ "$dnsmasq_bind_port" != '53' ]; then
+    if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
     fi
 
@@ -731,7 +735,7 @@ start_iptables_tproxy_mode() {
     $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
 
     if is_false "$selfonly"; then
-        if [ "$dnsmasq_bind_port" != '53' ]; then
+        if is_nonstd_dnsport "$dnsmasq_bind_port"; then
             $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
             $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
         fi
@@ -840,7 +844,7 @@ start_iptables_redirect_mode() {
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
 
-    if [ "$dnsmasq_bind_port" != '53' ]; then
+    if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
     fi
 
@@ -850,7 +854,7 @@ start_iptables_redirect_mode() {
     $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
 
     if is_false "$selfonly"; then
-        if [ "$dnsmasq_bind_port" != '53' ]; then
+        if is_nonstd_dnsport "$dnsmasq_bind_port"; then
             $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
             $1 -t nat    -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
         fi
