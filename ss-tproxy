@@ -125,12 +125,16 @@ is_chnroute_mode() {
     [ "$mode" = 'chnroute' ]
 }
 
+is_enabled_udp() {
+    is_false "$tcponly"
+}
+
 is_uidmatch_mode() {
     [ "$proxy_runuser" ]
 }
 
 is_need_iproute() {
-    ! { is_true "$tcponly" && is_false "$tproxy"; }
+    is_true "$tproxy" || is_enabled_udp
 }
 
 is_nonstd_dnsport() {
@@ -239,8 +243,8 @@ check_config() {
     is_need_iproute && { command_is_exists 'ip' || log_error "command not found: ip"; }
     is_true "$ipv4" && { command_is_exists 'iptables'  || log_error "command not found: iptables";  }
     is_true "$ipv6" && { command_is_exists 'ip6tables' || log_error "command not found: ip6tables"; }
-    is_true "$tcponly" && { command_is_exists "dns2tcp" || log_error "command not found: dns2tcp"; }
     is_chnroute_mode && { command_is_exists 'chinadns-ng' || log_error "command not found: chinadns-ng"; }
+    ! is_enabled_udp && { command_is_exists "dns2tcp" || log_error "command not found: dns2tcp"; }
 
     case "$opts_ss_netstat" in
         auto)
