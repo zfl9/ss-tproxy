@@ -865,8 +865,8 @@ start_iptables_redirect_mode() {
         done
     fi
 
-    if is_true "$tcponly" && ! is_global_mode; then
-        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j REDIRECT --to-ports $proxy_tcpport
+    if ! is_enabled_udp && ! is_global_mode; then
+        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port --syn -j REDIRECT --to-ports $proxy_tcpport
     fi
 
     if is_gfwlist_mode; then
@@ -882,7 +882,7 @@ start_iptables_redirect_mode() {
 
     ######################### SSTP_RULE (for udp) #########################
 
-    if is_false "$tcponly"; then
+    if is_enabled_udp; then
         $1 -t mangle -N SSTP_RULE
 
         $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
@@ -917,7 +917,7 @@ start_iptables_redirect_mode() {
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
 
     if is_uidmatch_mode; then
-        is_false "$tcponly" && $1 -t mangle -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
+        is_enabled_udp && $1 -t mangle -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
         $1 -t nat -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -p udp -d $loopback_addr --dport 53 -j DNAT --to-destination $direct_dns_ip
         $1 -t nat -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
     fi
@@ -927,21 +927,21 @@ start_iptables_redirect_mode() {
     fi
 
     $1 -t nat -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-    is_false "$tcponly" && $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+    is_enabled_udp && $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
 
-    is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
+    is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
 
     if is_false "$selfonly"; then
         if is_nonstd_dnsport "$dnsmasq_bind_port"; then
-            is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
+            is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
             $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
         fi
 
         $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-        is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
+        is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
     fi
 
-    is_false "$tcponly" && $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
+    is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
 
     check_snatrule $1
 }
