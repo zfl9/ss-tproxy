@@ -289,7 +289,7 @@ update_chnlist() {
     echo "$data" | gawk -F/ '{print $2}' >$file_gfwlist_txt
 }
 
-gfwlist_txt_perl_script_string='
+readonly GFWLIST_TXT_PERL_SCRIPT_STRING='
 if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
 s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
 s@^\|\|?|\|$@@;
@@ -323,7 +323,7 @@ update_gfwlist() {
     base64 --decode </dev/null &>/dev/null && base64_decode='base64 --decode'
     [ "$base64_decode" ] || log_error "command args is not support: base64 -d/--decode"
 
-    echo "$data" | $base64_decode | { perl -pe "$gfwlist_txt_perl_script_string"; gfwlist_txt_append_domain_names; } | sort | uniq >$file_gfwlist_txt
+    echo "$data" | $base64_decode | { perl -pe "$GFWLIST_TXT_PERL_SCRIPT_STRING"; gfwlist_txt_append_domain_names; } | sort | uniq >$file_gfwlist_txt
 }
 
 update_chnroute() {
