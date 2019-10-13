@@ -444,8 +444,8 @@ EOF
 }
 
 start_dnsserver() {
+    local dnsmasq_append_config=("${dnsmasq_conf_string[@]}")
     if ! is_uidmatch_mode; then
-        local dnsmasq_append_config=()
         for ((i = 0; i < ${#proxy_svraddr4[@]}; ++i)); do
             local server_host="${proxy_svraddr4[$i]}"
             local server_addr="${proxy_svripv4[$i]}"
@@ -462,7 +462,7 @@ start_dnsserver() {
         done
     fi
 
-    if is_true "$tcponly"; then
+    if ! is_enabled_udp; then
         local original_dns_remote="$dns_remote"
         local original_dns_remote6="$dns_remote6"
         dns_remote="127.0.0.1#$dns2tcp_bind_port"
@@ -477,7 +477,7 @@ start_dnsserver() {
         start_dnsserver_chnroute
     fi
 
-    if is_true "$tcponly"; then
+    if ! is_enabled_udp; then
         local dns2tcp_listen_addr4="$dns_remote"
         local dns2tcp_listen_addr6="$dns_remote6"
         local dns2tcp_remote_addr4="$original_dns_remote"
@@ -500,7 +500,7 @@ start_dnsserver() {
 }
 
 stop_dnsserver() {
-    kill -9 $status_dnsmasq_pid &>/dev/null
+    kill -9 $status_dnsmasq_pid  &>/dev/null
     kill -9 $status_chinadns_pid &>/dev/null
     kill -9 $status_dns2tcp4_pid &>/dev/null
     kill -9 $status_dns2tcp6_pid &>/dev/null
