@@ -129,10 +129,6 @@ is_enabled_udp() {
     is_false "$tcponly"
 }
 
-is_uidmatch_mode() {
-    [ "$proxy_runuser" ]
-}
-
 is_need_iproute() {
     is_true "$tproxy" || is_enabled_udp
 }
@@ -233,10 +229,8 @@ check_config() {
 
     { is_false "$ipv4" && is_false "$ipv6"; } && log_error "both ipv4 and ipv6 are disabled, nothing to do"
 
-    if ! is_uidmatch_mode; then
-        [ -z "$proxy_svrport" ] && log_error "the value of the proxy_svrport option is empty: $proxy_svrport"
-        [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
-    fi
+    [ -z "$proxy_svrport" ] && log_error "the value of the proxy_svrport option is empty: $proxy_svrport"
+    [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
 
     command_is_exists 'ipset'   || log_error "command not found: ipset"
     command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
@@ -269,8 +263,6 @@ check_config() {
 }
 
 resolve_svraddr() {
-    is_uidmatch_mode && return
-
     proxy_svripv4=()
     for svraddr in "${proxy_svraddr4[@]}"; do
         proxy_svripv4+=($(resolve_hostname4 "$svraddr"))
@@ -445,22 +437,20 @@ EOF
 
 start_dnsserver() {
     local dnsmasq_append_config=("${dnsmasq_conf_string[@]}")
-    if ! is_uidmatch_mode; then
-        for ((i = 0; i < ${#proxy_svraddr4[@]}; ++i)); do
-            local server_host="${proxy_svraddr4[$i]}"
-            local server_addr="${proxy_svripv4[$i]}"
-            if is_domain_name "$server_host"; then
-                dnsmasq_append_config+=("address = /$server_host/$server_addr")
-            fi
-        done
-        for ((i = 0; i < ${#proxy_svraddr6[@]}; ++i)); do
-            local server_host="${proxy_svraddr6[$i]}"
-            local server_addr="${proxy_svripv6[$i]}"
-            if is_domain_name "$server_host"; then
-                dnsmasq_append_config+=("address = /$server_host/$server_addr")
-            fi
-        done
-    fi
+    for ((i = 0; i < ${#proxy_svraddr4[@]}; ++i)); do
+        local server_host="${proxy_svraddr4[$i]}"
+        local server_addr="${proxy_svripv4[$i]}"
+        if is_domain_name "$server_host"; then
+            dnsmasq_append_config+=("address = /$server_host/$server_addr")
+        fi
+    done
+    for ((i = 0; i < ${#proxy_svraddr6[@]}; ++i)); do
+        local server_host="${proxy_svraddr6[$i]}"
+        local server_addr="${proxy_svripv6[$i]}"
+        if is_domain_name "$server_host"; then
+            dnsmasq_append_config+=("address = /$server_host/$server_addr")
+        fi
+    done
 
     if ! is_enabled_udp; then
         local original_dns_remote="$dns_remote"
@@ -746,12 +736,10 @@ start_iptables_tproxy_mode() {
     $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
     $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
-    if ! is_uidmatch_mode; then
-        for svr_ip in "${svr_ip_array[@]}"; do
-            $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-            is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        done
-    fi
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+        is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
 
     if is_enabled_udp; then
         $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
@@ -783,11 +771,6 @@ start_iptables_tproxy_mode() {
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
-
-    if is_uidmatch_mode; then
-        $1 -t mangle -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
-        $1 -t nat    -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -p udp -d $loopback_addr --dport 53 -j DNAT --to-destination $direct_dns_ip
-    fi
 
     if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
@@ -859,11 +842,9 @@ start_iptables_redirect_mode() {
 
     $1 -t nat -N SSTP_RULE
 
-    if ! is_uidmatch_mode; then
-        for svr_ip in "${svr_ip_array[@]}"; do
-            $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        done
-    fi
+    for svr_ip in "${svr_ip_array[@]}"; do
+        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+    done
 
     if ! is_enabled_udp && ! is_global_mode; then
         $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port --syn -j REDIRECT --to-ports $proxy_tcpport
@@ -888,11 +869,9 @@ start_iptables_redirect_mode() {
         $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
         $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
-        if ! is_uidmatch_mode; then
-            for svr_ip in "${svr_ip_array[@]}"; do
-                $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-            done
-        fi
+        for svr_ip in "${svr_ip_array[@]}"; do
+            $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+        done
 
         $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
         if ! is_global_mode; then
@@ -915,12 +894,6 @@ start_iptables_redirect_mode() {
     fi
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
-
-    if is_uidmatch_mode; then
-        is_enabled_udp && $1 -t mangle -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
-        $1 -t nat -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -p udp -d $loopback_addr --dport 53 -j DNAT --to-destination $direct_dns_ip
-        $1 -t nat -A SSTP_OUTPUT -m owner --uid-owner $proxy_runuser -j RETURN
-    fi
 
     if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
