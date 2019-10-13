@@ -398,6 +398,7 @@ EOF
 start_dnsserver_chnroute() {
     local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -o $chinadns_timeout -p $chinadns_repeat"
     is_true "$chinadns_noip_as_chnip" && chinadns_args+=" -n"
+    is_true "$chinadns_gfwlist_mode" && chinadns_args+=" -g-"
     is_true "$chinadns_fairmode" && chinadns_args+=" -f"
     is_true "$chinadns_verbose" && chinadns_args+=" -v"
     if is_true "$ipv4" && is_true "$ipv6"; then
@@ -416,7 +417,12 @@ start_dnsserver_chnroute() {
     ipset -R <$file_chnroute6_set
     for privaddr in "${chinadns_privaddr4[@]}"; do echo "-A chnroute $privaddr"; done | ipset -R &>/dev/null
     for privaddr in "${chinadns_privaddr6[@]}"; do echo "-A chnroute6 $privaddr"; done | ipset -R &>/dev/null
-    status_chinadns_pid=$(chinadns-ng $chinadns_args </dev/null &>>$chinadns_logfile & echo $!)
+    if is_true "$chinadns_gfwlist_mode"; then
+        local gfwlist_domain_string=$(cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-)
+        status_chinadns_pid=$(chinadns-ng $chinadns_args <<<"$gfwlist_domain_string" &>>$chinadns_logfile & echo $!)
+    else
+        status_chinadns_pid=$(chinadns-ng $chinadns_args </dev/null &>>$chinadns_logfile & echo $!)
+    fi
 
     local dnsmasq_config_string=$(cat <<EOF
 $(is_true "$dnsmasq_log_enable" && echo 'log-queries')
