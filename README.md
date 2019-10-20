@@ -44,19 +44,16 @@ v4.0/v4.6 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模
 > 有人可能会有疑问，为什么使用 ss-tproxy 后，虽然可以访问谷歌，但依旧无法 ping 谷歌，这是为什么呢？这是因为 ping 走的是 ICMP 协议，没有哪个代理软件会去支持 ICMP 的代理，因为 ICMP 的代理并没有任何实际意义。
 
 ## 相关依赖
-核心依赖：
-- `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
-- `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
+- `iptables`：用于配置 IPv4 的透明代理规则，仅在启用 IPv4 透明代理时需要。
+- `ip6tables`：用于配置 IPv6 的透明代理规则，仅在启用 IPv6 透明代理时需要。
 - `ipset`：用于存储 gfwlist/chnlist 的黑名单 IP、global/chnroute 的白名单 IP。
 - `dnsmasq`：DNS 服务，对于 gfwlist/chnlist 模式，该 dnsmasq 需支持 `--ipset` 选项。
-- `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
+- `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，不是原版 chinadns。
 - `xt_TPROXY`：TPROXY 内核模块，如果使用 redirect + tcponly 代理模式，则不需要此依赖。
 - `ip`：用于配置策略路由（TPROXY），如果使用 redirect + tcponly 代理模式，则不需要此依赖。
 - `dns2tcp`：将 DNS 查询从 UDP 模式转换为 TCP 模式，只有使用 tcponly 模式时，才需要此依赖。
 
-> 如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng，安装依赖之前先检查当前系统是否已有对应依赖。
-
-可选依赖：
+如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng。ss-tproxy 脚本在启动时会检查当前配置所需的依赖，只需要根据提示安装缺少的依赖即可。另外这是其它一些可选依赖：
 - `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
 - `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
 - `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `adblock plus` 规则，要进行转换。
