@@ -741,16 +741,12 @@ start_iptables_tproxy_mode() {
     done
 
     if is_enabled_udp; then
-        $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53 -j RETURN
-        if ! is_global_mode; then
-            $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-            $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
-        fi
+        $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53               -j RETURN
+        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
     else
-        if ! is_global_mode; then
-            $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-            $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
-        fi
+        $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
+        $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
     fi
 
     if is_gfwlist_mode; then
