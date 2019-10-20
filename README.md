@@ -340,6 +340,7 @@ else
     dnsmasq_conf_file=()
 fi
 ```
+> v4.6 版本也可以利用 `dnsmasq_conf_string` 选项直接在 ss-tproxy.conf 中指定这些 dnsmasq 配置。
 
 3、不想让某些内网主机走 ss-tproxy 的透明代理，即使它们将网关设为 ss-tproxy 主机，那么可以这么做：
 ```bash
