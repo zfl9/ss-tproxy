@@ -210,7 +210,7 @@ v2ray 的 `proxy_startcmd`、`proxy_stopcmd` 例子，假设使用 systemctl 进
 proxy_startcmd='systemctl start v2ray'
 proxy_stopcmd='systemctl stop v2ray'
 ```
-> 据反馈，v2ray 的 dokodemo-door 入站协议的 UDP 有 bug，会断流，可使用 redsocks2/ipt2socks + socks5 入站协议进行缓解。
+> 据反馈，v2ray 的 dokodemo 入站协议的 UDP 有 bug，会断流，可使用 redsocks2/ipt2socks + socks5 入站协议缓解。
 
 **钩子函数**
 
