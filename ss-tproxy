@@ -526,7 +526,7 @@ restore_resolvconf() {
 }
 
 start_proxy_proc() {
-    eval "$proxy_startcmd"
+    eval "$proxy_startcmd" || log_error "failed to start local proxy process, exit-code: $?"
 }
 
 stop_proxy_proc() {
@@ -539,7 +539,6 @@ enable_ipforward() {
 }
 
 disable_icmpredir() {
-    is_false "$ipv4" && return
     for dir in $(ls /proc/sys/net/ipv4/conf); do
         set_sysctl_option "net.ipv4.conf.$dir.send_redirects" 0
     done
@@ -970,19 +969,17 @@ stop() {
 status() {
     if is_global_mode; then
         echo "mode:     global"
-        tcp_port_is_exists $proxy_tcpport       && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-        udp_port_is_exists $proxy_udpport       && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
-        process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
     elif is_gfwlist_mode; then
         echo "mode:     gfwlist"
-        tcp_port_is_exists $proxy_tcpport       && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-        udp_port_is_exists $proxy_udpport       && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
-        process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
     elif is_chnroute_mode; then
         echo "mode:     chnroute"
-        tcp_port_is_exists $proxy_tcpport       && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-        udp_port_is_exists $proxy_udpport       && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
-        process_is_running $status_dnsmasq_pid  && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
+    fi
+    tcp_port_is_exists $proxy_tcpport && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
+    if is_enabled_udp; then
+        udp_port_is_exists $proxy_udpport && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
+    fi
+    process_is_running $status_dnsmasq_pid && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
+    if is_chnroute_mode; then
         process_is_running $status_chinadns_pid && echo "chinadns: $(color_green '[running]')" || echo "chinadns: $(color_red '[stopped]')"
     fi
     if ! is_enabled_udp; then
