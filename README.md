@@ -246,6 +246,7 @@ $ipts -t nat    -A PREROUTING  -j SSTP_PREROUTING
 $ipts -t nat    -A OUTPUT      -j SSTP_OUTPUT
 $ipts -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 ```
+> 注意，v4.6 版本会自动删除未使用的 SSTP_* 规则链，不要过于依赖它们。
 
 **脚本开机自启**
 
