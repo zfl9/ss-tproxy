@@ -70,6 +70,7 @@ mkdir -p /etc/ss-tproxy
 cp -af ss-tproxy.conf gfwlist* chnroute* /etc/ss-tproxy
 cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
+> 脚本配置目录在 `/etc/ss-tproxy`，不是 git clone 下来的目录！
 
 ## 卸载脚本
 ```bash
