@@ -44,8 +44,8 @@ v4.0/v4.6 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模
 > 有人可能会有疑问，为什么使用 ss-tproxy 后，虽然可以访问谷歌，但依旧无法 ping 谷歌，这是为什么呢？这是因为 ping 走的是 ICMP 协议，没有哪个代理软件会去支持 ICMP 的代理，因为 ICMP 的代理并没有任何实际意义。
 
 ## 相关依赖
-- `iptables`：用于配置 IPv4 的透明代理规则，仅在启用 IPv4 透明代理时需要。
-- `ip6tables`：用于配置 IPv6 的透明代理规则，仅在启用 IPv6 透明代理时需要。
+- `iptables`：用于配置 IPv4 透明代理规则，仅在启用 IPv4 透明代理时需要。
+- `ip6tables`：用于配置 IPv6 透明代理规则，仅在启用 IPv6 透明代理时需要。
 - `ipset`：用于存储 gfwlist/chnlist 的黑名单 IP、global/chnroute 的白名单 IP。
 - `dnsmasq`：DNS 服务，对于 gfwlist/chnlist 模式，该 dnsmasq 需支持 `--ipset` 选项。
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，不是原版 chinadns。
