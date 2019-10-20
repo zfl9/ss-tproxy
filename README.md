@@ -19,7 +19,7 @@
 
 另外还有一点需要注意，透明代理使用的 client 与正向代理使用的 client 通常是不同的，因为正向代理的 client 是 http、socks5 服务器，而透明代理的 client 则是透明代理服务器，它们之间有本质上的区别。对于 ss，你需要使用 ss-libev 版本（ss-redir），ssr 则需要使用 ssr-libev 版本（ssr-redir），而对于 v2ray，配置好 `dokodemo-door` 入站协议即可。再次强调，透明代理只是 client 不同，并不关心你的 server 是什么版本，因此你的 vps 上，可以运行所有与之兼容的 server 版本，以 ss/ssr 为例，你可以使用 python 版的 ss、ssr，也可以使用 golang 版的 ss、ssr 等等，只要它们之间可以兼容。
 
-> 如果没有条件使用 ss-libev、ssr-libev，或只有 socks5 客户端，也可以参照 FAQ 里面的教程进行简单的适配工作。
+如果没有条件使用 ss-libev、ssr-libev，或者只有 socks5 client，也可以使用 redsocks/redsocks2/ipt2socks 等工具将 iptables 透明代理数据转换为 socks5 协议数据，这样就可以与后端的 socks5 client 进行交互了。[redsocks](https://github.com/darkk/redsocks) 目前只支持 TCP 透明代理，[redsocks2](https://github.com/semigodking/redsocks) 支持 TCP、UDP 透明代理，[ipt2socks](https://github.com/zfl9/ipt2socks) 支持 TCP、UDP 透明代理。其中 ipt2socks 是我自己利用业余时间写的一个小工具，编译、配置、使用方法都比前两者简单，只有一个核心功能：`iptables-to-socks5`，没有附带任何不必要的功能（redsocks2 集成了很多我不想要的东西）。`iptables-to-socks` 的具体配置方法见 FAQ。
 
 ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境中，可以透明代理 ss-tproxy 主机本身以及所有网关指向 ss-tproxy 主机的其它主机的 TCP、UDP 流量。也就是说，你可以在任意一台 Linux 主机上部署 ss-tproxy 脚本，然后同一局域网内的其它主机可以随时将其网关及 DNS 指向 ss-tproxy 主机，这样它们的 TCP 和 UDP 流量就会自动走代理了。
 
