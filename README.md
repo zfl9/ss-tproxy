@@ -47,11 +47,12 @@ v4.0/v4.6 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模
 核心依赖：
 - `iptables`：核心部件，用于配置 IPv4 的透明代理规则。
 - `ip6tables`：核心部件，用于配置 IPv6 的透明代理规则。
-- `xt_TPROXY`：xt_TPROXY 内核模块，用于透明代理 UDP 流量。
-- `ip`：通常位于 iproute2 软件包，用于配置策略路由（TPROXY）。
 - `ipset`：用于存储 gfwlist/chnlist 的黑名单 IP、global/chnroute 的白名单 IP。
 - `dnsmasq`：DNS 服务，对于 gfwlist/chnlist 模式，该 dnsmasq 需支持 `--ipset` 选项。
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，而不是原版 chinadns。
+- `xt_TPROXY`：TPROXY 内核模块，如果使用 redirect + tcponly 代理模式，则不需要此依赖。
+- `ip`：用于配置策略路由（TPROXY），如果使用 redirect + tcponly 代理模式，则不需要此依赖。
+- `dns2tcp`：将 DNS 查询从 UDP 模式转换为 TCP 模式，只有使用 tcponly 模式时，才需要此依赖。
 
 > 如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng，安装依赖之前先检查当前系统是否已有对应依赖。
 
