@@ -376,11 +376,11 @@ post_start() {
 [ss-tproxy 常见问题解答](https://www.zfl9.com/ss-redir.html#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
 
 如果透明代理未正常工作，请先自行按照如下顺序进行一个简单的排查：
-1. 检查 ss-tproxy.conf 以及代理软件的配置是否正确，此文详细说明了许多配置细节，它们并不是废话，请务必仔细阅读此文。如果确认配置无误，那么请务必开启代理进程的详细日志（debug/verbose logging），以及 dnsmasq、chinadns-ng 的详细日志（ss-tproxy.conf），日志是调试的基础。
+1. 检查 ss-tproxy.conf 以及代理软件的配置是否正确，此文详细说明了许多配置细节，它们并不是废话，请务必仔细阅读此文。如果确认配置无误，那么请务必开启代理进程的详细日志（debug/verbose logging），以及 dnsmasq、chinadns-ng、dns2tcp 的详细日志（ss-tproxy.conf），日志是调试的基础。
 2. 如果 ss-tproxy 在配置正确的情况下出现运行时报错，请在执行 ss-tproxy 相关命令时带上 `-x` 调试选项，以查看是哪条命令报的错。出现这种错误通常是脚本自身的问题，可直接通过 issue 报告此错误，但是你需要提供尽可能详细的信息，别一句话就应付了我，这等同于应付了你自己。
-3. 如果 ss-tproxy status 显示的状态不正常，那么通常都是配置问题，`pxy/tcp` 显示 stopped 表示代理进程的 TCP 端口未监听，`pxy/udp` 显示 stopped 表示代理进程的 UDP 端口未监听，`dnsmasq` 和 `chinadns-ng` 显示 stopped 时请查看它们各自的日志文件，可能是监听端口被占用了，等等。
-4. 在 ss-tproxy 主机上检查 DNS 是否工作正常，域名解析是访问互联网的第一步，这一步如果出问题，后面的就不用测试了。这里选择 dig 作为 DNS 调试工具，因此请先安装 dig 工具。在调试 DNS 之前，先开启几个终端，分别 `tail -f` 代理进程、dnsmasq、chinadns-ng 的日志文件；然后再开一个终端，执行 `dig www.baidu.com`、`dig www.google.com`，观察 dig 以及前面几个终端的日志输出，发现不对的地方可以先尝试自行解决，如果解决不了，请通过 issue 报告它。对于 ss/ssr，最常见的错误就是代理的 udp relay 未开启，因此请先确保 udp relay 是否正常，udp relay 不正常会导致 `dig www.google.com` 解析失败；如果确认已开启 udp relay，那么你还要注意是否出现了 udp 丢包，某些 ISP 会对 udp 数据包进行恶意性丢弃，检查 udp 是否丢包通常需要检查本地以及 vps 上的代理进程的详细日志输出。
-5. 如果 ss-tproxy 主机的 DNS 工作正常，说明 UDP 透明代理应该是正常的，那么接下来应该检查 TCP 透明代理，最简单的方式就是使用 curl 工具进行检测，首先安装 curl 工具，然后执行 `curl -4vsSkL https://www.baidu.com`、`curl -4vsSkL https://www.google.com`，如果启用了 ss-tproxy 的 IPv6 透明代理支持，则还应该进行 IPv6 的网页浏览测试，即执行 `curl -6vsSkL https://ipv6.baidu.com`、`curl -6vsSkL https://ipv6.google.com`，观察它们的输出是否正常（即是否能够正常获取 HTML 源码），同时观察代理进程、dnsmasq、chinadns-ng 的日志输出。
-6. 如果 ss-tproxy 主机的 DNS 以及 curl 测试都没问题，那么就进行最后一步，在其它内网主机上分别测试 DNS 以及 TCP 透明代理（最简单的就是浏览器访问百度、谷歌），同时你也应该观察代理进程、dnsmasq、chinadns-ng 的日志输出。对于某些系统，可能会优先使用 IPv6 网络（特别是解析 DNS 时），因此如果你没有启用 ss-tproxy 的 IPv6 透明代理，那么请通过各种手段禁用 IPv6（或者进行其它一些妥当的处理），否则会影响透明代理的正常使用。
+3. 如果 ss-tproxy status 显示的状态不正常，那么通常都是配置问题，`pxy/tcp` 显示 stopped 表示代理进程的 TCP 端口未监听，`pxy/udp` 显示 stopped 表示代理进程的 UDP 端口未监听，`dnsmasq`、`chinadns-ng`、`dns2tcp` 显示 stopped 时请查看它们各自的日志文件，可能是监听端口被占用了，等等。
+4. 在 ss-tproxy 主机上检查 DNS 是否工作正常，域名解析是访问互联网的第一步，这一步如果出问题，后面的就不用测试了。这里选择 dig 作为 DNS 调试工具，因此请先安装 dig 工具。在调试 DNS 之前，先开启几个终端，分别 `tail -f` 代理进程、dnsmasq、chinadns-ng、dns2tcp 的日志文件；然后再开一个终端，执行 `dig www.baidu.com`、`dig www.google.com`，观察 dig 以及前面几个终端的日志输出，发现不对的地方可以先尝试自行解决，如果解决不了，请通过 issue 报告它。对于 ss/ssr，最常见的错误就是代理的 udp relay 未开启（tcponly 模式除外），因此请先确保 udp relay 是否正常，udp relay 不正常会导致 `dig www.google.com` 解析失败；如果确认已开启 udp relay，那么你还要注意是否出现了 udp 丢包，某些 ISP 会对 udp 数据包进行恶意性丢弃，检查 udp 是否丢包通常需要检查本地以及 vps 上的代理进程的详细日志输出。
+5. 如果 ss-tproxy 主机的 DNS 工作正常，说明 UDP 透明代理应该是正常的，那么接下来应该检查 TCP 透明代理，最简单的方式就是使用 curl 工具进行检测，首先安装 curl 工具，然后执行 `curl -4vsSkL https://www.baidu.com`、`curl -4vsSkL https://www.google.com`，如果启用了 ss-tproxy 的 IPv6 透明代理支持，则还应该进行 IPv6 的网页浏览测试，即执行 `curl -6vsSkL https://ipv6.baidu.com`、`curl -6vsSkL https://ipv6.google.com`，观察它们的输出是否正常（即是否能够正常获取 HTML 源码），同时观察代理进程、dnsmasq、chinadns-ng、dns2tcp 的日志输出。
+6. 如果 ss-tproxy 主机的 DNS 以及 curl 测试都没问题，那么就进行最后一步，在其它内网主机上分别测试 DNS 以及 TCP 透明代理（最简单的就是浏览器访问百度、谷歌），同时你也应该观察代理进程、dnsmasq、chinadns-ng、dns2tcp 的日志输出。对于某些系统，可能会优先使用 IPv6 网络（特别是解析 DNS 时），因此如果你没有启用 ss-tproxy 的 IPv6 透明代理，那么请通过各种手段禁用 IPv6（或者进行其它一些妥当的处理），否则会影响透明代理的正常使用。
 
 > 在报告问题时，请务必提供详细信息，而不是单纯一句话，xxx 不能工作，这对于问题的解决没有任何帮助。
