@@ -345,22 +345,24 @@ fi
 3、不想让某些内网主机走 ss-tproxy 的透明代理，即使它们将网关设为 ss-tproxy 主机，那么可以这么做：
 ```bash
 post_start() {
-    if is_true "$ipv4"; then
-        # 定义要放行的 IPv4 地址
-        local intranet_ignore_list=(192.168.1.100 192.168.1.200)
-        for ipaddr in "${intranet_ignore_list[@]}"; do
-            iptables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
-            iptables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
-        done
-    fi
+    if is_false "$selfonly"; then
+        if is_true "$ipv4"; then
+            # 定义要放行的 IPv4 地址
+            local intranet_ignore_list=(192.168.1.100 192.168.1.200)
+            for ipaddr in "${intranet_ignore_list[@]}"; do
+                iptables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
+                iptables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
+            done
+        fi
 
-    if is_true "$ipv6"; then
-        # 定义要放行的 IPv6 地址
-        local intranet_ignore_list6=(fd00:abcd::1111 fd00:abcd::2222)
-        for ipaddr in "${intranet_ignore_list6[@]}"; do
-            ip6tables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
-            ip6tables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
-        done
+        if is_true "$ipv6"; then
+            # 定义要放行的 IPv6 地址
+            local intranet_ignore_list6=(fd00:abcd::1111 fd00:abcd::2222)
+            for ipaddr in "${intranet_ignore_list6[@]}"; do
+                ip6tables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
+                ip6tables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
+            done
+        fi
     fi
 }
 ```
