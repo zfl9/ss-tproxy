@@ -137,6 +137,11 @@ is_nonstd_dnsport() {
     [ "$1" != '53' ]
 }
 
+is_empty_iptschain() {
+    local ipts="$1" table="$2" chain="$3"
+    [ $($ipts -t $table -nvL $chain --line-numbers | grep -Ec '^[0-9]') -eq 0 ]
+}
+
 is_ipv4_address() {
     [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$1") -ne 0 ]
 }
@@ -664,6 +669,34 @@ flush_postrule() {
     is_true "$ipv6" && _flush_postrule "ip6tables"
 }
 
+_delete_unused_iptchains() {
+    if is_empty_iptschain $1 mangle SSTP_PREROUTING; then
+        $1 -t mangle -D PREROUTING -j SSTP_PREROUTING
+        $1 -t mangle -X SSTP_PREROUTING
+    fi
+    if is_empty_iptschain $1 mangle SSTP_OUTPUT; then
+        $1 -t mangle -D OUTPUT -j SSTP_OUTPUT
+        $1 -t mangle -X SSTP_OUTPUT
+    fi
+    if is_empty_iptschain $1 nat SSTP_PREROUTING; then
+        $1 -t nat -D PREROUTING -j SSTP_PREROUTING
+        $1 -t nat -X SSTP_PREROUTING
+    fi
+    if is_empty_iptschain $1 nat SSTP_OUTPUT; then
+        $1 -t nat -D OUTPUT -j SSTP_OUTPUT
+        $1 -t nat -X SSTP_OUTPUT
+    fi
+    if is_empty_iptschain $1 nat SSTP_POSTROUTING; then
+        $1 -t nat -D POSTROUTING -j SSTP_POSTROUTING
+        $1 -t nat -X SSTP_POSTROUTING
+    fi
+}
+
+delete_unused_iptchains() {
+    is_true "$ipv4" && _delete_unused_iptchains "iptables"
+    is_true "$ipv6" && _delete_unused_iptchains "ip6tables"
+}
+
 start_iptables_pre_rules() {
     $1 -t mangle -N SSTP_PREROUTING
     $1 -t mangle -N SSTP_OUTPUT
@@ -680,11 +713,11 @@ start_iptables_pre_rules() {
 }
 
 start_iptables_post_rules() {
-    $1 -t mangle -X SSTP_PREROUTING  &>/dev/null || $1 -t mangle -A PREROUTING  -j SSTP_PREROUTING
-    $1 -t mangle -X SSTP_OUTPUT      &>/dev/null || $1 -t mangle -A OUTPUT      -j SSTP_OUTPUT
-    $1 -t nat    -X SSTP_PREROUTING  &>/dev/null || $1 -t nat    -A PREROUTING  -j SSTP_PREROUTING
-    $1 -t nat    -X SSTP_OUTPUT      &>/dev/null || $1 -t nat    -A OUTPUT      -j SSTP_OUTPUT
-    $1 -t nat    -X SSTP_POSTROUTING &>/dev/null || $1 -t nat    -A POSTROUTING -j SSTP_POSTROUTING
+    $1 -t mangle -A PREROUTING  -j SSTP_PREROUTING
+    $1 -t mangle -A OUTPUT      -j SSTP_OUTPUT
+    $1 -t nat    -A PREROUTING  -j SSTP_PREROUTING
+    $1 -t nat    -A OUTPUT      -j SSTP_OUTPUT
+    $1 -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 }
 
 start_iptables_tproxy_mode() {
@@ -944,6 +977,7 @@ start() {
     modify_resolvconf
 
     [ "$(type -t post_start)" = 'function' ] && post_start
+    delete_unused_iptchains
 }
 
 stop() {
