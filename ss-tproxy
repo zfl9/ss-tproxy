@@ -184,7 +184,7 @@ resolve_hostname_by_ping() {
 resolve_hostname4() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
-        ipaddr=$(resolver_func -4 "$1")
+        ipaddr=$($resolver_func -4 "$1")
         [ -z "$ipaddr" ] && sleep 1
     done
     echo "$ipaddr"
@@ -193,7 +193,7 @@ resolve_hostname4() {
 resolve_hostname6() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
-        ipaddr=$(resolver_func -6 "$1")
+        ipaddr=$($resolver_func -6 "$1")
         [ -z "$ipaddr" ] && sleep 1
     done
     echo "$ipaddr"
