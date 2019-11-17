@@ -164,10 +164,27 @@ set_sysctl_option() {
     fi
 }
 
+resolve_hostname_by_dig() {
+    local addr_family="$1" hostname="$2"
+    [ "$addr_family" = '-4' ] && local dns_qtype='A' || local dns_qtype='AAAA'
+    dig +short "$dns_qtype" "$hostname" | grep -Ev '\.$' | head -n1
+}
+
+resolve_hostname_by_getent() {
+    local addr_family="$1" hostname="$2"
+    [ "$addr_family" = '-4' ] && local db_name='ahostsv4' || local db_name='ahostsv6'
+    getent "$db_name" "$hostname" | head -n1 | gawk '{print $1}'
+}
+
+resolve_hostname_by_ping() {
+    local addr_family="$1" hostname="$2"
+    ping "$addr_family" -nq -c1 -t1 -W1 "$hostname" | head -n1 | gawk -F'[()]' '{print $2}'
+}
+
 resolve_hostname4() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
-        ipaddr=$(ping -4 -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
+        ipaddr=$(resolver_func -4 "$1")
         [ -z "$ipaddr" ] && sleep 1
     done
     echo "$ipaddr"
@@ -176,7 +193,7 @@ resolve_hostname4() {
 resolve_hostname6() {
     local ipaddr=""
     while [ -z "$ipaddr" ]; do
-        ipaddr=$(ping -6 -nq -c1 -t1 -W1 "$1" | head -n1 | gawk -F'[()]' '{print $2}')
+        ipaddr=$(resolver_func -6 "$1")
         [ -z "$ipaddr" ] && sleep 1
     done
     echo "$ipaddr"
@@ -265,17 +282,45 @@ check_config() {
             log_error "the value of the opts_ss_netstat option is invalid: $opts_ss_netstat"
             ;;
     esac
+
+    case "$opts_hostname_resolver" in
+        auto)
+            if command_is_exists 'dig'; then
+                resolver_func='resolve_hostname_by_dig'
+            elif command_is_exists 'getent'; then
+                resolver_func='resolve_hostname_by_getent'
+            elif command_is_exists 'ping'; then
+                resolver_func='resolve_hostname_by_ping'
+            else
+                log_error "command not found: dig/getent/ping"
+            fi
+            ;;
+        dig)
+            command_is_exists 'dig' && resolver_func='resolve_hostname_by_dig' || log_error "command not found: dig"
+            ;;
+        getent)
+            command_is_exists 'getent' && resolver_func='resolve_hostname_by_getent' || log_error "command not found: getent"
+            ;;
+        ping)
+            command_is_exists 'ping' && resolver_func='resolve_hostname_by_ping' || log_error "command not found: ping"
+            ;;
+        *)
+            log_error "the value of the opts_hostname_resolver option is invalid: $opts_hostname_resolver"
+            ;;
+    esac
 }
 
 resolve_svraddr() {
     proxy_svripv4=()
     for svraddr in "${proxy_svraddr4[@]}"; do
-        proxy_svripv4+=($(resolve_hostname4 "$svraddr"))
+        is_ipv4_address "$svraddr" && local svripv4="$svraddr" || local svripv4=$(resolve_hostname4 "$svraddr")
+        proxy_svripv4+=("$svripv4")
     done
 
     proxy_svripv6=()
     for svraddr in "${proxy_svraddr6[@]}"; do
-        proxy_svripv6+=($(resolve_hostname6 "$svraddr"))
+        is_ipv6_address "$svraddr" && local svripv6="$svraddr" || local svripv6=$(resolve_hostname6 "$svraddr")
+        proxy_svripv6+=("$svripv6")
     done
 }
 
