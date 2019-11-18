@@ -193,7 +193,7 @@ resolve_hostname_by_getent() {
 
 resolve_hostname_by_ping() {
     local addr_family="$1" hostname="$2"
-    ping "$addr_family" -nq -c1 -t1 -W1 "$hostname" | head -n1 | gawk -F'[()]' '{print $2}'
+    ping "$addr_family" -nq -c1 -t1 -W1 "$hostname" | head -n1 | sed -r 's/\(|\)/|/g' | gawk -F'|' '{print $2}'
 }
 
 resolve_hostname4() {
