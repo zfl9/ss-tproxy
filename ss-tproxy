@@ -165,7 +165,7 @@ set_sysctl_option() {
 }
 
 resolve_hostname_by_hosts() {
-    cat /etc/hosts | sed 's/#.*//g' | grep -F "$1" | head -n1 | gawk '{print $1}'
+    cat /etc/hosts | sed 's/#.*//g' | grep -F "$1" | head -n1 | awk '{print $1}'
 }
 
 resolve_hostname_by_dig() {
@@ -188,12 +188,12 @@ resolve_hostname_by_dig() {
 resolve_hostname_by_getent() {
     local addr_family="$1" hostname="$2"
     [ "$addr_family" = '-4' ] && local db_name='ahostsv4' || local db_name='ahostsv6'
-    getent "$db_name" "$hostname" | head -n1 | gawk '{print $1}'
+    getent "$db_name" "$hostname" | head -n1 | awk '{print $1}'
 }
 
 resolve_hostname_by_ping() {
     local addr_family="$1" hostname="$2"
-    ping "$addr_family" -nq -c1 -t1 -W1 "$hostname" | head -n1 | sed -r 's/\(|\)/|/g' | gawk -F'|' '{print $2}'
+    ping "$addr_family" -nq -c1 -t1 -W1 "$hostname" | head -n1 | sed -r 's/\(|\)/|/g' | awk -F'|' '{print $2}'
 }
 
 resolve_hostname4() {
@@ -347,7 +347,7 @@ update_chnlist() {
     command_is_exists 'curl' || log_error "command not found: curl"
     local url='https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
-    echo "$data" | gawk -F/ '{print $2}' >$file_gfwlist_txt
+    echo "$data" | awk -F/ '{print $2}' >$file_gfwlist_txt
 }
 
 readonly GFWLIST_TXT_PERL_SCRIPT_STRING='
@@ -393,11 +393,11 @@ update_chnroute() {
     local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     {
         echo "create chnroute hash:net family inet"
-        echo "$data" | grep CN | grep ipv4 | gawk -F'|' '{printf("add chnroute %s/%d\n", $4, 32-log($5)/log(2))}'
+        echo "$data" | grep CN | grep ipv4 | awk -F'|' '{printf("add chnroute %s/%d\n", $4, 32-log($5)/log(2))}'
     } >$file_chnroute_set
     {
         echo "create chnroute6 hash:net family inet6"
-        echo "$data" | grep CN | grep ipv6 | gawk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}'
+        echo "$data" | grep CN | grep ipv6 | awk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}'
     } >$file_chnroute6_set
 }
 
