@@ -182,7 +182,7 @@ resolve_hostname_by_dig() {
         fi
     fi
     [ "$addr_family" = '-4' ] && local dns_qtype='A' || local dns_qtype='AAAA'
-    dig +short "$dns_qtype" "$hostname" | grep -Ev '\.$' | head -n1
+    dig +short "$dns_qtype" "$hostname" | grep -Ev '^;|\.$' | head -n1
 }
 
 resolve_hostname_by_getent() {
