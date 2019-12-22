@@ -1063,13 +1063,7 @@ stop() {
 }
 
 status() {
-    if is_global_mode; then
-        echo "mode:     global"
-    elif is_gfwlist_mode; then
-        echo "mode:     gfwlist"
-    elif is_chnroute_mode; then
-        echo "mode:     chnroute"
-    fi
+    echo "mode:     $mode"
     tcp_port_is_exists $proxy_tcpport && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
     if is_enabled_udp; then
         udp_port_is_exists $proxy_udpport && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
