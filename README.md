@@ -116,7 +116,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `opts_ping_cmd_to_use`：告诉 ss-tproxy，使用何种 ping 命令（主要是 ping6 的问题）。默认为 `auto`，如果存在 `ping6` 且 `ping6` 非软链接文件，则使用 `ping` 处理 ipv4 地址/域名，使用 `ping6` 来处理 ipv6 地址/域名，如果不存在 `ping6` 或 `ping6` 是 `ping` 的软链接文件，则使用 `ping -4` 处理 ipv4 地址/域名，使用 `ping -6` 处理 ipv6 地址/域名。如果选项值为 `standalone` 则明确使用 `ping/ping6` 方案，如果选项值为 `parameter` 则明确使用 `ping -4/-6` 方案。一般情况下，保持默认即可。
 - `opts_hostname_resolver`：告诉 ss-tproxy，使用哪个工具来解析 `proxy_svraddr4/6` 中的域名；默认为 `auto`，auto 模式的查找优先级为 `dig`、`getent`、`ping`，只要找到其中一个就停止搜寻；dig 需要安装 bind-utils/dnsutils 包，getent 大多数发行版都自带，ping 基本上是个系统都有；如果你的系统只有 ping 命令，且能明显感受到 1 秒左右的解析延迟，那么请安装 dig 实用工具（Debian/Ubuntu 系列基本上都有这个问题，busybox 版本的 ping 也一样）。
 - `opts_overwrite_resolv`：如果设置为 true，则表示直接使用 I/O 重定向方式修改 `/etc/resolv.conf` 文件，这个操作是不可逆的，但是可移植性好；如果设置为 false，则表示使用 `mount -o bind` 魔法来暂时性修改 `/etc/resolv.conf` 文件，当 ss-tproxy stop 之后，`/etc/resolv.conf` 会恢复为原来的文件，也就是说这个修改操作是可逆的，但是这个方式可能某些系统会不支持，默认为 `false`，如果遇到问题请修改为 `true`。
-- `opts_ip_for_check_net`：指定一个允许 Ping 的 IP 地址（IPv4 或 IPv6 都行），用于检查外部网络的连通情况，如果留空则跳过网络可用性检查。默认为 `114.114.114.114`，注意这个 IP 地址应该为公网 IP，如果你填一个私有 IP，即使检测成功，也不能保证外网是可访问的，因为这仅代表我可以访问这个内网。根据实际网络环境进行更改，一般改为延迟较低且较稳定的一个 IP。
+- `opts_ip_for_check_net`：指定一个允许 Ping 的 IP 地址（IPv4 或 IPv6 都行），用于检查外部网络的连通情况，如果此选项留空则表示跳过网络可用性检查（不建议）。默认为 `114.114.114.114`，注意这个 IP 地址应该为公网 IP，如果你填一个私有 IP，即使检测成功，也不能保证外网是可访问的，因为这仅代表我可以访问这个内网。根据实际网络环境进行更改，一般改为延迟较低且较稳定的一个 IP。
 
 **IPv6 透明代理的实施方式**
 
