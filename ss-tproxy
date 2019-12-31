@@ -252,6 +252,7 @@ load_config() {
 check_config() {
     file_is_exists "$file_gfwlist_txt"   || log_error "file not found: $file_gfwlist_txt"
     file_is_exists "$file_gfwlist_ext"   || log_error "file not found: $file_gfwlist_ext"
+    file_is_exists "$file_ignlist_ext"   || log_error "file not found: $file_ignlist_ext"
     file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
     file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
     file_is_exists "$file_dnsserver_pid" && load_pidfile
@@ -429,6 +430,19 @@ no-resolv
 port = $dnsmasq_bind_port
 $(is_true "$ipv4" && echo "server = $dns_remote")
 $(is_true "$ipv6" && echo "server = $dns_remote6")
+$(
+grep -E '^@' $file_ignlist_ext | cut -c2- | while read domain_name; do
+    is_true "$ipv4" && echo "server = /$domain_name/$dns_direct"
+    is_true "$ipv6" && echo "server = /$domain_name/$dns_direct6"
+    if is_true "$ipv4" && is_true "$ipv6"; then
+        echo "ipset = /$domain_name/privaddr,privaddr6"
+    elif is_true "$ipv4"; then
+        echo "ipset = /$domain_name/privaddr"
+    else
+        echo "ipset = /$domain_name/privaddr6"
+    fi
+done
+)
 $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
 $(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_arg"; done)
 $(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
@@ -511,6 +525,19 @@ no-negcache
 no-resolv
 port = $dnsmasq_bind_port
 server = 127.0.0.1#$chinadns_bind_port
+$(
+grep -E '^@' $file_ignlist_ext | cut -c2- | while read domain_name; do
+    is_true "$ipv4" && echo "server = /$domain_name/$dns_direct"
+    is_true "$ipv6" && echo "server = /$domain_name/$dns_direct6"
+    if is_true "$ipv4" && is_true "$ipv6"; then
+        echo "ipset = /$domain_name/privaddr,privaddr6"
+    elif is_true "$ipv4"; then
+        echo "ipset = /$domain_name/privaddr"
+    else
+        echo "ipset = /$domain_name/privaddr6"
+    fi
+done
+)
 $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
 $(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_arg"; done)
 $(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
@@ -839,6 +866,7 @@ start_iptables_tproxy_mode() {
         ipset -X $privaddr_setname &>/dev/null
         ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
         for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
+        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R &>/dev/null
     elif is_gfwlist_mode; then
         ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
         grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
@@ -944,6 +972,7 @@ start_iptables_redirect_mode() {
         ipset -X $privaddr_setname &>/dev/null
         ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
         for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
+        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R &>/dev/null
     elif is_gfwlist_mode; then
         ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
         grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
