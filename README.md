@@ -67,7 +67,7 @@ cd ss-tproxy
 chmod +x ss-tproxy
 cp -af ss-tproxy /usr/local/bin
 mkdir -p /etc/ss-tproxy
-cp -af ss-tproxy.conf gfwlist* chnroute* /etc/ss-tproxy
+cp -af ss-tproxy.conf gfwlist* chnroute* ignlist* /etc/ss-tproxy
 cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
 > 脚本配置目录在 `/etc/ss-tproxy`，不是 git clone 下来的目录！
@@ -89,6 +89,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `chnroute6.set`：存储大陆地址段的 ipset 文件（IPv6），不要手动修改。
 - `gfwlist.txt`：存储 gfwlist、chnlist 分流模式的黑名单域名，不要手动修改。
 - `gfwlist.ext`：存储 gfwlist、chnlist 分流模式的扩展黑名单，可配置，重启生效。
+- `ignlist.ext`：存储 global、chnroute 分流模式的扩展白名单，可配置，重启生效。
 
 > ss-tproxy 只是一个 shell 脚本，并不是常驻后台的服务，因此所有的修改都需要 restart 来生效。
 
@@ -305,46 +306,7 @@ pre_start() {
 }
 ```
 
-2、chnroute 模式下，想放行某些不在 chnroute 中的 IP，可以利用 `post_start()` 将它们加到 ipset 中：
-```bash
-post_start() {
-    if is_chnroute_mode; then
-        if is_true "$ipv4"; then
-            # 定义要放行的 IPv4 地址
-            local chnroute_append_list=(11.22.33.44 44.33.22.11)
-            for ipaddr in "${chnroute_append_list[@]}"; do
-                ipset add chnroute $ipaddr &>/dev/null
-            done
-        fi
-
-        if is_true "$ipv6"; then
-            # 定义要放行的 IPv6 地址
-            local chnroute_append_list6=(2400:da00::6666 2001:dc7:1000::1)
-            for ipaddr in "${chnroute_append_list6[@]}"; do
-                ipset add chnroute6 $ipaddr &>/dev/null
-            done
-        fi
-    fi
-}
-```
-如果还想放行某些域名，可以利用 `dnsmasq_conf_file/dnsmasq_conf_dir` 选项，首先创建一个 dnsmasq 配置文件，比如在 /etc/ss-tproxy 目录下创建 `chnroute_ignore.conf`，假设想放行 github.com 以及 github.io 两个域名，则配置内容如下：
-```ini
-server = /github.com/114.114.114.114
-server = /github.io/114.114.114.114
-ipset = /github.com/chnroute,chnroute6
-ipset = /github.io/chnroute,chnroute6
-```
-然后在 ss-tproxy.conf 的 `dnsmasq_conf_file` 数组中写上该配置文件的绝对路径，如 `dnsmasq_conf_file=(/etc/ss-tproxy/chnroute_ignore.conf)`，注意这只适合 chnroute 模式，如果想让配置更加智能些，即只在 chnroute 模式下加载该 dnsmasq 配置，可以将原有的 `dnsmasq_conf_file` 注释掉，然后在它下面写上一个简单的判断语句即可：
-```bash
-if is_chnroute_mode; then
-    dnsmasq_conf_file=(/etc/ss-tproxy/chnroute_ignore.conf)
-else
-    dnsmasq_conf_file=()
-fi
-```
-> v4.6 版本也可以利用 `dnsmasq_conf_string` 选项在 ss-tproxy.conf 中直接指定这些 dnsmasq 配置。
-
-3、不想让某些内网主机走 ss-tproxy 的透明代理，即使它们将网关设为 ss-tproxy 主机，那么可以这么做：
+2、不想让某些内网主机走 ss-tproxy 的透明代理，即使它们将网关设为 ss-tproxy 主机，那么可以这么做：
 ```bash
 post_start() {
     if is_false "$selfonly"; then
