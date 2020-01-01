@@ -296,6 +296,16 @@ systemctl enable ss-tproxy
 
 对于其它配置项，都可以在改完配置后，执行 `ss-tproxy restart` 命令来生效，无需遵循上述约定。
 
+**黑名单、白名单说明**
+- 对于 global 模式，白名单文件为 `ignlist.ext`，没有黑名单文件，因为默认都走代理。
+- 对于 gfwlist 模式，黑名单文件为 `gfwlist.txt/ext`，没有白名单文件，因为其它都走直连。
+- 对于 chnroute 模式，白名单文件为 `ignlist.ext`，没有黑名单文件（但允许开启此功能，见下）。
+
+如果想让 chnroute 模式支持黑名单扩展，请打开 chinadns-ng 的 gfwlist 模式（选项 `chinadns_gfwlist_mode`）；开启 gfwlist 模式后，chinadns-ng 会读取 `gfwlist.txt/ext` 黑名单文件中的**域名模式**；chinadns-ng 收到域名解析请求时，会先检查要查询的域名是否在黑名单中，如果是则直接向可信 DNS 上游发出解析请求（也就是 `dns_remote/dns_remote6`），因此解析出来的 IP 会是国外 IP，于是客户端访问该 IP 就会走代理出去了。
+
+**LAN 侧访问控制列表**
+// TODO
+
 **钩子函数小技巧**
 
 1、某些系统的 TPROXY 模块可能需要手动加载，对于这种情况，可以利用 `pre_start()` 钩子来加载它：
