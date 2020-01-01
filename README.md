@@ -51,7 +51,7 @@ v4.0/v4.6 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模
 - `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，不是原版 chinadns。
 - `xt_TPROXY`：TPROXY 内核模块，如果使用 redirect + tcponly 代理模式，则不需要此依赖。
 - `ip`：用于配置策略路由（TPROXY），如果使用 redirect + tcponly 代理模式，则不需要此依赖。
-- `dns2tcp`：将 DNS 查询从 UDP 模式转换为 TCP 模式，只有使用 tcponly 模式时，才需要此依赖。
+- `dns2tcp`：将 DNS 查询从 UDP 转为 TCP，仅在使用 tcponly 模式时需要，注意是 [zfl9/dns2tcp](https://github.com/zfl9/dns2tcp)。
 
 如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng。ss-tproxy 脚本在启动时会检查当前配置所需的依赖，只需要根据提示安装缺少的依赖即可。另外更新 gfwlist/chnlist/chnroute 列表时，会用到这些依赖：
 - `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
