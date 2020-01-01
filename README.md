@@ -301,7 +301,7 @@ systemctl enable ss-tproxy
 - 对于 gfwlist 模式，黑名单文件为 `gfwlist.txt/ext`，没有白名单文件，因为其它都走直连。
 - 对于 chnroute 模式，白名单文件为 `ignlist.ext`，没有黑名单文件，但允许开启此功能，见下。
 
-如果想让 chnroute 模式支持黑名单扩展，请打开 chinadns-ng 的 gfwlist 模式（选项 `chinadns_gfwlist_mode`）；开启 gfwlist 模式后，chinadns-ng 会读取 `gfwlist.txt/ext` 黑名单文件中的**域名模式**；当 chinadns-ng 收到域名解析请求时，会先检查给定域名是否在黑名单中，如果是则直接向可信 DNS 发出解析请求（也就是 `dns_remote/dns_remote6`），因此解析出来的会是国外 IP，然后当客户端访问该 IP 时就会走代理出去了；虽然 gfwlist.txt 黑名单文件中有超过 5000+ 行域名模式，但你并不需要担心 chinadns-ng 的查询性能，因为 chinadns-ng 是利用哈希表来存储这些域名模式的，所以查询速度非常快，并不需要遍历全表，与原版 dnsmasq 具有显著的不同（原版 dnsmasq 是使用链表来存储和查询域名模式的）。
+如果想让 chnroute 模式支持黑名单扩展，请打开 chinadns-ng 的 gfwlist 模式（选项 `chinadns_gfwlist_mode`）；开启 gfwlist 模式后，chinadns-ng 会读取 `gfwlist.txt/ext` 黑名单文件中的**域名模式**；当 chinadns-ng 收到域名解析请求时，会先检查给定域名是否在黑名单中，如果是则直接向可信 DNS 发出解析请求（也就是 `dns_remote/dns_remote6`），因此解析出来的会是国外 IP，然后当客户端访问该 IP 时就会走代理出去了；虽然 gfwlist.txt 黑名单文件中有超过 5000+ 行域名模式，但你并不需要担心 chinadns-ng 的查询性能，因为 chinadns-ng 是利用哈希表来存储这些域名模式的，所以查询速度非常快，并不需要遍历全表，与原版 dnsmasq 具有显著的不同（原版 dnsmasq 是利用链表来存储和查询域名模式的）。
 
 **LAN 侧访问控制列表**
 // TODO
