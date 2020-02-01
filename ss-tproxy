@@ -503,10 +503,10 @@ start_dnsserver_chnroute() {
     fi
     ipset -X chnroute &>/dev/null
     ipset -X chnroute6 &>/dev/null
-    ipset -R <$file_chnroute_set
-    ipset -R <$file_chnroute6_set
-    for privaddr in "${chinadns_privaddr4[@]}"; do echo "-A chnroute $privaddr"; done | ipset -R &>/dev/null
-    for privaddr in "${chinadns_privaddr6[@]}"; do echo "-A chnroute6 $privaddr"; done | ipset -R &>/dev/null
+    ipset -R -exist <$file_chnroute_set
+    ipset -R -exist <$file_chnroute6_set
+    for privaddr in "${chinadns_privaddr4[@]}"; do echo "-A chnroute $privaddr"; done | ipset -R -exist &>/dev/null
+    for privaddr in "${chinadns_privaddr6[@]}"; do echo "-A chnroute6 $privaddr"; done | ipset -R -exist &>/dev/null
     if is_true "$chinadns_gfwlist_mode"; then
         local gfwlist_domain_string=$(cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-)
         status_chinadns_pid=$(chinadns-ng $chinadns_args <<<"$gfwlist_domain_string" &>>$chinadns_logfile & echo $!)
@@ -865,11 +865,11 @@ start_iptables_tproxy_mode() {
     if is_global_mode || is_chnroute_mode; then
         ipset -X $privaddr_setname &>/dev/null
         ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
-        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
-        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R &>/dev/null
+        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R -exist &>/dev/null
+        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R -exist &>/dev/null
     elif is_gfwlist_mode; then
         ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R -exist &>/dev/null
     fi
 
     ######################### SSTP_RULE (tcp and udp) #########################
@@ -971,11 +971,11 @@ start_iptables_redirect_mode() {
     if is_global_mode || is_chnroute_mode; then
         ipset -X $privaddr_setname &>/dev/null
         ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
-        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R &>/dev/null
-        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R &>/dev/null
+        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R -exist &>/dev/null
+        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R -exist &>/dev/null
     elif is_gfwlist_mode; then
         ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R &>/dev/null
+        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R -exist &>/dev/null
     fi
 
     ######################### SSTP_RULE (for tcp) #########################
