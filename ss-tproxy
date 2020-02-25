@@ -4,7 +4,7 @@ trap "exit 1" HUP INT QUIT TERM PIPE
 
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
+DEFAULT_CONFIG='/etc/ss-tproxy/ss-tproxy.conf'
 
 readonly IPV4_RESERVED_IPADDRS=(
     0.0.0.0/8
@@ -1132,7 +1132,7 @@ version() {
 
 help() {
     cat <<'EOF'
-Usage: ss-tproxy <COMMAND> [-x] [name=value...]
+Usage: ss-tproxy <COMMAND> [-c config] [-x] [name=value...]
 COMMAND := {
     start               start ss-tproxy
     stop                stop ss-tproxy
@@ -1148,10 +1148,11 @@ COMMAND := {
     version             show version and exit
     help                show help and exit
 }
-Specify the -x option for debugging of bash scripts
-Specify the name=value to override ss-tproxy configs
-Issues or bug report: https://github.com/zfl9/ss-tproxy
-See the https://www.zfl9.com/ss-redir.html for more details
+Specify the -c option for using arbitrary config files.
+Specify the -x option for debugging of bash scripts.
+Specify the name=value to override ss-tproxy configs.
+Issues or bug report: https://github.com/zfl9/ss-tproxy.
+See the https://www.zfl9.com/ss-redir.html for more details.
 EOF
 }
 
@@ -1159,14 +1160,20 @@ main() {
     local arguments=()
     local optentries=()
 
-    for arg in "$@"; do
-        if [ "$arg" = '-x' ]; then
+    ss_tproxy_config=$DEFAULT_CONFIG
+
+    while [ "$1" != "" ]; do
+        if [ "$1" = '-x' ]; then
             set -x
-        elif [ $(grep -c '=' <<<"$arg") -ne 0 ]; then
-            optentries+=("$arg")
+        elif [ "$1" = '-c' ]; then
+            shift
+            ss_tproxy_config=$1
+        elif [ $(grep -c '=' <<<"$1") -ne 0 ]; then
+            optentries+=("$1")
         else
-            arguments+=("$arg")
+            arguments+=("$1")
         fi
+        shift
     done
 
     if [ "${#arguments[@]}" -eq 0 ]; then
