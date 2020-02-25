@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 trap "exit 1" HUP INT QUIT TERM PIPE
 
