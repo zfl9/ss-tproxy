@@ -939,7 +939,7 @@ start_iptables_tproxy_mode() {
 start_iptables_redirect_mode() {
     local loopback_addr
     is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
-    
+
     local gfwlist_setname
     is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
 
