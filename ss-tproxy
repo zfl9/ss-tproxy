@@ -4,7 +4,7 @@ trap "exit 1" HUP INT QUIT TERM PIPE
 
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-DEFAULT_CONFIG='/etc/ss-tproxy/ss-tproxy.conf'
+default_ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
 
 readonly IPV4_RESERVED_IPADDRS=(
     0.0.0.0/8
@@ -241,11 +241,21 @@ delete_pidfile() {
 
 load_config() {
     for optentry in "${optentries[@]}"; do eval "$optentry"; done
-    if ! file_is_exists "$ss_tproxy_config"; then
-        log_error "file not found: $ss_tproxy_config"
+
+    if ! file_is_exists "$default_ss_tproxy_config"; then
+        log_error "file not found: $default_ss_tproxy_config"
     else
-        source "$ss_tproxy_config" "${arguments[@]}" || log_error "load config failed, exit-code: $?"
+        source "$default_ss_tproxy_config" "${arguments[@]}" || log_error "load config failed, exit-code: $?"
     fi
+
+    if [ -n "$ss_tproxy_config" ]; then
+        if ! file_is_exists "$ss_tproxy_config"; then
+            log_error "file not found: $ss_tproxy_config"
+        else
+            source "$ss_tproxy_config" "${arguments[@]}" || log_error "load config failed, exit-code: $?"
+        fi
+    fi
+
     for optentry in "${optentries[@]}"; do eval "$optentry"; done
 }
 
@@ -1163,8 +1173,6 @@ EOF
 main() {
     local arguments=()
     local optentries=()
-
-    ss_tproxy_config=$DEFAULT_CONFIG
 
     while [ "$1" != "" ]; do
         if [ "$1" = '-x' ]; then
