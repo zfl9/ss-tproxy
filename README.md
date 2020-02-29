@@ -281,6 +281,7 @@ systemctl enable ss-tproxy
 - `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
 - `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
 - 在任意位置指定 `-x` 选项可启用调试，如 `ss-tproxy start -x`
+- 在任意位置指定 `-c cfgfile` 可使用给定路径的 ss-tproxy.conf
 - 在任意位置指定 `NAME=VALUE` 可覆盖 ss-tproxy.conf 中的同名配置
 
 `ss-tproxy delete-gfwlist` 的作用：在 `gfwlist/chnlist` 模式下，`ss-tproxy restart`、`ss-tproxy stop; ss-tproxy start` 并不会移除 `gfwlist` 这个 ipset，如果你进行了 `ss-tproxy update-gfwlist`、`ss-tproxy update-chnlist` 操作，或者修改了 `/etc/ss-tproxy/gfwlist.ext` 文件，建议在 start 前执行一下此步骤，防止因为之前遗留的 gfwlist 列表导致奇怪的问题。注意，如果执行了 `ss-tproxy delete-gfwlist` 那么你可能还需要清空内网主机的 dns 缓存，并重启浏览器等被代理的应用。
