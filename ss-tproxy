@@ -1172,7 +1172,7 @@ main() {
         update-chnroute) update_chnroute;;
         v*)              version;;
         h*)              help;;
-        *)               echo "$(color_yellow "Unknown option: $arg")"; help; return 1;;
+        *)               echo "$(color_yellow "Unknown option: ${arguments[0]}")"; help; return 1;;
     esac
     return 0
 }
