@@ -596,6 +596,7 @@ flush_dnscache() {
 }
 
 modify_resolvconf() {
+    [ -z "$opts_overwrite_resolv" ] && return
     if is_false "$opts_overwrite_resolv"; then
         while umount /etc/resolv.conf &>/dev/null; do true; done
         local temp_resolv_conf=$(mktemp)
@@ -609,6 +610,7 @@ modify_resolvconf() {
 }
 
 restore_resolvconf() {
+    [ -z "$opts_overwrite_resolv" ] && return
     if is_false "$opts_overwrite_resolv"; then
         while umount /etc/resolv.conf &>/dev/null; do true; done
     else
