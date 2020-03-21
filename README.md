@@ -348,7 +348,7 @@ post_start() {
 
 **FAQ**
 
-[ss-tproxy 常见问题解答](https://www.zfl9.com/ss-redir.html#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
+[ss-tproxy 常见问题解答](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
 
 如果透明代理未正常工作，请先自行按照如下顺序进行一个简单的排查：
 1. 检查 ss-tproxy.conf 以及代理软件的配置是否正确，此文详细说明了许多配置细节，它们并不是废话，请务必仔细阅读此文。如果确认配置无误，那么请务必开启代理进程的详细日志（debug/verbose logging），以及 dnsmasq、chinadns-ng、dns2tcp 的详细日志（ss-tproxy.conf），日志是调试的基础。
