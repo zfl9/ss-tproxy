@@ -569,11 +569,17 @@ EOF
         if is_true "$ipv4"; then
             local dns2tcp_args="-L $dns2tcp_listen_addr4 -R $dns2tcp_remote_addr4"
             is_true "$dns2tcp_verbose" && dns2tcp_args+=" -v"
+            is_true "$dns2tcp_tcp_quickack" && dns2tcp_args+=" -a"
+            is_true "$dns2tcp_tcp_fastopen" && dns2tcp_args+=" -f"
+            [ "$dns2tcp_tcp_syncnt" ] && dns2tcp_args+=" -s $dns2tcp_tcp_syncnt"
             status_dns2tcp4_pid=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
         fi
         if is_true "$ipv6"; then
             local dns2tcp_args="-L $dns2tcp_listen_addr6 -R $dns2tcp_remote_addr6"
             is_true "$dns2tcp_verbose" && dns2tcp_args+=" -v"
+            is_true "$dns2tcp_tcp_quickack" && dns2tcp_args+=" -a"
+            is_true "$dns2tcp_tcp_fastopen" && dns2tcp_args+=" -f"
+            [ "$dns2tcp_tcp_syncnt" ] && dns2tcp_args+=" -s $dns2tcp_tcp_syncnt"
             status_dns2tcp6_pid=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
         fi
     fi
