@@ -65,10 +65,13 @@ v4.0/v4.6 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模
 git clone https://github.com/zfl9/ss-tproxy
 cd ss-tproxy
 chmod +x ss-tproxy
-cp -af ss-tproxy /usr/local/bin
-mkdir -p /etc/ss-tproxy
-cp -af ss-tproxy.conf gfwlist* chnroute* ignlist* /etc/ss-tproxy
-cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
+```
+> 请确保当前用户有权限读写以下目录，如没有，请先运行`sudo su`进入超级用户
+```bash
+install ss-tproxy /usr/local/bin
+install -d /etc/ss-tproxy
+install -m 644 ss-tproxy.conf gfwlist* chnroute* ignlist* /etc/ss-tproxy
+install -m 644 ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
 > 脚本配置目录在 `/etc/ss-tproxy`，不是 git clone 下来的目录！
 
