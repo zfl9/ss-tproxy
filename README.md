@@ -73,6 +73,13 @@ install -d /etc/ss-tproxy
 install -m 644 ss-tproxy.conf gfwlist* chnroute* ignlist* /etc/ss-tproxy
 install -m 644 ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
+> 如果使用了类似OpenWRT的嵌入式Linux发行版，系统可能默认没有安装`install`命令，则可以使用如下命令安装
+```
+cp -af ss-tproxy /usr/local/bin
+mkdir -p /etc/ss-tproxy
+cp -af ss-tproxy.conf gfwlist* chnroute* ignlist* /etc/ss-tproxy
+cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
+```
 > 脚本配置目录在 `/etc/ss-tproxy`，不是 git clone 下来的目录！
 
 ## 卸载脚本
