@@ -404,12 +404,21 @@ update_gfwlist() {
 
 update_chnroute() {
     command_is_exists 'curl' || log_error "command not found: curl"
-    local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
-    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
+    command_is_exists 'wget' || log_error "command not found: wget"
+    
+    wget -O /tmp/chnroute.ips https://raw.githubusercontent.com/17mon/china_ip_list/master/china_ip_list.txt || log_error "download failed, exit-code: $?"
+
     {
         echo "create chnroute hash:net family inet"
-        echo "$data" | grep CN | grep ipv4 | awk -F'|' '{printf("add chnroute %s/%d\n", $4, 32-log($5)/log(2))}'
+        for addr in `cat /tmp/chnroute.ips`; do
+            echo "add chnroute $addr"
+        done
     } >$file_chnroute_set
+
+    rm -f /tmp/chnroute.ips
+    
+    local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
+    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
     {
         echo "create chnroute6 hash:net family inet6"
         echo "$data" | grep CN | grep ipv6 | awk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}'
