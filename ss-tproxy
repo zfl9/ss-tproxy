@@ -640,7 +640,7 @@ enable_ipforward() {
 
 disable_icmpredir() {
     for dir in $(ls /proc/sys/net/ipv4/conf); do
-        set_sysctl_option "net.ipv4.conf.$dir.send_redirects" 0
+        set_sysctl_option "net.ipv4.conf.${dir//.//}.send_redirects" 0
     done
 }
 
