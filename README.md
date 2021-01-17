@@ -209,7 +209,8 @@ proxy_stopcmd='kill -9 $(pidof ssr-redir)'
   "inbounds": [
     {
       "protocol": "dokodemo-door",
-      "listen": "127.0.0.1", // v4.6.1+版本可填写回环地址
+      "listen": "0.0.0.0", // 如果只代理本机，可填写回环地址
+      //"listen": "127.0.0.1", // v4.6.1+版本可填写回环地址
       "port": 60080, // 本地监听端口必须与配置文件中的一致
       "settings": {
         "network": "tcp,udp", // 注意这里是 tcp + udp
@@ -241,7 +242,7 @@ proxy_stopcmd='kill -9 $(pidof ssr-redir)'
   ]
 }
 ```
-v2ray 的 `proxy_startcmd`、`proxy_stopcmd` 简单例子，假设使用 systemctl 进行启动与停止，则：
+v2ray 的 `proxy_startcmd`、`proxy_stopcmd` 简单例子，假设使用 systemctl，则：
 ```bash
 #老版本(v4.6.0及以下)
 proxy_startcmd='systemctl start v2ray'
@@ -253,7 +254,7 @@ proxy_stopcmd='systemctl stop v2ray'
 #2.授予透明代理相关权限: `setcap cap_net_bind_service,cap_net_admin+ep /path/to/{v2ray,v2ctl}`
 proxy_procuser='proxy'
 proxy_startcmd='su proxy -c"(v2ray -config /etc/v2ray.json </dev/null &>/dev/null &)"'
-proxy_stopcmd='kill -9 $(pidof v2ray)'
+proxy_stopcmd='kill -9 $(pidof v2ray) $(pidof v2ctl)'
 #当然也可以使用systemctl来封装上述startcmd/stopcmd，具体不再细说。
 ```
 > 据反馈，`dokodemo-door` 入站协议的 UDP 有 bug，会断流，可使用 `redsocks2/ipt2socks + socks5` 缓解。
