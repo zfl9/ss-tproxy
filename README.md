@@ -27,6 +27,7 @@ ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚�
 - 添加 `global` 分流模式、`tcponly` 代理模式
 - 支持 IPv4、IPv6 双栈透明代理（v4.0 优化版）
 - 无需指定内网网段，利用 `addrtype` 模块进行匹配
+- `v4.6.1+`版本起不再需要指定代理服务器的地址信息
 - 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，修复若干问题
 - 完美兼容"端口映射"，只代理"主动出站"的流量，规则更加细致化
 - 支持配置要代理的黑名单端口，这样可以比较好的处理 BT/PT 流量
@@ -110,8 +111,9 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `tproxy`：true 为纯 TPROXY，false 为 REDIRECT/TPROXY 混合，ss/ssr 只能使用 false，v2ray 经配置后可使用 true。更新：ss-libev v3.3.5+ 已加入纯 tproxy 透明代理模式的支持，在 ss-redir 启动参数中增加`-T`或者在json文件中添加`"tcp_tproxy": true`配置行，即可启用此功能。
 - `tcponly`：true 表示仅代理 TCP 流量（需要依赖 dns2tcp 工具），false 表示代理 TCP 和 UDP 流量（这是默认值）。
 - `selfonly`：true 表示仅代理 ss-tproxy 主机自身的流量，false 表示代理 ss-tproxy 主机自身以及所有网关指向 ss-tproxy 主机的流量，默认为 false。该选项是用来替代之前的 `ipts_intranet/ipts_intranet6` 选项的，根据需要进行修改。
-- `proxy_svraddr4/proxy_svraddr6`：填写 VPS 服务器的外网 IPv4/IPv6 地址，IP 或域名都可以，填域名要注意，这个域名最好不要有多个 IP 地址与之对应，因为脚本内部只会获取其中某个 IP，这极有可能与本机代理进程解析出来的 IP 不一致，这可能会导致 iptables 规则死循环，应尽量避免这种情况，比如你可以将该域名与其中某个 IP 的映射关系写到 ss-tproxy 主机的 `/etc/hosts` 文件中，这样解析结果就是可预期的。允许填写多个 VPS 地址，用空格隔开，填写多个地址的目的是方便切换代理，比如我现在有两个 VPS，A、B，假设你先使用 A，因为某些因素，导致 A 的网络性能低下，那么你可能需要切换到 B，如果只填写了 A 的地址，就需要去修改 ss-tproxy.conf，将地址改为 B，修改启动与关闭命令，最后还得重启 ss-tproxy 脚本，很麻烦，更麻烦的是，如果现在 A 的网络又好了，那么你可能又想切换回 A，那么你又得重复上述步骤。但现在，你不需要这么做，你完全可以在 `proxy_svraddr` 中填写 A 和 B 的地址，假设你默认使用 A（`proxy_startcmd` 启动 A 代理进程），那么启动 ss-tproxy 后，使用的就是 A，此后如果想切换为 B，仅需停止 A 代理进程，再启动 B 代理进程（切回来的步骤则相反），该过程无需操作 ss-tproxy；这种配置下应注意 `proxy_stopcmd`，stopcmd 最好能停止 A 和 B 进程，不然切换进程后执行 ss-tproxy stop 可能不会正确停止相关的代理进程。另外，你只需填写实际会使用到的 VPS 地址，比如本机代理进程仅使用 IPv4 访问 VPS，则 `proxy_svraddr6` 可能是空的，反之，如果本机代理进程仅使用 IPv6 访问 VPS，则 `proxy_svraddr4` 可能是空的；这两个数组是否为空与 `ipv4`、`ipv6` 选项没有必然的联系，比如你可以启用 IPv4 和 IPv6 透明代理，但是本机代理进程仅使用 IPv4 访问 VPS，这是完全可以的，但不允许 `proxy_svraddr4` 与 `proxy_svraddr6` 都为空，你至少需要填写一个地址。
-- `proxy_svrport`：填写 VPS 上代理服务器的外部监听端口，格式同 `ipts_proxy_dst_port`，填写不正确会导致 iptables 规则死循环。如果是 v2ray 动态端口，如端口号 1000 到 2000 都是代理监听端口，则填 `1000:2000`（含边界）。
+- `proxy_procuser/proxy_procgroup`：v4.6.1版的新增配置，用于替代之前的`proxy_svraddr/proxy_svrport`配置。现在，ss-tproxy.conf中不再需要填写代理服务器的IP/端口/域名等信息，只需要让本机代理进程以指定的user/group身份运行即可(如`su proxy -s/bin/bash -c"run_proxy_proc"`)。其中procuser用于指定本机proxy进程的user/uid，procgroup用于指定本机proxy进程的group/gid。两者任选其一，当然也可以都填上，后面会有详细的例子。
+- ~~`proxy_svraddr4/proxy_svraddr6`：填写 VPS 服务器的外网 IPv4/IPv6 地址，IP 或域名都可以，填域名要注意，这个域名最好不要有多个 IP 地址与之对应，因为脚本内部只会获取其中某个 IP，这极有可能与本机代理进程解析出来的 IP 不一致，这可能会导致 iptables 规则死循环，应尽量避免这种情况，比如你可以将该域名与其中某个 IP 的映射关系写到 ss-tproxy 主机的 `/etc/hosts` 文件中，这样解析结果就是可预期的。允许填写多个 VPS 地址，用空格隔开，填写多个地址的目的是方便切换代理，比如我现在有两个 VPS，A、B，假设你先使用 A，因为某些因素，导致 A 的网络性能低下，那么你可能需要切换到 B，如果只填写了 A 的地址，就需要去修改 ss-tproxy.conf，将地址改为 B，修改启动与关闭命令，最后还得重启 ss-tproxy 脚本，很麻烦，更麻烦的是，如果现在 A 的网络又好了，那么你可能又想切换回 A，那么你又得重复上述步骤。但现在，你不需要这么做，你完全可以在 `proxy_svraddr` 中填写 A 和 B 的地址，假设你默认使用 A（`proxy_startcmd` 启动 A 代理进程），那么启动 ss-tproxy 后，使用的就是 A，此后如果想切换为 B，仅需停止 A 代理进程，再启动 B 代理进程（切回来的步骤则相反），该过程无需操作 ss-tproxy；这种配置下应注意 `proxy_stopcmd`，stopcmd 最好能停止 A 和 B 进程，不然切换进程后执行 ss-tproxy stop 可能不会正确停止相关的代理进程。另外，你只需填写实际会使用到的 VPS 地址，比如本机代理进程仅使用 IPv4 访问 VPS，则 `proxy_svraddr6` 可能是空的，反之，如果本机代理进程仅使用 IPv6 访问 VPS，则 `proxy_svraddr4` 可能是空的；这两个数组是否为空与 `ipv4`、`ipv6` 选项没有必然的联系，比如你可以启用 IPv4 和 IPv6 透明代理，但是本机代理进程仅使用 IPv4 访问 VPS，这是完全可以的，但不允许 `proxy_svraddr4` 与 `proxy_svraddr6` 都为空，你至少需要填写一个地址。~~(建议使用`proxy_procuser/group`替代)。
+- ~~`proxy_svrport`：填写 VPS 上代理服务器的外部监听端口，格式同 `ipts_proxy_dst_port`，填写不正确会导致 iptables 规则死循环。如果是 v2ray 动态端口，如端口号 1000 到 2000 都是代理监听端口，则填 `1000:2000`（含边界）。~~(建议使用`proxy_procuser/group`替代)。
 - `proxy_tcpport/proxy_udpport`：本机代理进程的透明代理监听端口，前者为 TCP 端口，后者为 UDP 端口，通常情况下它们是相同的，根据实际情况修改。如果代理的 UDP 隧道不稳定，或者无法使用 UDP 代理，也可以使用 tcponly 模式，这种情况下，`proxy_udpport` 配置将被忽略。
 - `proxy_startcmd/proxy_stopcmd`：前者是启动本机代理进程的 shell 命令，后者是关闭本机代理进程的 shell 命令。这些命令应该能快速执行完毕，否则会导致透明代理长期处于半启动或半关闭状态。具体的 startcmd、stopcmd 示例见后。
 - `dnsmasq_bind_port`：dnsmasq 监听端口，默认 53，如果端口已被占用则修改为其它未占用的端口，如 `60053`。
@@ -125,7 +127,7 @@ rm -fr /usr/local/bin/ss-tproxy /etc/ss-tproxy # 删除脚本及配置文件
 - `ipts_proxy_dst_port`：要代理黑名单地址的哪些目的端口。所谓黑名单地址，对于 gfwlist/chnlist 模式来说，就是 gfwlist.txt/gfwlist.ext 里面的域名、IP、网段，对于 chnroute 模式来说，就是国外 IP 地址。默认值为 `1:65535`，因此只要我们访问黑名单地址，就会走代理，因为所有端口号都在其中。如果觉得端口范围太大，那么你可以修改这个选项的值，比如设置为 `1:1023,8080`，在这种配置下，只有当我们访问黑名单地址的 1 到 1023 和 8080 这些目的端口时才会走代理，访问黑名单地址的其它目的端口是不会走代理的，因此可以利用此选项来放行 BT、PT 流量，因为这些流量的目的端口通常都在 1024 以上。修改此选项需要足够小心，配置不当会导致某些常用软件无法正常走代理，因为它们使用的端口号可能不在你所指定的范围之内，因此指定为 `1:65535` 可能是最保险的一种做法。
 - `opts_ss_netstat`：告诉 ss-tproxy，使用 ss 还是 netstat 命令进行端口检测，目前检测本机代理进程是否正常运行的方式是直接检测其是否已监听对应的端口，虽然这种方式有时候并不准确，但是我现在貌似并没有其它更好的便携方法来做这个事情。选项的默认值为 `auto`，表示自动模式，所谓自动模式就是，如果当前系统有 ss 命令则使用 ss 命令进行检测，如果没有 ss 命令但是有 netstat 命令则使用 netstat 命令进行检测，而 `ss` 选项值则是明确告诉 ss-tproxy 使用 `ss` 进行检测，同理，`netstat` 选项也是明确告诉 ss-tproxy 使用 `netstat` 进行端口检测。通常情况下保持 `auto` 即可。
 - `opts_ping_cmd_to_use`：告诉 ss-tproxy，使用何种 ping 命令（主要是 ping6 的问题）。默认为 `auto`，如果存在 `ping6` 且 `ping6` 并非软链接文件，则使用 `ping` 处理 ipv4 地址/域名，使用 `ping6` 来处理 ipv6 地址/域名，如果不存在 `ping6` 或 `ping6` 是 `ping` 的软链接文件，则使用 `ping -4` 处理 ipv4 地址/域名，使用 `ping -6` 处理 ipv6 地址/域名。如果选项值为 `standalone` 则明确使用 `ping/ping6` 方案，如果选项值为 `parameter` 则明确使用 `ping -4/-6` 方案。一般情况下，保持默认即可，除非遇到运行时错误等问题（如 `ping -4/-6` 选项不支持）。
-- `opts_hostname_resolver`：告诉 ss-tproxy，使用哪个工具来解析 `proxy_svraddr4/6` 中的域名；默认为 `auto`，auto 模式的查找优先级为 `dig`、`getent`、`ping`，只要找到其中一个就停止搜寻；dig 需要安装 bind-utils/dnsutils 包，getent 大多数发行版都自带，ping 基本上是个系统都有；如果你的系统只有 ping 命令，且能明显感受到 1 秒左右的解析延迟，那么请安装 dig 实用工具（Debian/Ubuntu 系列基本上都有这个问题，busybox 版本的 ping 也一样）。
+- `opts_hostname_resolver`：告诉 ss-tproxy，使用哪个工具来解析 `proxy_svraddr4/6` 中的域名(`proxy_procuser/group`模式下不需要)；默认为 `auto`，auto 模式的查找优先级为 `dig`、`getent`、`ping`，只要找到其中一个就停止搜寻；dig 需要安装 bind-utils/dnsutils 包，getent 大多数发行版都自带，ping 基本上是个系统都有；如果你的系统只有 ping 命令，且能明显感受到 1 秒左右的解析延迟，那么请安装 dig 实用工具（Debian/Ubuntu 系列基本上都有这个问题，busybox 版本的 ping 也一样）。
 - `opts_overwrite_resolv`：如果设置为 true，则表示直接使用 I/O 重定向方式修改 `/etc/resolv.conf` 文件，这个操作是不可逆的，但是可移植性好；如果设置为 false，则表示使用 `mount -o bind` 魔法来暂时性修改 `/etc/resolv.conf` 文件，当 ss-tproxy stop 之后，`/etc/resolv.conf` 会恢复为原来的文件，也就是说这个修改操作是可逆的，但是这个方式可能某些系统会不支持，默认为 `false`，如果遇到问题请修改为 `true`；此选项留空则不操作 `/etc/resolv.conf`。
 - `opts_ip_for_check_net`：指定一个允许 Ping 的 IP 地址（IPv4 或 IPv6 都行），用于检查外部网络的连通情况，如果此选项留空则表示跳过网络可用性检查（不建议）。默认为 `114.114.114.114`，注意这个 IP 地址应该为公网 IP，如果你填一个私有 IP，即使检测成功，也不能保证外网是可访问的，因为这仅代表我可以访问这个内网。根据实际网络环境进行更改，一般改为延迟较低且较稳定的一个 IP。
 
@@ -161,21 +163,41 @@ post_start() {
     "reuse_port": true
 }
 ```
-服务器地址、服务器端口、本地监听端口应与 ss-tproxy.conf 中填写的一致，如果仅代理 ss-tproxy 主机自身的流量，本地监听地址可以为 `127.0.0.1`、`::1`，否则必须为 `0.0.0.0`、`::`。然后 `proxy_startcmd`、`proxy_stopcmd` 可以这么写：
+服务器地址、服务器端口、本地监听端口应与 ss-tproxy.conf 中填写的一致，~~如果仅代理 ss-tproxy 主机自身的流量，本地监听地址可以为 `127.0.0.1`、`::1`，否则必须为 `0.0.0.0`、`::`~~，`v4.6.1+`版本开始不再有此要求，因此如无特殊需求，请让本机proxy进程监听在`127.0.0.1`、`::1`地址上。然后 `proxy_startcmd`、`proxy_stopcmd` 可以这么写：
 ```bash
+#老版本(v4.6.0及以下)
 #proxy_startcmd='(ss-redir -c /etc/ss.json -u -v </dev/null &>>/var/log/ss-redir.log &)' # -v 表示记录详细日志
 proxy_startcmd='(ss-redir -c /etc/ss.json -u </dev/null &>>/var/log/ss-redir.log &)' # 这里就不记录详细日志了
 proxy_stopcmd='kill -9 $(pidof ss-redir)'
+
+#新版本(v4.6.1及以上)
+#第一次运行时，请执行下面这两个操作
+#1.创建proxy用户和组: `useradd -Mr -d/tmp -s/bin/bash proxy`
+#2.授予透明代理相关权限: `setcap cap_net_bind_service,cap_net_admin+ep /path/to/ss-redir`
+proxy_procuser='proxy'
+#proxy_startcmd='su proxy -c"(ss-redir -c /etc/ss.json -u -v </dev/null &>>/tmp/ss-redir.log &)"' # -v 表示记录详细日志
+proxy_startcmd='su proxy -c "(ss-redir -c /etc/ss.json -u </dev/null &>>/tmp/ss-redir.log &)"' # 这里就不记录详细日志了
+proxy_stopcmd='kill -9 $(pidof ss-redir)'
 ```
 
-**ssr-redir** 也差不多，配置就不贴出来了，网上一大堆，注意事项同上，`proxy_startcmd`、`proxy_stopcmd` 例子：
+**ssr-redir** 也差不多，配置就不贴出来了，随便一搜就有，注意事项同上，`proxy_startcmd`、`proxy_stopcmd` 例子：
 ```bash
+#老版本(v4.6.0及以下)
 #proxy_startcmd='(ssr-redir -c /etc/ssr.json -u -v </dev/null &>>/var/log/ssr-redir.log &)'
 proxy_startcmd='(ssr-redir -c /etc/ssr.json -u </dev/null &>>/var/log/ssr-redir.log &)'
 proxy_stopcmd='kill -9 $(pidof ssr-redir)'
+
+#新版本(v4.6.1及以上)
+#第一次运行时，请执行下面这两个操作
+#1.创建proxy用户和组: `useradd -Mr -d/tmp -s/bin/bash proxy`
+#2.授予透明代理相关权限: `setcap cap_net_bind_service,cap_net_admin+ep /path/to/ssr-redir`
+proxy_procuser='proxy'
+#proxy_startcmd='su proxy -c"(ssr-redir -c /etc/ssr.json -u -v </dev/null &>>/tmp/ssr-redir.log &)"' # -v 表示记录详细日志
+proxy_startcmd='su proxy -c "(ssr-redir -c /etc/ssr.json -u </dev/null &>>/tmp/ssr-redir.log &)"' # 这里就不记录详细日志了
+proxy_stopcmd='kill -9 $(pidof ssr-redir)'
 ```
 
-最后说下 **v2ray**，只关心本机代理进程的配置，v2ray 的透明代理配置比较简单，只需要在原有客户端配置的基础上，加上一个 `dokodemo-door` 入站协议即可。由于 v2ray 配置复杂，在报告透明代理有问题之前，请务必检查你的配置是否有问题，这里不想解答任何 v2ray 配置问题，原则上不建议在 v2ray 上配置任何分流或路由规则，脚本会为你做这些事，如果你非要这么做，那么出问题也请自行解决，这里不提供任何相关的指导。下面是一个简单的配置示例：
+最后说下 **v2ray**，只关心本机代理进程的配置，v2ray 的透明代理配置比较简单，只需要在原有客户端配置的基础上，加上一个 `dokodemo-door` 入站协议即可。由于 v2ray 配置复杂，在报告透明代理有问题之前，请务必检查你的配置是否有问题，这里不想解答任何 v2ray 配置问题，**原则上不建议在 v2ray 上配置任何分流或路由规则**，脚本会为你做这些事，如果你非要这么做，那么出问题也请自行解决，这里不提供任何相关的指导。下面是一个简单的配置示例：
 ```javascript
 {
   "log": {
@@ -219,12 +241,22 @@ proxy_stopcmd='kill -9 $(pidof ssr-redir)'
   ]
 }
 ```
-v2ray 的 `proxy_startcmd`、`proxy_stopcmd` 例子，假设使用 systemctl 进行启动与停止，则：
+v2ray 的 `proxy_startcmd`、`proxy_stopcmd` 简单例子，假设使用 systemctl 进行启动与停止，则：
 ```bash
+#老版本(v4.6.0及以下)
 proxy_startcmd='systemctl start v2ray'
 proxy_stopcmd='systemctl stop v2ray'
+
+#新版本(v4.6.1及以上)
+#第一次运行时，请执行下面这两个操作
+#1.创建proxy用户和组: `useradd -Mr -d/tmp -s/bin/bash proxy`
+#2.授予透明代理相关权限: `setcap cap_net_bind_service,cap_net_admin+ep /path/to/{v2ray,v2ctl}`
+proxy_procuser='proxy'
+proxy_startcmd='su proxy -c"(v2ray -config /etc/v2ray.json </dev/null &>/dev/null &)"'
+proxy_stopcmd='kill -9 $(pidof v2ray)'
+#当然也可以使用systemctl的service来封装上述startcmd/stopcmd，具体就不详细说了。
 ```
-> 据反馈，dokodemo-door 入站协议的 UDP 有 bug，会断流，可使用 redsocks2/ipt2socks + socks5 入站协议缓解。
+> 据反馈，`dokodemo-door` 入站协议的 UDP 有 bug，会断流，可使用 `redsocks2/ipt2socks + socks5` 缓解。
 
 **钩子函数**
 
