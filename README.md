@@ -387,7 +387,7 @@ post_start() {
 
 **切换代理小技巧**
 
-如果觉得切换代理要修改 ss-tproxy.conf 很麻烦，可以这么做：将 `proxy_startcmd` 和 `proxy_stopcmd` 改为空调用，即 `proxy_startcmd='true'`、`proxy_stopcmd='true'`，然后配置好 `proxy_svraddr4/6`，将所有可能会用到的服务器地址都放进去，最后执行 `ss-tproxy start` 启动，因为我们没有填写任何代理进程的启动和停止命令，所以会显示代理进程未运行，没关系，现在我们要做的就是启动对应的代理进程，假设为 ss-redir 且使用 systemd 管理，则执行 `systemctl start ss-redir`，现在你再执行 `ss-tproxy status` 就会看到对应的状态正常了，当然代理也是正常的，如果需要换为 v2ray，假设也是使用 systemd 管理，那么只需要先关闭 ss-redir，然后再启动 v2ray 就行了，即 `systemctl stop ss-redir`、`systemctl start v2ray`，这相当于启动了一个代理框架，切换代理无需操作 ss-tproxy，直接切换进程即可。
+如果觉得切换代理要修改 ss-tproxy.conf 很麻烦，可以这么做：将 `proxy_startcmd` 和 `proxy_stopcmd` 改为空调用，即 `proxy_startcmd='true'`、`proxy_stopcmd='true'`，然后配置好 `proxy_svraddr4/6`(或者`proxy_procuser/group`)，将所有可能会用到的服务器地址都放进去，最后执行 `ss-tproxy start` 启动，因为我们没有填写任何代理进程的启动和停止命令，所以会显示代理进程未运行，没关系，现在我们要做的就是启动对应的代理进程，假设为 ss-redir 且使用 systemd 管理，则执行 `systemctl start ss-redir`，现在你再执行 `ss-tproxy status` 就会看到对应的状态正常了，当然代理也是正常的，如果需要换为 v2ray，假设也是使用 systemd 管理，那么只需要先关闭 ss-redir，然后再启动 v2ray 就行了，即 `systemctl stop ss-redir`、`systemctl start v2ray`，这相当于启动了一个代理框架，切换代理无需操作 ss-tproxy，直接切换进程即可。
 
 **FAQ**
 
