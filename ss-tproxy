@@ -133,6 +133,20 @@ is_need_iproute() {
     is_true "$tproxy" || is_enabled_udp
 }
 
+is_usrgrp_mode() {
+    [ "$proxy_procuser" -o "$proxy_procgroup" ]
+}
+
+get_usrgrp_args() {
+    if [ "$proxy_procuser" -a "$proxy_procgroup" ]; then
+        echo "--uid-owner $proxy_procuser --gid-owner $proxy_procgroup"
+    elif [ "$proxy_procuser" ]; then
+        echo "--uid-owner $proxy_procuser"
+    elif [ "$proxy_procgroup" ]; then
+        echo "--gid-owner $proxy_procgroup"
+    fi
+}
+
 is_nonstd_dnsport() {
     [ "$1" != '53' ]
 }
@@ -260,8 +274,10 @@ check_config() {
 
     { is_false "$ipv4" && is_false "$ipv6"; } && log_error "both ipv4 and ipv6 are disabled, nothing to do"
 
-    [ -z "$proxy_svrport" ] && log_error "the value of the proxy_svrport option is empty: $proxy_svrport"
-    [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
+    if ! is_usrgrp_mode; then
+        [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
+        [ -z "$proxy_svrport" ] && log_error "the value of the proxy_svrport option is empty: $proxy_svrport"
+    fi
 
     command_is_exists 'ipset'   || log_error "command not found: ipset"
     command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
@@ -313,34 +329,38 @@ check_config() {
             ;;
     esac
 
-    case "$opts_hostname_resolver" in
-        auto)
-            if command_is_exists 'dig'; then
-                resolver_func='resolve_hostname_by_dig'
-            elif command_is_exists 'getent'; then
-                resolver_func='resolve_hostname_by_getent'
-            elif command_is_exists 'ping'; then
-                resolver_func='resolve_hostname_by_ping'
-            else
-                log_error "command not found: dig/getent/ping"
-            fi
-            ;;
-        dig)
-            command_is_exists 'dig' && resolver_func='resolve_hostname_by_dig' || log_error "command not found: dig"
-            ;;
-        getent)
-            command_is_exists 'getent' && resolver_func='resolve_hostname_by_getent' || log_error "command not found: getent"
-            ;;
-        ping)
-            command_is_exists 'ping' && resolver_func='resolve_hostname_by_ping' || log_error "command not found: ping"
-            ;;
-        *)
-            log_error "the value of the opts_hostname_resolver option is invalid: $opts_hostname_resolver"
-            ;;
-    esac
+    if ! is_usrgrp_mode; then
+        case "$opts_hostname_resolver" in
+            auto)
+                if command_is_exists 'dig'; then
+                    resolver_func='resolve_hostname_by_dig'
+                elif command_is_exists 'getent'; then
+                    resolver_func='resolve_hostname_by_getent'
+                elif command_is_exists 'ping'; then
+                    resolver_func='resolve_hostname_by_ping'
+                else
+                    log_error "command not found: dig/getent/ping"
+                fi
+                ;;
+            dig)
+                command_is_exists 'dig' && resolver_func='resolve_hostname_by_dig' || log_error "command not found: dig"
+                ;;
+            getent)
+                command_is_exists 'getent' && resolver_func='resolve_hostname_by_getent' || log_error "command not found: getent"
+                ;;
+            ping)
+                command_is_exists 'ping' && resolver_func='resolve_hostname_by_ping' || log_error "command not found: ping"
+                ;;
+            *)
+                log_error "the value of the opts_hostname_resolver option is invalid: $opts_hostname_resolver"
+                ;;
+        esac
+    fi
 }
 
 resolve_svraddr() {
+    is_usrgrp_mode && return
+
     if is_true "$ipv4"; then
         proxy_svripv4=()
         for svraddr in "${proxy_svraddr4[@]}"; do
@@ -508,23 +528,25 @@ EOF
 
 start_dnsserver() {
     local dnsmasq_append_config=("${dnsmasq_conf_string[@]}")
-    if is_true "$ipv4"; then
-        for ((i = 0; i < ${#proxy_svraddr4[@]}; ++i)); do
-            local server_host="${proxy_svraddr4[i]}"
-            local server_addr="${proxy_svripv4[i]}"
-            if is_domain_name "$server_host"; then
-                dnsmasq_append_config+=("address = /$server_host/$server_addr")
-            fi
-        done
-    fi
-    if is_true "$ipv6"; then
-        for ((i = 0; i < ${#proxy_svraddr6[@]}; ++i)); do
-            local server_host="${proxy_svraddr6[i]}"
-            local server_addr="${proxy_svripv6[i]}"
-            if is_domain_name "$server_host"; then
-                dnsmasq_append_config+=("address = /$server_host/$server_addr")
-            fi
-        done
+    if ! is_usrgrp_mode; then
+        if is_true "$ipv4"; then
+            for ((i = 0; i < ${#proxy_svraddr4[@]}; ++i)); do
+                local server_host="${proxy_svraddr4[i]}"
+                local server_addr="${proxy_svripv4[i]}"
+                if is_domain_name "$server_host"; then
+                    dnsmasq_append_config+=("address = /$server_host/$server_addr")
+                fi
+            done
+        fi
+        if is_true "$ipv6"; then
+            for ((i = 0; i < ${#proxy_svraddr6[@]}; ++i)); do
+                local server_host="${proxy_svraddr6[i]}"
+                local server_addr="${proxy_svripv6[i]}"
+                if is_domain_name "$server_host"; then
+                    dnsmasq_append_config+=("address = /$server_host/$server_addr")
+                fi
+            done
+        fi
     fi
 
     local dnsmasq_common_config=$(cat <<EOF
@@ -636,6 +658,10 @@ stop_proxy_proc() {
 enable_ipforward() {
     is_true "$ipv4" && set_sysctl_option 'net.ipv4.ip_forward' 1
     is_true "$ipv6" && set_sysctl_option 'net.ipv6.conf.all.forwarding' 1
+}
+
+enable_rtlocalnet() {
+    set_sysctl_option 'net.ipv4.conf.all.route_localnet' 1
 }
 
 disable_icmpredir() {
@@ -829,7 +855,9 @@ start_iptables_tproxy_mode() {
     is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
 
     local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
+    if ! is_usrgrp_mode; then
+        is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
+    fi
 
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
@@ -864,10 +892,12 @@ start_iptables_tproxy_mode() {
     $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
     $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
+    if ! is_usrgrp_mode; then
+        for svr_ip in "${svr_ip_array[@]}"; do
+            $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+            is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+        done
+    fi
 
     if is_enabled_udp; then
         $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53               -j RETURN
@@ -895,6 +925,12 @@ start_iptables_tproxy_mode() {
     $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
+
+    if is_usrgrp_mode; then
+        $1 -t mangle -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
+        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ip:53
+        $1 -t nat -A SSTP_POSTROUTING -m owner $(get_usrgrp_args) -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
+    fi
 
     if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
@@ -935,7 +971,9 @@ start_iptables_redirect_mode() {
     is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
 
     local svr_ip_array
-    is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
+    if ! is_usrgrp_mode; then
+        is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
+    fi
 
     local direct_dns_ip
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
@@ -967,23 +1005,25 @@ start_iptables_redirect_mode() {
 
     $1 -t nat -N SSTP_RULE
 
-    for svr_ip in "${svr_ip_array[@]}"; do
-        $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-    done
+    if ! is_usrgrp_mode; then
+        for svr_ip in "${svr_ip_array[@]}"; do
+            $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+        done
+    fi
 
     if ! is_enabled_udp; then
-        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port --syn -j REDIRECT --to-ports $proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
     fi
 
     if is_gfwlist_mode; then
-        $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
     elif is_global_mode; then
         $1 -t nat -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
     elif is_chnroute_mode; then
         $1 -t nat -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
         $1 -t nat -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j REDIRECT --to-ports $proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
     fi
 
     ######################### SSTP_RULE (for udp) #########################
@@ -994,9 +1034,11 @@ start_iptables_redirect_mode() {
         $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
         $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
 
-        for svr_ip in "${svr_ip_array[@]}"; do
-            $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        done
+        if ! is_usrgrp_mode; then
+            for svr_ip in "${svr_ip_array[@]}"; do
+                $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
+            done
+        fi
 
         $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53               -j RETURN
         $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
@@ -1017,6 +1059,14 @@ start_iptables_redirect_mode() {
     fi
 
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
+
+    if is_usrgrp_mode; then
+        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ip:53
+        $1 -t nat -A SSTP_POSTROUTING -m owner $(get_usrgrp_args) -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
+
+        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
+        is_enabled_udp && $1 -t mangle -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
+    fi
 
     if is_nonstd_dnsport "$dnsmasq_bind_port"; then
         $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
@@ -1065,6 +1115,7 @@ start() {
 
     flush_postrule
     enable_ipforward
+    enable_rtlocalnet
     disable_icmpredir
     restore_resolvconf
     resolve_svraddr
@@ -1108,7 +1159,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.6"
+    echo "ss-tproxy v4.6.1 (2021-01-17)"
 }
 
 help() {
@@ -1133,7 +1184,7 @@ Specify the -x option for debugging of bash scripts
 Specify the -c option to use given ss-tproxy cfgfile
 Specify the name=value to override ss-tproxy configs
 Issues or bug report: https://github.com/zfl9/ss-tproxy
-See the https://www.zfl9.com/ss-redir.html for more details
+See https://github.com/zfl9/ss-tproxy/wiki for more details
 EOF
 }
 
@@ -1156,9 +1207,8 @@ main() {
     done
 
     if [ "${#arguments[@]}" -eq 0 ]; then
-        echo "$(color_yellow "Missing necessary options")"
         help
-        return 1
+        return 0
     fi
 
     load_config
