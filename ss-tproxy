@@ -829,7 +829,7 @@ start_iptables_pre_rules() {
         local iproute2_family
         is_ipv4_ipts $1 && iproute2_family="-4" || iproute2_family="-6"
         ip $iproute2_family route add local default dev $ipts_if_lo table $ipts_rt_tab
-        if ip rule help 2>&1 | grep -q protocol; then
+        if ip rule help 2>&1 | grep -Fwq protocol; then
             ip $iproute2_family rule add fwmark $ipts_rt_mark table $ipts_rt_tab protocol kernel
         else
             ip $iproute2_family rule add fwmark $ipts_rt_mark table $ipts_rt_tab
