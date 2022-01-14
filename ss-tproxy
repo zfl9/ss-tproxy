@@ -454,7 +454,11 @@ start_dnsserver_global() {
         done)
 EOF
 )
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    if is_true "$dnsmasq_enable"; then
+        status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    else
+        status_dnsmasq_pid=65536
+    fi
 }
 
 start_dnsserver_gfwlist() {
@@ -475,7 +479,11 @@ start_dnsserver_gfwlist() {
         done)
 EOF
 )
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    if is_true "$dnsmasq_enable"; then
+        status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    else
+        status_dnsmasq_pid=65536
+    fi
 }
 
 start_dnsserver_chnroute() {
@@ -523,7 +531,11 @@ start_dnsserver_chnroute() {
         done)
 EOF
 )
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    if is_true "$dnsmasq_enable"; then
+        status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    else
+        status_dnsmasq_pid=65536
+    fi
 }
 
 start_dnsserver() {
