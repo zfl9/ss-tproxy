@@ -347,8 +347,33 @@ systemctl enable ss-tproxy
 
 如果想让 chnroute 模式支持黑名单扩展，请打开 chinadns-ng 的 gfwlist 模式（选项 `chinadns_gfwlist_mode`）；开启 gfwlist 模式后，chinadns-ng 会读取 `gfwlist.txt/ext` 黑名单文件中的**域名模式**；当 chinadns-ng 收到域名解析请求时，会先检查给定域名是否在黑名单中，如果是则直接向可信 DNS 发出解析请求（也就是 `dns_remote/dns_remote6`），因此解析出来的会是国外 IP，然后当客户端访问该 IP 时就会走代理出去了；虽然 gfwlist.txt 黑名单文件中有超过 5000+ 行域名模式，但你并不需要担心 chinadns-ng 的查询性能，因为 chinadns-ng 是利用哈希表来存储这些域名模式的，所以查询速度非常快，并不需要遍历全表，与原版 dnsmasq 具有显著的不同（原版 dnsmasq 是利用链表来存储和查询域名模式的）。
 
-**LAN 侧访问控制列表**
-// TODO
+**内网主机tcp限速**
+
+首先限速的原理很简单，就是将超过规定速率的包给丢掉（限速一般只针对tcp，udp很少有这种需求），丢掉超过规定速率的包之后，在TCP发送方看来，就是对方(接收方)没收到我发出去的包，也就是“丢包”了，于是会触发TCP的重传机制，于是就达到了限速的目的。
+
+一个简单的例子（这些iptables规则在ss-tproxy主机设置）：
+```shell
+## 连接级别
+# 192.168.1.0/24网段的主机，每条tcp连接，上传限速100kb/s
+iptables -t mangle -I PREROUTING -p tcp -s 192.168.1.0/24 -m hashlimit --hashlimit-name upload --hashlimit-mode srcip,srcport --hashlimit-above 100kb/s -j DROP
+
+# 192.168.1.0/24网段的主机，每条tcp连接，下载限速100kb/s
+iptables -t mangle -I POSTROUTING -p tcp -d 192.168.1.0/24 -m hashlimit --hashlimit-name download --hashlimit-mode dstip,dstport --hashlimit-above 100kb/s -j DROP
+
+## 主机级别
+# 192.168.1.0/24网段的主机，每个内网ip，上传限速100kb/s
+iptables -t mangle -I PREROUTING -p tcp -s 192.168.1.0/24 -m hashlimit --hashlimit-name upload --hashlimit-mode srcip --hashlimit-above 100kb/s -j DROP
+
+# 192.168.1.0/24网段的主机，每个内网ip，下载限速100kb/s
+iptables -t mangle -I POSTROUTING -p tcp -d 192.168.1.0/24 -m hashlimit --hashlimit-name download --hashlimit-mode dstip --hashlimit-above 100kb/s -j DROP
+```
+
+如果是要限制从直连网站下载的速度，要设置一条snat规则，不然限速是不会有效的 ( 因为数据包直接由光猫/路由器发到内网客户机了，不会经过ss-tproxy主机）：
+```shell
+iptables -t nat -A POSTROUTING -p tcp -s 192.168.1.0/24 -j MASQUERADE
+```
+
+> 可以利用`post_start`钩子函数来设置这些规则，然后利用`post_stop`来清理这些规则（把`-I`/`-A`改为`-D`就是删除）。
 
 **钩子函数小技巧**
 
