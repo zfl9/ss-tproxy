@@ -846,8 +846,9 @@ start_iptables_post_rules() {
 }
 
 start_iptables_tproxy_mode() {
-    local loopback_addr
+    local loopback_addr loopback_addrx
     is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
+    is_ipv4_ipts $1 && loopback_addrx="127.0.0.1" || loopback_addrx="[::1]"
 
     local gfwlist_setname
     is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
@@ -863,8 +864,9 @@ start_iptables_tproxy_mode() {
         is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
     fi
 
-    local direct_dns_ip
+    local direct_dns_ip direct_dns_ipx
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+    is_ipv4_ipts $1 && direct_dns_ipx="$dns_direct" || direct_dns_ipx="[$dns_direct6]"
 
     local remote_dns_ip remote_dns_port
     is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
@@ -932,7 +934,7 @@ start_iptables_tproxy_mode() {
 
     if is_usrgrp_mode; then
         $1 -t mangle -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
-        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ip:53
+        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ipx:53
         $1 -t nat -A SSTP_POSTROUTING -m owner $(get_usrgrp_args) -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
     fi
 
@@ -962,8 +964,9 @@ start_iptables_tproxy_mode() {
 }
 
 start_iptables_redirect_mode() {
-    local loopback_addr
+    local loopback_addr loopback_addrx
     is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
+    is_ipv4_ipts $1 && loopback_addrx="127.0.0.1" || loopback_addrx="[::1]"
 
     local gfwlist_setname
     is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
@@ -979,8 +982,9 @@ start_iptables_redirect_mode() {
         is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
     fi
 
-    local direct_dns_ip
+    local direct_dns_ip direct_dns_ipx
     is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+    is_ipv4_ipts $1 && direct_dns_ipx="$dns_direct" || direct_dns_ipx="[$dns_direct6]"
 
     local remote_dns_ip remote_dns_port
     is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
@@ -1016,18 +1020,18 @@ start_iptables_redirect_mode() {
     fi
 
     if ! is_enabled_udp; then
-        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
     fi
 
     if is_gfwlist_mode; then
-        $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
     elif is_global_mode; then
         $1 -t nat -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
     elif is_chnroute_mode; then
         $1 -t nat -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
         $1 -t nat -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addr:$proxy_tcpport
+        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
     fi
 
     ######################### SSTP_RULE (for udp) #########################
@@ -1065,7 +1069,7 @@ start_iptables_redirect_mode() {
     ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
 
     if is_usrgrp_mode; then
-        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ip:53
+        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ipx:53
         $1 -t nat -A SSTP_POSTROUTING -m owner $(get_usrgrp_args) -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
 
         $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
