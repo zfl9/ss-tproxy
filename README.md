@@ -178,7 +178,7 @@ true 为纯 TPROXY，false 为 REDIRECT/TPROXY 混合（具体解释前面有）
 - **v4.6.1新增**：替代之前的`proxy_svraddr/proxy_svrport`配置，用来实现`本机代理进程`流量放行
 - 现在只需要让`本机代理进程`以指定user/group身份运行，即可'放行'它们传出的流量（避免环路）
 - `proxy_procuser`填写`本机代理进程`的user/uid，`proxy_procgroup`填写`本机代理进程`的group/gid
-- 两者选其一，但不建议都填；此文档使用`proxy`用户，见`proxy_startcmd/proxy_stopcmd`配置说明
+- 两者选其一(不建议都填)；此文档使用`proxy`用户(组)，见`proxy_startcmd/proxy_stopcmd`配置说明
     
 </details>
 
@@ -337,7 +337,8 @@ proxy_stopcmd='kill -9 $(pidof ss-redir)'
 #第一次运行时，请执行下面这两个操作
 #1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
 #2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/ss-redir
-#若setcap不可用，可使用suid特殊权限位：chown root:root /path/to/ss-redir && chmod 4755 /path/to/ss-redir
+#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
+#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/ss-redir && chmod 4755 /path/to/ss-redir
 proxy_procuser='proxy'
 #proxy_startcmd='su proxy -c"(ss-redir -c /etc/ss.json -u -v </dev/null &>>/tmp/ss-redir.log &)"' # -v 表示记录详细日志
 proxy_startcmd='su proxy -c"(ss-redir -c /etc/ss.json -u </dev/null &>>/tmp/ss-redir.log &)"' # 这里就不记录详细日志了
@@ -363,7 +364,8 @@ proxy_stopcmd='kill -9 $(pidof ssr-redir)'
 #第一次运行时，请执行下面这两个操作
 #1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
 #2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/ssr-redir
-#若setcap不可用，可使用suid特殊权限位：chown root:root /path/to/ssr-redir && chmod 4755 /path/to/ssr-redir
+#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
+#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/ssr-redir && chmod 4755 /path/to/ssr-redir
 proxy_procuser='proxy'
 #proxy_startcmd='su proxy -c"(ssr-redir -c /etc/ssr.json -u -v </dev/null &>>/tmp/ssr-redir.log &)"' # -v 表示记录详细日志
 proxy_startcmd='su proxy -c"(ssr-redir -c /etc/ssr.json -u </dev/null &>>/tmp/ssr-redir.log &)"' # 这里就不记录详细日志了
@@ -436,7 +438,8 @@ proxy_stopcmd='systemctl stop v2ray'
 #第一次运行时，请执行下面这两个操作
 #1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
 #2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/{v2ray,v2ctl}
-#若setcap不可用，可使用suid特殊权限位：chown root:root /path/to/{v2ray,v2ctl} && chmod 4755 /path/to/{v2ray,v2ctl}
+#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
+#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/{v2ray,v2ctl} && chmod 4755 /path/to/{v2ray,v2ctl}
 proxy_procuser='proxy'
 proxy_startcmd='su proxy -c"(v2ray -config /etc/v2ray.json </dev/null &>/dev/null &)"'
 proxy_stopcmd='kill -9 $(pidof v2ray) $(pidof v2ctl)'
