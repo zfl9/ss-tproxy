@@ -448,6 +448,69 @@ proxy_stopcmd='kill -9 $(pidof v2ray) $(pidof v2ctl)'
 
 </details>
 
+<details><summary>socks5</summary>
+
+对于socks5代理（如：非libev版本的ss/ssr，或其他代理软件），可使用 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入支持。<br>
+以trojan为例（trojan支持nat传入，但只支持tcp，因此与ipt2socks配合用），配置例子来自trojan官方文档，请酌情修改：
+
+```javascript
+{
+    "run_type": "client",
+    "local_addr": "127.0.0.1",
+    "local_port": 1080,
+    "remote_addr": "example.com", // 服务器地址 (如果是v4.6.1之前的版本，请与proxy_svraddr一致)
+    "remote_port": 443, // 服务器端口 (如果是v4.6.1之前的版本，请与proxy_svrport一致)
+    "password": [
+        "password1" // 用户密码
+    ],
+    "log_level": 1,
+    "ssl": {
+        "verify": true,
+        "verify_hostname": true,
+        "cert": "",
+        "cipher": "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:AES128-SHA:AES256-SHA:DES-CBC3-SHA",
+        "cipher_tls13": "TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384",
+        "sni": "",
+        "alpn": [
+            "h2",
+            "http/1.1"
+        ],
+        "reuse_session": true,
+        "session_ticket": false,
+        "curves": ""
+    },
+    "tcp": {
+        "no_delay": true,
+        "keep_alive": true,
+        "reuse_port": false,
+        "fast_open": false,
+        "fast_open_qlen": 20
+    }
+}
+```
+
+`ss-tproxy.conf`启动和停止命令，例如
+```bash
+#老版本(v4.6.0及以下)
+#请确保proxy_svraddr/svrport与'服务器地址/端口'一致
+tproxy='true' #ipt2socks默认为tproxy模式
+proxy_startcmd='(trojan -c /etc/trojan.json </dev/null &>>/var/log/trojan.log & ipt2socks </dev/null &>>/var/log/ipt2socks.log &)'
+proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
+
+#新版本(v4.6.1及以上)
+#第一次运行时，请执行下面这两个操作
+#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
+#2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/{trojan,ipt2socks}
+#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
+#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/{trojan,ipt2socks} && chmod 4755 /path/to/{trojan,ipt2socks}
+tproxy='true' #ipt2socks默认为tproxy模式
+proxy_procuser='proxy'
+proxy_startcmd='su proxy -c"(trojan -c /etc/trojan.json </dev/null &>>/var/log/trojan.log & ipt2socks </dev/null &>>/var/log/ipt2socks.log &)"'
+proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
+```
+
+</details>
+
 ## IPv6 透明代理的实施方式
 
 ss-tproxy v4.0 版本需要利用 ULA 地址进行 IPv6 透明代理，而且还有许多要注意的事项，体验不是很好；但 v4.6 版本不需要任何额外的配置，如果想使用 IPv6 透明代理，直接启用 `ipv6` 选项即可，使用方法完全同 IPv4 透明代理。当然，v4.6 版本依旧可以使用 ULA 地址来进行 IPv6 透明代理（比如忍受不了 GUA 地址总是变化），使用 ULA 地址做透明代理时需要注意一点：将 ss-tproxy.conf 中的 `ipts_set_snat6` 选项设为 true，作用是防止 ULA 地址在公网上被路由。
