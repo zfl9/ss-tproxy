@@ -450,7 +450,7 @@ proxy_stopcmd='kill -9 $(pidof v2ray) $(pidof v2ctl)'
 
 <details><summary>socks5</summary>
 
-对于socks5代理（如：非libev版本的ss/ssr，或其他代理软件），可使用 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入支持。以trojan为例（trojan支持nat传入，但只支持tcp，因此与ipt2socks配合用），配置例子来自trojan官方文档，请酌情修改：
+对于socks5代理（如：非libev版本的ss/ssr，或其他代理软件），可使用 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入支持。以trojan为例（trojan支持nat传入，但只支持tcp，因此与ipt2socks配合用），配置例子来自trojan官方文档：
 
 ```javascript
 {
