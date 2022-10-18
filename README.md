@@ -510,6 +510,8 @@ proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
 
 </details>
 
+> 如果觉得配置和修改`proxy_startcmd`、`proxy_stopcmd`太麻烦（如经常切换节点），可参考：[切换代理小技巧](#切换代理小技巧)
+
 ## IPv6 透明代理的实施方式
 
 ss-tproxy v4.0 版本需要利用 ULA 地址进行 IPv6 透明代理，而且还有许多要注意的事项，体验不是很好；但 v4.6 版本不需要任何额外的配置，如果想使用 IPv6 透明代理，直接启用 `ipv6` 选项即可，使用方法完全同 IPv4 透明代理。当然，v4.6 版本依旧可以使用 ULA 地址来进行 IPv6 透明代理（比如忍受不了 GUA 地址总是变化），使用 ULA 地址做透明代理时需要注意一点：将 ss-tproxy.conf 中的 `ipts_set_snat6` 选项设为 true，作用是防止 ULA 地址在公网上被路由。
