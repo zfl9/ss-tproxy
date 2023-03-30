@@ -510,6 +510,83 @@ proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
 
 </details>
 
+<details><summary>hysteria</summary>
+
+```json
+{
+  "server": "example.com:36712",
+  "obfs": "8ZuA2Zpqhuk8yakXvMjDqEXBwY",
+  "up_mbps": 10,
+  "down_mbps": 50,
+  "retry": -1,
+  "retry_interval": 1,
+  "tproxy_tcp": {
+    "listen": "0.0.0.0:60080",
+    "timeout": 300
+  },
+  "tproxy_udp": {
+    "listen": "0.0.0.0:60080",
+    "timeout": 300
+  },
+}
+```
+
+
+新版本(v4.6.1及以上) 初始化配置
+```bash
+#第一次运行时，请执行下面这三个操作
+#1.创建tproxy用户: echo "tproxy:x:0:23333:::" >> /etc/passwd
+#2.建立hysteria.service文件 : vim /usr/lib/systemd/system/hy.service;
+#3.授予执行权限: chmod +x /usr/bin/hysteria
+```
+```
+[Unit]
+Description=Hysteria Client Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hysteria -config /etc/hysteria/config.json
+WorkingDirectory=/etc/hysteria
+User=tproxy
+Environment=HYSTERIA_LOG_LEVEL=info
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+/etc/hysteria/start.sh
+```bash
+systemctl start hy
+wait_port_start() {
+	port_start=1
+	while [ x$port_start = x1 ]; do
+		sudo netstat -anp | grep 60080
+		port_start=$?
+		echo 'wait hy start '
+		sleep 1s
+	done
+	echo "hy start ok"
+
+}
+wait_port_start
+```
+
+配置`ss-tproxy.conf`启动和停止命令
+```bash
+proxy_procgroup='23333'
+proxy_startcmd='bash /etc/hysteria/start.sh'
+proxy_stopcmd='sudo systemctl stop hy'
+```
+
+如果启动ss-tproxy时,hysteria长时间无法启动,请单独启动hysteria以确认hysteria的配置及网络情况
+
+</details>
+
+
 > 如果觉得配置和修改`proxy_startcmd`、`proxy_stopcmd`太麻烦（如经常切换节点），可参考：[切换代理小技巧](#切换代理小技巧)
 
 ## IPv6 透明代理的实施方式
