@@ -153,6 +153,7 @@ true 为纯 TPROXY，false 为 REDIRECT/TPROXY 混合（具体解释前面有）
 - ss/ssr/trojan 目前是 REDIRECT/TPROXY 混合模式
 - v2ray 经配置后可使用纯 TPROXY 模式（见下）
 - ipt2socks 默认配置是纯 TPROXY 模式
+- hysteria 示例配置是纯 TPROXY 模式
 - 其他代理软件请各位自己辨别测试
 
 > ss-libev v3.3.5+ 已加入纯 tproxy 支持，在启动参数中增加`-T`或在json文件中添加`"tcp_tproxy": true`配置行，即可启用
