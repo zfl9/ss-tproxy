@@ -512,6 +512,8 @@ proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
 
 <details><summary>hysteria</summary>
 
+/etc/hysteria/config.json:
+
 ```json
 {
   "server": "example.com:36712",
@@ -539,6 +541,8 @@ proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
 #2.建立hysteria.service文件 : vim /usr/lib/systemd/system/hy.service;
 #3.授予执行权限: chmod +x /usr/bin/hysteria
 ```
+
+hy.service:
 ```
 [Unit]
 Description=Hysteria Client Service
