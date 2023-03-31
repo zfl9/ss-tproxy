@@ -558,31 +558,23 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 ```
 
-/etc/hysteria/start.sh
-```bash
-systemctl start hy
-wait_port_start() {
-	port_start=1
-	while [ x$port_start = x1 ]; do
-		netstat -anp | grep 60080
-		port_start=$?
-		echo 'wait hy start '
-		sleep 1s
-	done
-	echo "hy start ok"
 
-}
-wait_port_start
-```
 
 配置`ss-tproxy.conf`启动和停止命令
 ```bash
 proxy_procuser='proxy'
-proxy_startcmd='bash /etc/hysteria/start.sh'
+proxy_startcmd='systemctl start hy'
 proxy_stopcmd='systemctl stop hy'
+post_start() {
+    local n=0 max=5 #最大等待 5*0.5s = 2.5s
+    while ! tcp_port_is_exists $proxy_tcpport && ((++n <= max)); do
+        echo "wait hy start ..."
+        sleep 0.5s
+    done
+}
 ```
 
-如果启动ss-tproxy时,hysteria长时间无法启动,请单独启动hysteria以确认hysteria的配置及网络情况
+如果启动ss-tproxy时,hysteria无法启动,请单独启动hysteria以确认hysteria的配置及网络情况
 
 </details>
 
