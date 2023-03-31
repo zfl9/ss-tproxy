@@ -512,7 +512,10 @@ proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
 
 <details><summary>hysteria</summary>
 
-/etc/hysteria/config.json:
+hysteria 直接支持tproxy透明代理  
+
+
+/etc/hysteria/config.json
 
 ```json
 {
