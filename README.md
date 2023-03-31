@@ -153,6 +153,7 @@ true 为纯 TPROXY，false 为 REDIRECT/TPROXY 混合（具体解释前面有）
 - ss/ssr/trojan 目前是 REDIRECT/TPROXY 混合模式
 - v2ray 经配置后可使用纯 TPROXY 模式（见下）
 - ipt2socks 默认配置是纯 TPROXY 模式
+- hysteria 示例配置是纯 TPROXY 模式
 - 其他代理软件请各位自己辨别测试
 
 > ss-libev v3.3.5+ 已加入纯 tproxy 支持，在启动参数中增加`-T`或在json文件中添加`"tcp_tproxy": true`配置行，即可启用
@@ -509,6 +510,83 @@ proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
 ```
 
 </details>
+
+<details><summary>hysteria</summary>
+
+hysteria 直接支持tproxy透明代理  
+
+
+/etc/hysteria/config.json
+
+```json
+{
+  "server": "example.com:36712",
+  "obfs": "8ZuA2Zpqhuk8yakXvMjDqEXBwY",
+  "up_mbps": 10,
+  "down_mbps": 50,
+  "retry": -1,
+  "retry_interval": 1,
+  "tproxy_tcp": {
+    "listen": "0.0.0.0:60080",
+    "timeout": 300
+  },
+  "tproxy_udp": {
+    "listen": "0.0.0.0:60080",
+    "timeout": 300
+  },
+}
+```
+
+
+新版本(v4.6.1及以上) 初始化配置
+```bash
+#第一次运行时，请执行下面这三个操作
+#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
+#2.建立hysteria.service文件 : vim /usr/lib/systemd/system/hy.service;
+#3.授予执行权限: chmod +x /usr/bin/hysteria
+```
+
+hy.service:
+```
+[Unit]
+Description=Hysteria Client Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hysteria -config /etc/hysteria/config.json
+WorkingDirectory=/etc/hysteria
+User=proxy
+Environment=HYSTERIA_LOG_LEVEL=info
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+
+
+配置`ss-tproxy.conf`启动和停止命令
+```bash
+proxy_procuser='proxy'
+tproxy='true'
+proxy_startcmd='systemctl start hy'
+proxy_stopcmd='systemctl stop hy'
+post_start() {
+    local n=0 max=5 #最大等待 5*0.5s = 2.5s
+    while ! tcp_port_is_exists $proxy_tcpport && ((++n <= max)); do
+        echo "wait hy start ..."
+        sleep 0.5s
+    done
+}
+```
+
+如果启动ss-tproxy时,hysteria无法启动,请单独启动hysteria以确认hysteria的配置及网络情况
+
+</details>
+
 
 > 如果觉得配置和修改`proxy_startcmd`、`proxy_stopcmd`太麻烦（如经常切换节点），可参考：[切换代理小技巧](#切换代理小技巧)
 
