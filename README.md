@@ -535,7 +535,7 @@ proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
 新版本(v4.6.1及以上) 初始化配置
 ```bash
 #第一次运行时，请执行下面这三个操作
-#1.创建tproxy用户: echo "tproxy:x:0:23333:::" >> /etc/passwd
+#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
 #2.建立hysteria.service文件 : vim /usr/lib/systemd/system/hy.service;
 #3.授予执行权限: chmod +x /usr/bin/hysteria
 ```
@@ -548,7 +548,7 @@ After=network.target
 Type=simple
 ExecStart=/usr/bin/hysteria -config /etc/hysteria/config.json
 WorkingDirectory=/etc/hysteria
-User=tproxy
+User=proxy
 Environment=HYSTERIA_LOG_LEVEL=info
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
 AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_RAW
@@ -577,7 +577,7 @@ wait_port_start
 
 配置`ss-tproxy.conf`启动和停止命令
 ```bash
-proxy_procgroup='23333'
+proxy_procuser='proxy'
 proxy_startcmd='bash /etc/hysteria/start.sh'
 proxy_stopcmd='systemctl stop hy'
 ```
