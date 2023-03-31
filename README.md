@@ -564,7 +564,7 @@ systemctl start hy
 wait_port_start() {
 	port_start=1
 	while [ x$port_start = x1 ]; do
-		sudo netstat -anp | grep 60080
+		netstat -anp | grep 60080
 		port_start=$?
 		echo 'wait hy start '
 		sleep 1s
@@ -579,7 +579,7 @@ wait_port_start
 ```bash
 proxy_procgroup='23333'
 proxy_startcmd='bash /etc/hysteria/start.sh'
-proxy_stopcmd='sudo systemctl stop hy'
+proxy_stopcmd='systemctl stop hy'
 ```
 
 如果启动ss-tproxy时,hysteria长时间无法启动,请单独启动hysteria以确认hysteria的配置及网络情况
