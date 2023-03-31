@@ -570,6 +570,7 @@ WantedBy=multi-user.target
 配置`ss-tproxy.conf`启动和停止命令
 ```bash
 proxy_procuser='proxy'
+tproxy='true'
 proxy_startcmd='systemctl start hy'
 proxy_stopcmd='systemctl stop hy'
 post_start() {
