@@ -105,12 +105,24 @@ list_ext_domain() {
     grep '^@' "$1" | cut -c2-
 }
 
+command_path() {
+    command -v "$1"
+}
+
 command_is_exists() {
     command -v "$1" &>/dev/null
 }
 
 command_required() {
     command_is_exists "$1" || log_error "command not found: $1"
+}
+
+# group command
+set_command_group() {
+    local group="$1"
+    local path="$(command_path "$2")"
+    chgrp "$group" "$path" || log_error "chgrp failed: group=$group path=$path"
+    chmod g+xs "$path"
 }
 
 process_is_running() {
@@ -300,10 +312,18 @@ check_config() {
 
     ! is_custom_dns && {
         command_required 'dnsmasq'
-        is_chnroute_mode && command_required 'chinadns-ng'
+        set_command_group "$dns_procgroup" 'dnsmasq'
+
+        is_chnroute_mode && {
+            command_required 'chinadns-ng'
+            set_command_group "$dns_procgroup" 'chinadns-ng'
+        }
     }
 
-    is_enabled_dns2tcp && command_required 'dns2tcp'
+    is_enabled_dns2tcp && {
+        command_required 'dns2tcp'
+        set_command_group "$dns_procgroup" 'dns2tcp'
+    }
 
     case "$opts_ss_netstat" in
         auto)
