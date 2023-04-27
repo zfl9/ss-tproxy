@@ -3,8 +3,8 @@
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 # 除了主脚本，其他文件都放这个目录，此值可被命令行参数覆盖
-base_dir='/etc/ss-tproxy'
-config_file='ss-tproxy.conf'
+base_dir='/etc/ss-tproxy' # 同时也是工作目录
+config_file='ss-tproxy.conf' # 相对于base_dir
 
 # 已存在的函数和变量尽量别改名和删除，因为可能被 ss-tproxy.conf 引用(钩子函数)
 # 由于需要执行 iptables、策略路由、内核参数 等特权操作，脚本必须以 root 权限执行
@@ -56,43 +56,6 @@ file_required() {
     file_is_exists "$1" || log_error "file not found: $1"
 }
 
-# 绝对路径 or 相对于base_dir
-filename() {
-    [[ "$1" == /* ]] && echo "$1" || echo "$base_dir/$1"
-}
-
-filename_config() {
-    filename $config_file
-}
-
-filename_pid() {
-    filename .pid
-}
-
-filename_ignlist_ext() {
-    filename ignlist.ext
-}
-
-filename_gfwlist() {
-    filename gfwlist.txt
-}
-
-filename_gfwlist_ext() {
-    filename gfwlist.ext
-}
-
-filename_chnlist() {
-    filename chnlist.txt
-}
-
-filename_chnroute() {
-    filename chnroute.txt
-}
-
-filename_chnroute6() {
-    filename chnroute6.txt
-}
-
 list_ext_ipv4() {
     grep '^-' "$1" | cut -c2-
 }
@@ -138,14 +101,14 @@ udp_port_is_exists() {
 }
 
 ss_tproxy_is_started() {
-    iptables  -t mangle -nL SSTP_OUTPUT &>/dev/null ||
-    iptables  -t nat    -nL SSTP_OUTPUT &>/dev/null ||
-    ip6tables -t mangle -nL SSTP_OUTPUT &>/dev/null ||
-    ip6tables -t nat    -nL SSTP_OUTPUT &>/dev/null ||
-    ip -4 route show table $ipts_rt_tab 2>/dev/null | grep -q ^ ||
-    ip -6 route show table $ipts_rt_tab 2>/dev/null | grep -q ^ ||
-    ip -4 rule 2>/dev/null | grep -q "fwmark $ipts_rt_mark" ||
-    ip -6 rule 2>/dev/null | grep -q "fwmark $ipts_rt_mark"
+    iptables  -t mangle -S SSTP_OUTPUT &>/dev/null ||
+    iptables  -t nat    -S SSTP_OUTPUT &>/dev/null ||
+    ip6tables -t mangle -S SSTP_OUTPUT &>/dev/null ||
+    ip6tables -t nat    -S SSTP_OUTPUT &>/dev/null ||
+    ip -4 rule 2>/dev/null | grep -q "lookup $ipts_rt_tab" ||
+    ip -6 rule 2>/dev/null | grep -q "lookup $ipts_rt_tab" ||
+    ip -4 route show table $ipts_rt_tab &>/dev/null | grep -q '^' ||
+    ip -6 route show table $ipts_rt_tab &>/dev/null | grep -q '^'
 }
 
 is_ipv4_ipts() {
@@ -169,7 +132,7 @@ is_chnroute_mode() {
 }
 
 is_custom_dns() {
-    is_false "$dns_enable"
+    is_true "$dns_custom"
 }
 
 is_proxy_other() {
@@ -254,11 +217,11 @@ get_remotedns6_port() {
 
 is_empty_iptschain() {
     local ipts="$1" table="$2" chain="$3"
-    [ $($ipts -t $table -nL $chain | wc -l) -gt 2 ]
+    [ $($ipts -t $table -S $chain | wc -l) -le 1 ]
 }
 
 load_pidfile() {
-    file_is_exists $(filename_pid) && source $(filename_pid)
+    file_is_exists .pid && source .pid
 }
 
 save_pidfile() {
@@ -267,16 +230,16 @@ save_pidfile() {
         echo "pid_chinadns=$pid_chinadns"
         echo "pid_dns2tcp4=$pid_dns2tcp4"
         echo "pid_dns2tcp6=$pid_dns2tcp6"
-    } >$(filename_pid)
+    } >.pid
 }
 
 delete_pidfile() {
-    rm -f $(filename_pid) &>/dev/null
+    rm -f .pid &>/dev/null
 }
 
 load_config() {
-    file_required $(filename_config)
-    source $(filename_config) "${arg_list[@]}" || log_error "$(filename_config) load failed, exit-code: $?"
+    file_required $config_file
+    source $config_file "${arg_list[@]}" || log_error "$config_file load failed, exit-code: $?"
     for override in "${override_list[@]}"; do eval "$override"; done
 }
 
@@ -285,21 +248,21 @@ file_required() {
 }
 
 check_config() {
-    { is_false "$ipv4" && is_false "$ipv6"; } &&
+    { ! is_enabled_ipv4 && ! is_enabled_ipv6; } &&
         log_error "both ipv4 and ipv6 are disabled, nothing to do"
 
     if is_global_mode; then
-        file_required $(filename_ignlist_ext)
+        file_required ignlist.ext
     elif is_gfwlist_mode; then
-        file_required $(filename_gfwlist)
-        file_required $(filename_gfwlist_ext)
+        file_required gfwlist.txt
+        file_required gfwlist.ext
     elif is_chnroute_mode; then
-        file_required $(filename_gfwlist)
-        file_required $(filename_gfwlist_ext)
-        file_required $(filename_chnlist)
-        file_required $(filename_ignlist_ext) #chnlist扩展
-        file_required $(filename_chnroute)
-        file_required $(filename_chnroute6)
+        file_required gfwlist.txt
+        file_required gfwlist.ext
+        file_required chnlist.txt
+        file_required ignlist.ext #chnlist扩展
+        file_required chnroute.txt
+        file_required chnroute6.txt
     else
         log_error "invalid option value for mode: '$mode'"
     fi
@@ -367,11 +330,11 @@ update_domain_list() {
 }
 
 update_gfwlist() {
-    update_domain_list "$url_gfwlist" $(filename_gfwlist)
+    update_domain_list "$url_gfwlist" gfwlist.txt
 }
 
 update_chnlist() {
-    update_domain_list "$url_chnlist" $(filename_chnlist)
+    update_domain_list "$url_chnlist" chnlist.txt
 }
 
 update_chnroute() {
@@ -380,12 +343,12 @@ update_chnroute() {
     local data # local的同时赋值会丢失错误码
     data="$(curl -4sSkL "$url_chnroute" | grep CN)" || log_error "download failed, exit-code: $?"
 
-    is_enabled_ipv4 && awk -F'|' '/ipv4/ {printf("%s/%d\n", $4, 32-log($5)/log(2))}' <<<"$data" >$(filename_chnroute)
-    is_enabled_ipv6 && awk -F'|' '/ipv6/ {printf("%s/%d\n", $4, $5)}' <<<"$data" >$(filename_chnroute6)
+    awk -F'|' '/ipv4/ {printf("%s/%d\n", $4, 32-log($5)/log(2))}' <<<"$data" >chnroute.txt
+    awk -F'|' '/ipv6/ {printf("%s/%d\n", $4, $5)}' <<<"$data" >chnroute6.txt
 }
 
 # is_blacklist <domain_list
-gen_dnsmasq_conf() {
+get_dnsconf() {
     local server server6
     local setname setname6
     local default default6
@@ -411,31 +374,45 @@ gen_dnsmasq_conf() {
     is_enabled_ipv4 && echo "server = $default"
     is_enabled_ipv6 && echo "server = $default6"
 
-    while read -r domain_name; do
-        [ "$domain_name" ] || continue
+    local v4=$(is_enabled_ipv4 && echo 1 || echo 0)
+    local v6=$(is_enabled_ipv6 && echo 1 || echo 0)
 
-        is_enabled_ipv4 && echo "server = /$domain_name/$server"
-        is_enabled_ipv6 && echo "server = /$domain_name/$server6"
-
-        if is_enabled_ipv4 && is_enabled_ipv6; then
-            echo "ipset = /$domain_name/$setname,$setname6"
-        elif is_enabled_ipv4; then
-            echo "ipset = /$domain_name/$setname"
-        else
-            echo "ipset = /$domain_name/$setname6"
-        fi
-    done
+    # 避免使用 read，会触发过多系统调用，太慢
+    awk -F'\n' \
+        -v v4=$v4 \
+        -v v6=$v6 \
+        -v server=$server \
+        -v server6=$server6 \
+        -v setname=$setname \
+        -v setname6=$setname6 \
+        '{
+            if (v4 && v6) {
+                printf("server = /%s/%s\n", $0, server)
+                printf("server = /%s/%s\n", $0, server6)
+                printf("ipset = /%s/%s/%s\n", $0, setname, setname6)
+            } else if (v4) {
+                printf("server = /%s/%s\n", $0, server)
+                printf("ipset = /%s/%s\n", $0, setname)
+            } else {
+                printf("server = /%s/%s\n", $0, server6)
+                printf("ipset = /%s/%s\n", $0, setname6)
+            }
+        }'
 }
 
-start_dnsserver_global() {
-    list_ext_domain $(filename_ignlist_ext) | gen_dnsmasq_conf 0 
+get_global_dnsconf() {
+    list_ext_domain ignlist.ext | get_dnsconf 0 
 }
 
-start_dnsserver_gfwlist() {
-    { cat $(filename_gfwlist); list_ext_domain $(filename_gfwlist_ext); } | gen_dnsmasq_conf 1
+get_gfwlist_dnsconf() {
+    { cat gfwlist.txt; list_ext_domain gfwlist.ext; } | get_dnsconf 1
 }
 
-start_dnsserver_chnroute() {
+get_chnroute_dnsconf() {
+    echo "server = 127.0.0.1#$chinadns_bind_port"
+}
+
+start_chinadns() {
     local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -4 sstp_white -6 sstp_white6 -a -A sstp_black,sstp_black6"
 
     is_true "$chinadns_verbose" && chinadns_args+=' -v'
@@ -454,18 +431,19 @@ start_dnsserver_chnroute() {
 
     pid_chinadns=$(
         chinadns-ng $chinadns_args $chinadns_extra_options \
-        -m $(filename_chnlist),<(list_ext_domain $(filename_ignlist_ext)) \
-        -g $(filename_gfwlist),<(list_ext_domain $(filename_gfwlist_ext)) \
+        -m chnlist.txt,<(list_ext_domain ignlist.ext) \
+        -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
         </dev/null &>>$chinadns_logfile & echo $!
     )
-
-    echo "server = 127.0.0.1#$chinadns_bind_port"
 }
 
 start_dnsserver() {
     if ! is_custom_dns; then
+        is_chnroute_mode && start_chinadns
+
         pid_dnsmasq=$(
             {
+                echo "group = $dns_procgroup"
                 is_true "$dnsmasq_log_enable" && echo 'log-queries'
                 echo "log-facility = $dnsmasq_log_file"
                 echo "log-async = 20"
@@ -480,11 +458,11 @@ start_dnsserver() {
                 for arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $arg"; done
                 for arg in "${dnsmasq_conf_string[@]}"; do echo "$arg"; done
                 if is_global_mode; then
-                    start_dnsserver_global
+                    get_global_dnsconf
                 elif is_gfwlist_mode; then
-                    start_dnsserver_gfwlist
+                    get_gfwlist_dnsconf
                 elif is_chnroute_mode; then
-                    start_dnsserver_chnroute
+                    get_chnroute_dnsconf
                 fi
             } | dnsmasq --keep-in-foreground --conf-file=- & echo $!
         )
@@ -557,27 +535,26 @@ stop_proxyproc() {
 
 _init_ipset() {
     ipset -! create $1 hash:net family $(str_find $1 6 && echo inet6 || echo inet)
-    while read -r ip; do
-        [ "$ip" ] && echo "add $1 $ip"
-    done | ipset -! restore
+    sed "s/^/add $1 /" | ipset -! restore
 }
 
 # dns和iptables都需要ipset，为防止dns组件报错(A/AAAA)，v4和v6集合将始终创建
 start_ipset() {
     if is_global_mode; then
-        { list_ext_ipv4 $(filename_ignlist_ext); echo "$dns_direct";  } | _init_ipset sstp_white
-        { list_ext_ipv6 $(filename_ignlist_ext); echo "$dns_direct6"; } | _init_ipset sstp_white6
+        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  } | _init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; } | _init_ipset sstp_white6
     elif is_gfwlist_mode; then
-        { list_ext_ipv4 $(filename_gfwlist_ext); get_remotedns_ip;  } | _init_ipset sstp_black
-        { list_ext_ipv6 $(filename_gfwlist_ext); get_remotedns6_ip; } | _init_ipset sstp_black6
+        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | _init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | _init_ipset sstp_black6
     elif is_chnroute_mode; then
-        { list_ext_ipv4 $(filename_ignlist_ext); echo "$dns_direct";  cat $(filename_chnroute);  } | _init_ipset sstp_white
-        { list_ext_ipv6 $(filename_ignlist_ext); echo "$dns_direct6"; cat $(filename_chnroute6); } | _init_ipset sstp_white6
-        { list_ext_ipv4 $(filename_gfwlist_ext); get_remotedns_ip;  } | _init_ipset sstp_black
-        { list_ext_ipv6 $(filename_gfwlist_ext); get_remotedns6_ip; } | _init_ipset sstp_black6
+        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  cat chnroute.txt;  } | _init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; cat chnroute6.txt; } | _init_ipset sstp_white6
+        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | _init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | _init_ipset sstp_black6
     fi
 }
 
+# todo: 将gfwlist的setname分开，不然切换mode时会有问题
 # 考虑到dns缓存，restart不会清空ipset；若修改了黑白名单，请手动清理
 flush_ipset() {
     ss_tproxy_is_started && return
@@ -588,13 +565,14 @@ flush_ipset() {
 }
 
 _flush_iproute() {
-    ip $1 rule  del   table $ipts_rt_tab &>/dev/null
+    while ip $1 rule del table $ipts_rt_tab &>/dev/null; do true; done
     ip $1 route flush table $ipts_rt_tab &>/dev/null
 }
 
 flush_iproute() {
-    is_enabled_ipv4 && _flush_iproute -4
-    is_enabled_ipv6 && _flush_iproute -6
+    # 不做判断，防止相关配置改动导致残留
+    _flush_iproute -4
+    _flush_iproute -6
 }
 
 _flush_iptables() {
@@ -622,16 +600,17 @@ _flush_iptables() {
 }
 
 flush_iptables() {
-    is_enabled_ipv4 && _flush_iptables "iptables"
-    is_enabled_ipv6 && _flush_iptables "ip6tables"
+    # 不做判断，防止相关配置改动导致残留
+    _flush_iptables "iptables"
+    _flush_iptables "ip6tables"
 }
 
 _show_iptables() {
     echo "$(color_green "==> $1-mangle <==")"
-    $1 -t mangle -nvL --line-numbers
+    $1 -t mangle -S
     echo
     echo "$(color_green "==> $1-nat <==")"
-    $1 -t nat -nvL --line-numbers
+    $1 -t nat -S
 }
 
 show_iptables() {
@@ -641,6 +620,8 @@ show_iptables() {
 }
 
 add_dnsredir() {
+    ! is_proxy_other && return
+
     is_false "$ipts_reddns_onstop" && return
 
     local direct_dns_ip direct_dns_ipx direct_dns_port
@@ -661,6 +642,8 @@ add_dnsredir() {
 }
 
 add_snatrule() {
+    ! is_proxy_other && return
+    
     if is_ipv4_ipts $1; then
         is_false "$ipts_set_snat" && return
     else
@@ -675,8 +658,8 @@ add_snatrule() {
 }
 
 add_stopchain() {
-    $1 -t nat -nL SSTP_PREROUTING  &>/dev/null && $1 -t nat -A PREROUTING  -j SSTP_PREROUTING
-    $1 -t nat -nL SSTP_POSTROUTING &>/dev/null && $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
+    $1 -t nat -S SSTP_PREROUTING  &>/dev/null && $1 -t nat -A PREROUTING  -j SSTP_PREROUTING
+    $1 -t nat -S SSTP_POSTROUTING &>/dev/null && $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
 }
 
 add_stoprule() {
@@ -696,8 +679,9 @@ _flush_stoprule() {
 
 flush_stoprule() {
     ss_tproxy_is_started && return
-    is_enabled_ipv4 && _flush_stoprule "iptables"
-    is_enabled_ipv6 && _flush_stoprule "ip6tables"
+    # 不做判断，防止相关配置改动导致残留
+    _flush_stoprule "iptables"
+    _flush_stoprule "ip6tables"
 }
 
 _delete_unused_iptchains() {
@@ -722,11 +706,8 @@ delete_unused_iptchains() {
     is_enabled_ipv6 && _delete_unused_iptchains "ip6tables"
 }
 
-start_iproute() {
-    ! is_need_iproute && return
-
-    local family
-    is_ipv4_ipts $1 && family="-4" || family="-6"
+_start_iproute() {
+    local family="$1"
 
     ip $family route add local default dev $ipts_if_lo table $ipts_rt_tab
 
@@ -735,6 +716,13 @@ start_iproute() {
     else
         ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab
     fi
+}
+
+start_iproute() {
+    ! is_need_iproute && return
+
+    is_enabled_ipv4 && _start_iproute -4
+    is_enabled_ipv6 && _start_iproute -6
 }
 
 start_iptables_pre() {
@@ -773,6 +761,11 @@ init_iptables_param() {
     fi
 }
 
+get_dst_port_match() {
+    [ "$ipts_proxy_dst_port" ] &&
+        echo "-m multiport --dports $ipts_proxy_dst_port"
+}
+
 # tproxy: mangle表
 # dnat: nat表
 # $ipts tproxy/dnat
@@ -783,7 +776,7 @@ create_sstp_rule() {
         action="-j CONNMARK --set-mark $ipts_rt_mark"
     else
         table=nat
-        action="-j DNAT --to-destination $loopback_addrx:$proxy_tcpport"
+        action="-p tcp -j DNAT --to-destination $loopback_addrx:$proxy_tcpport"
     fi
 
     $1 -t $table -N SSTP_RULE
@@ -826,7 +819,7 @@ do_proxy_tproxy() {
             -m owner ! --gid-owner $dns_procgroup \
             -j RETURN
 
-    # dns2tcp启用时，放行发给dns_remote@udp的请求，留给nat去重定向
+    # 使用dns2tcp时，放行发给dns_remote的udp请求，留给nat去重定向
     ((udp)) && is_enabled_dns2tcp &&
         $1 -t mangle -A SSTP_OUTPUT \
             -d $remote_dns_ip \
@@ -842,18 +835,17 @@ do_proxy_tproxy() {
             -p tcp \
             -m tcp --syn \
             -m addrtype --src-type LOCAL ! --dst-type LOCAL \
-            -m multiport --dports $ipts_proxy_dst_port \
+            $(get_dst_port_match) \
             -j SSTP_RULE
     ((udp)) &&
         $1 -t mangle -A SSTP_OUTPUT \
             -p udp \
             -m conntrack --ctstate NEW \
             -m addrtype --src-type LOCAL ! --dst-type LOCAL \
-            -m multiport --dports $ipts_proxy_dst_port \
+            $(get_dst_port_match) \
             -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT \
         -m connmark --mark $ipts_rt_mark \
-        -m conntrack --ctdir ORIGINAL \
         -j MARK --set-mark $ipts_rt_mark
 
     # 内网传出流量 => SSTP_RULE
@@ -864,18 +856,17 @@ do_proxy_tproxy() {
                 -p tcp \
                 -m tcp --syn \
                 -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
-                -m multiport --dports $ipts_proxy_dst_port \
+                $(get_dst_port_match) \
                 -j SSTP_RULE
         ((udp)) &&
             $1 -t mangle -A SSTP_PREROUTING \
                 -p udp \
                 -m conntrack --ctstate NEW \
                 -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
-                -m multiport --dports $ipts_proxy_dst_port \
+                $(get_dst_port_match) \
                 -j SSTP_RULE
         $1 -t mangle -A SSTP_PREROUTING \
             -m connmark --mark $ipts_rt_mark \
-            -m conntrack --ctdir ORIGINAL \
             -j MARK --set-mark $ipts_rt_mark
     fi
 
@@ -906,8 +897,7 @@ do_proxy_dnat() {
         -p tcp \
         -m tcp --syn \
         -m addrtype --src-type LOCAL ! --dst-type LOCAL \
-        -m multiport --dports $ipts_proxy_dst_port \
-        -m owner ! --gid-owner $proxy_procgroup \
+        $(get_dst_port_match) \
         -j SSTP_RULE
 
     # 内网传出流量 => SSTP_RULE
@@ -917,7 +907,7 @@ do_proxy_dnat() {
             -p tcp \
             -m tcp --syn \
             -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
-            -m multiport --dports $ipts_proxy_dst_port \
+            $(get_dst_port_match) \
             -j SSTP_RULE
 }
 
@@ -1047,14 +1037,14 @@ _status() {
     local name="$1" func="$2"
     shift 2
     if $func "$@"; then
-        echo "$name: $(color_green '[running]')"
+        echo -e "$name:\t$(color_green '[running]')"
     else
-        echo "$name: $(color_red '[stopped]')"
+        echo -e "$name:\t$(color_red '[stopped]')"
     fi
 }
 
 status() {
-    echo "mode: $mode"
+    echo -e "mode:\t\t$(font_bold $mode)"
 
     _status "proxy/tcp" tcp_port_is_exists $proxy_tcpport
     is_enabled_udp && _status "proxy/udp" udp_port_is_exists $proxy_udpport
@@ -1127,6 +1117,8 @@ main() {
         help
         return 0
     fi
+
+    cd $base_dir
 
     load_pidfile
     load_config
