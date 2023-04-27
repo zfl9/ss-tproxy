@@ -1,5 +1,4 @@
-
-trap "exit 1" HUP INT QUIT TERM PIPE
+#!/bin/bash
 
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
@@ -8,8 +7,7 @@ base_dir='/etc/ss-tproxy'
 config_file='ss-tproxy.conf'
 
 # 已存在的函数和变量尽量别改名和删除，因为可能被 ss-tproxy.conf 引用(钩子函数)
-
-# 由于需要配置 iptables，修改 resolv.conf 等系统文件，脚本必须以 root 权限执行
+# 由于需要执行 iptables、策略路由、内核参数 等特权操作，脚本必须以 root 权限执行
 
 font_bold() {
     printf "\e[1m$*\e[0m"
