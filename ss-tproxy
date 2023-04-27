@@ -1,45 +1,15 @@
-#!/bin/bash
 
 trap "exit 1" HUP INT QUIT TERM PIPE
 
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-ss_tproxy_config='/etc/ss-tproxy/ss-tproxy.conf'
+# 除了主脚本，其他文件都放这个目录，此值可被命令行参数覆盖
+base_dir='/etc/ss-tproxy'
+config_file='ss-tproxy.conf'
 
-readonly IPV4_RESERVED_IPADDRS=(
-    0.0.0.0/8
-    10.0.0.0/8
-    100.64.0.0/10
-    127.0.0.0/8
-    169.254.0.0/16
-    172.16.0.0/12
-    192.0.0.0/24
-    192.0.2.0/24
-    192.88.99.0/24
-    192.168.0.0/16
-    198.18.0.0/15
-    198.51.100.0/24
-    203.0.113.0/24
-    224.0.0.0/4
-    240.0.0.0/4
-    255.255.255.255/32
-)
+# 已存在的函数和变量尽量别改名和删除，因为可能被 ss-tproxy.conf 引用(钩子函数)
 
-readonly IPV6_RESERVED_IPADDRS=(
-    ::/128
-    ::1/128
-    ::ffff:0:0/96
-    ::ffff:0:0:0/96
-    64:ff9b::/96
-    100::/64
-    2001::/32
-    2001:20::/28
-    2001:db8::/32
-    2002::/16
-    fc00::/7
-    fe80::/10
-    ff00::/8
-)
+# 由于需要配置 iptables，修改 resolv.conf 等系统文件，脚本必须以 root 权限执行
 
 font_bold() {
     printf "\e[1m$*\e[0m"
@@ -62,20 +32,87 @@ log_error() {
     exit 1
 }
 
+is_func() {
+    [ "$(type -t $1)" = 'function' ]
+}
+
+# 使用数值0和1做布尔值最好，但由于历史原因，没法改了
 is_true() {
     [ "$1" = 'true' ]
 }
 
 is_false() {
-    [ "$1" = 'false' ]
+    ! is_true "$1"
+}
+
+# str substr
+str_find() {
+    [[ "$1" == *"$2"* ]]
 }
 
 file_is_exists() {
     [ -f "$1" ]
 }
 
+file_required() {
+    file_is_exists "$1" || log_error "file not found: $1"
+}
+
+# 绝对路径 or 相对于base_dir
+filename() {
+    [[ "$1" == /* ]] && echo "$1" || echo "$base_dir/$1"
+}
+
+filename_config() {
+    filename $config_file
+}
+
+filename_pid() {
+    filename .pid
+}
+
+filename_ignlist_ext() {
+    filename ignlist.ext
+}
+
+filename_gfwlist() {
+    filename gfwlist.txt
+}
+
+filename_gfwlist_ext() {
+    filename gfwlist.ext
+}
+
+filename_chnlist() {
+    filename chnlist.txt
+}
+
+filename_chnroute() {
+    filename chnroute.txt
+}
+
+filename_chnroute6() {
+    filename chnroute6.txt
+}
+
+list_ext_ipv4() {
+    grep '^-' "$1" | cut -c2-
+}
+
+list_ext_ipv6() {
+    grep '^~' "$1" | cut -c2-
+}
+
+list_ext_domain() {
+    grep '^@' "$1" | cut -c2-
+}
+
 command_is_exists() {
     command -v "$1" &>/dev/null
+}
+
+command_required() {
+    command_is_exists "$1" || log_error "command not found: $1"
 }
 
 process_is_running() {
@@ -83,26 +120,22 @@ process_is_running() {
 }
 
 tcp_port_is_exists() {
-    [ $($netstat -lnpt | grep -E ":$1[ \t]" | wc -l) -ne 0 ]
+    $netstat -lnpt | grep -q ":$1[[:blank:]]"
 }
 
 udp_port_is_exists() {
-    [ $($netstat -anpu | grep -E ":$1[ \t]" | wc -l) -ne 0 ]
+    $netstat -anpu | grep -q ":$1[[:blank:]]"
 }
 
 ss_tproxy_is_started() {
-    process_is_running "$status_dnsmasq_pid"  ||
-    process_is_running "$status_chinadns_pid" ||
-    process_is_running "$status_dns2tcp4_pid" ||
-    process_is_running "$status_dns2tcp6_pid" ||
     iptables  -t mangle -nL SSTP_OUTPUT &>/dev/null ||
     iptables  -t nat    -nL SSTP_OUTPUT &>/dev/null ||
     ip6tables -t mangle -nL SSTP_OUTPUT &>/dev/null ||
     ip6tables -t nat    -nL SSTP_OUTPUT &>/dev/null ||
-    [ $(ip -4 route show table $ipts_rt_tab 2>/dev/null | wc -l) -ne 0 ] ||
-    [ $(ip -6 route show table $ipts_rt_tab 2>/dev/null | wc -l) -ne 0 ] ||
-    [ $(ip -4 rule 2>/dev/null | grep -c "fwmark $ipts_rt_mark") -ne 0 ] ||
-    [ $(ip -6 rule 2>/dev/null | grep -c "fwmark $ipts_rt_mark") -ne 0 ]
+    ip -4 route show table $ipts_rt_tab 2>/dev/null | grep -q ^ ||
+    ip -6 route show table $ipts_rt_tab 2>/dev/null | grep -q ^ ||
+    ip -4 rule 2>/dev/null | grep -q "fwmark $ipts_rt_mark" ||
+    ip -6 rule 2>/dev/null | grep -q "fwmark $ipts_rt_mark"
 }
 
 is_ipv4_ipts() {
@@ -125,167 +158,154 @@ is_chnroute_mode() {
     [ "$mode" = 'chnroute' ]
 }
 
+is_custom_dns() {
+    is_false "$dns_enable"
+}
+
+is_proxy_other() {
+    is_false "$selfonly"
+}
+
+is_enabled_ipv4() {
+    is_true "$ipv4"
+}
+
+is_enabled_ipv6() {
+    is_true "$ipv6"
+}
+
 is_enabled_udp() {
     is_false "$tcponly"
+}
+
+is_enabled_dns2tcp() {
+    case "$dns2tcp_enable" in
+        auto)
+            ! is_enabled_udp
+            ;;
+        true)
+            true
+            ;;
+        false)
+            ! is_custom_dns && log_error "can't disable dns2tcp when using built-in dns"
+            false
+            ;;
+        *)
+            log_error "invalid option value of dns2tcp_enable: $dns2tcp_enable"
+            ;;
+    esac
 }
 
 is_need_iproute() {
     is_true "$tproxy" || is_enabled_udp
 }
 
-is_usrgrp_mode() {
-    [ "$proxy_procuser" -o "$proxy_procgroup" ]
+get_ip_from_addr() {
+    local addr="$1"
+    echo "${addr%#*}"
 }
 
-get_usrgrp_args() {
-    if [ "$proxy_procuser" -a "$proxy_procgroup" ]; then
-        echo "--uid-owner $proxy_procuser --gid-owner $proxy_procgroup"
-    elif [ "$proxy_procuser" ]; then
-        echo "--uid-owner $proxy_procuser"
-    elif [ "$proxy_procgroup" ]; then
-        echo "--gid-owner $proxy_procgroup"
-    fi
+get_port_from_addr() {
+    local addr="$1"
+    echo "${addr#*#}"
 }
 
-is_nonstd_dnsport() {
-    [ "$1" != '53' ]
+get_directdns_ip() {
+    get_ip_from_addr "$dns_direct"
+}
+
+get_directdns6_ip() {
+    get_ip_from_addr "$dns_direct6"
+}
+
+get_directdns_port() {
+    get_port_from_addr "$dns_direct"
+}
+
+get_directdns6_port() {
+    get_port_from_addr "$dns_direct6"
+}
+
+get_remotedns_ip() {
+    get_ip_from_addr "$dns_remote"
+}
+
+get_remotedns6_ip() {
+    get_ip_from_addr "$dns_remote6"
+}
+
+get_remotedns_port() {
+    get_port_from_addr "$dns_remote"
+}
+
+get_remotedns6_port() {
+    get_port_from_addr "$dns_remote6"
 }
 
 is_empty_iptschain() {
     local ipts="$1" table="$2" chain="$3"
-    [ $($ipts -t $table -nvL $chain --line-numbers | grep -Ec '^[0-9]') -eq 0 ]
-}
-
-is_ipv4_address() {
-    [ $(grep -Ec '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$1") -ne 0 ]
-}
-
-is_ipv6_address() {
-    [ $(grep -c ':' <<<"$1") -ne 0 ]
-}
-
-is_domain_name() {
-    ! is_ipv4_address "$1" && ! is_ipv6_address "$1"
-}
-
-set_sysctl_option() {
-    local option_name="$1" option_value="$2"
-    if command_is_exists "sysctl"; then
-        sysctl -w "$option_name=$option_value" >/dev/null
-    else
-        local option_path="/proc/sys/${option_name//.//}"
-        echo "$option_value" >$option_path
-    fi
-}
-
-resolve_hostname_by_hosts() {
-    cat /etc/hosts | sed 's/#.*//g' | grep -F "$1" | head -n1 | awk '{print $1}'
-}
-
-resolve_hostname_by_dig() {
-    local addr_family="$1" hostname="$2"
-    local ipaddr=$(resolve_hostname_by_hosts "$hostname")
-    if [ "$ipaddr" ]; then
-        if [ "$addr_family" = '-4' ] && is_ipv4_address "$ipaddr"; then
-            echo "$ipaddr"
-            return
-        fi
-        if [ "$addr_family" = '-6' ] && is_ipv6_address "$ipaddr"; then
-            echo "$ipaddr"
-            return
-        fi
-    fi
-    [ "$addr_family" = '-4' ] && local dns_qtype='A' || local dns_qtype='AAAA'
-    dig +short "$dns_qtype" "$hostname" | grep -Ev '^;|\.$' | head -n1
-}
-
-resolve_hostname_by_getent() {
-    local addr_family="$1" hostname="$2"
-    [ "$addr_family" = '-4' ] && local db_name='ahostsv4' || local db_name='ahostsv6'
-    getent "$db_name" "$hostname" | head -n1 | awk '{print $1}'
-}
-
-resolve_hostname_by_ping() {
-    local addr_family="$1" hostname="$2"
-    [ "$addr_family" = '-4' ] && local ping_cmd="$ping4" || local ping_cmd="$ping6"
-    $ping_cmd -nq -c1 -t1 -W1 "$hostname" | head -n1 | sed -r 's/\(|\)/|/g' | awk -F'|' '{print $2}'
-}
-
-resolve_hostname4() {
-    local ipaddr=""
-    while [ -z "$ipaddr" ]; do
-        ipaddr=$($resolver_func -4 "$1")
-        [ -z "$ipaddr" ] && sleep 1
-    done
-    echo "$ipaddr"
-}
-
-resolve_hostname6() {
-    local ipaddr=""
-    while [ -z "$ipaddr" ]; do
-        ipaddr=$($resolver_func -6 "$1")
-        [ -z "$ipaddr" ] && sleep 1
-    done
-    echo "$ipaddr"
-}
-
-waiting_network() {
-    [ -z "$1" ] && return
-    is_ipv4_address "$1" && local ping_cmd="$ping4" || local ping_cmd="$ping6"
-    until $ping_cmd -nq -c1 -W1 "$1" >/dev/null; do
-        echo "waiting for network available..."
-        sleep 1
-    done
+    [ $($ipts -t $table -nL $chain | wc -l) -gt 2 ]
 }
 
 load_pidfile() {
-    source "$file_dnsserver_pid" || log_error "load pidfile failed, exit-code: $?"
+    file_is_exists $(filename_pid) && source $(filename_pid)
 }
 
-update_pidfile() {
-    echo "status_dnsmasq_pid=$status_dnsmasq_pid"    >$file_dnsserver_pid
-    echo "status_chinadns_pid=$status_chinadns_pid" >>$file_dnsserver_pid
-    echo "status_dns2tcp4_pid=$status_dns2tcp4_pid" >>$file_dnsserver_pid
-    echo "status_dns2tcp6_pid=$status_dns2tcp6_pid" >>$file_dnsserver_pid
+save_pidfile() {
+    {
+        echo "pid_dnsmasq=$pid_dnsmasq"
+        echo "pid_chinadns=$pid_chinadns"
+        echo "pid_dns2tcp4=$pid_dns2tcp4"
+        echo "pid_dns2tcp6=$pid_dns2tcp6"
+    } >$(filename_pid)
 }
 
 delete_pidfile() {
-    rm -f $file_dnsserver_pid &>/dev/null
+    rm -f $(filename_pid) &>/dev/null
 }
 
 load_config() {
-    if ! file_is_exists "$ss_tproxy_config"; then
-        log_error "file not found: $ss_tproxy_config"
-    else
-        source "$ss_tproxy_config" "${arguments[@]}" || log_error "load config failed, exit-code: $?"
-    fi
-    for optentry in "${optentries[@]}"; do eval "$optentry"; done
+    file_required $(filename_config)
+    source $(filename_config) "${arg_list[@]}" || log_error "$(filename_config) load failed, exit-code: $?"
+    for override in "${override_list[@]}"; do eval "$override"; done
+}
+
+file_required() {
+    file_is_exists "$1" || log_error "file not found: $1"
 }
 
 check_config() {
-    file_is_exists "$file_gfwlist_txt"   || log_error "file not found: $file_gfwlist_txt"
-    file_is_exists "$file_gfwlist_ext"   || log_error "file not found: $file_gfwlist_ext"
-    file_is_exists "$file_ignlist_ext"   || log_error "file not found: $file_ignlist_ext"
-    file_is_exists "$file_chnroute_set"  || log_error "file not found: $file_chnroute_set"
-    file_is_exists "$file_chnroute6_set" || log_error "file not found: $file_chnroute6_set"
-    file_is_exists "$file_dnsserver_pid" && load_pidfile
+    { is_false "$ipv4" && is_false "$ipv6"; } &&
+        log_error "both ipv4 and ipv6 are disabled, nothing to do"
 
-    { ! is_global_mode && ! is_gfwlist_mode && ! is_chnroute_mode; } && log_error "the value of the mode option is invalid: $mode"
-
-    { is_false "$ipv4" && is_false "$ipv6"; } && log_error "both ipv4 and ipv6 are disabled, nothing to do"
-
-    if ! is_usrgrp_mode; then
-        [ "${#proxy_svraddr4[@]}" -eq 0 -a "${#proxy_svraddr6[@]}" -eq 0 ] && log_error "both proxy_svraddr4 and proxy_svraddr6 are empty"
-        [ -z "$proxy_svrport" ] && log_error "the value of the proxy_svrport option is empty: $proxy_svrport"
+    if is_global_mode; then
+        file_required $(filename_ignlist_ext)
+    elif is_gfwlist_mode; then
+        file_required $(filename_gfwlist)
+        file_required $(filename_gfwlist_ext)
+    elif is_chnroute_mode; then
+        file_required $(filename_gfwlist)
+        file_required $(filename_gfwlist_ext)
+        file_required $(filename_chnlist)
+        file_required $(filename_ignlist_ext) #chnlist扩展
+        file_required $(filename_chnroute)
+        file_required $(filename_chnroute6)
+    else
+        log_error "invalid option value for mode: '$mode'"
     fi
 
-    command_is_exists 'ipset'   || log_error "command not found: ipset"
-    command_is_exists 'dnsmasq' || log_error "command not found: dnsmasq"
-    is_need_iproute && { command_is_exists 'ip' || log_error "command not found: ip"; }
-    is_true "$ipv4" && { command_is_exists 'iptables'  || log_error "command not found: iptables";  }
-    is_true "$ipv6" && { command_is_exists 'ip6tables' || log_error "command not found: ip6tables"; }
-    is_chnroute_mode && { command_is_exists 'chinadns-ng' || log_error "command not found: chinadns-ng"; }
-    ! is_enabled_udp && { command_is_exists "dns2tcp" || log_error "command not found: dns2tcp"; }
+    is_need_iproute && command_required 'ip'
+
+    command_required 'ipset'
+    is_enabled_ipv4 && command_required 'iptables'
+    is_enabled_ipv6 && command_required 'ip6tables'
+
+    ! is_custom_dns && {
+        command_required 'dnsmasq'
+        is_chnroute_mode && command_required 'chinadns-ng'
+    }
+
+    is_enabled_dns2tcp && command_required 'dns2tcp'
 
     case "$opts_ss_netstat" in
         auto)
@@ -298,401 +318,265 @@ check_config() {
             fi
             ;;
         ss)
-            command_is_exists 'ss' && netstat='ss' || log_error "command not found: ss"
+            command_required 'ss'
+            netstat='ss'
             ;;
         netstat)
-            command_is_exists 'netstat' && netstat='netstat' || log_error "command not found: netstat"
+            command_required 'netstat'
+            netstat='netstat'
             ;;
         *)
-            log_error "the value of the opts_ss_netstat option is invalid: $opts_ss_netstat"
+            log_error "invalid option value for opts_ss_netstat: '$opts_ss_netstat'"
             ;;
     esac
-
-    case "$opts_ping_cmd_to_use" in
-        auto)
-            if command_is_exists 'ping' && command_is_exists 'ping6' && ! [ -L "$(command -v ping6)" ]; then
-                ping4='ping'; ping6='ping6'
-            elif command_is_exists 'ping'; then
-                ping4='ping -4'; ping6='ping -6'
-            else
-                log_error "command not found: ping/ping6"
-            fi
-            ;;
-        standalone)
-            { command_is_exists 'ping' && command_is_exists 'ping6'; } && { ping4='ping'; ping6='ping6'; } || log_error "command not found: ping/ping6"
-            ;;
-        parameter)
-            command_is_exists 'ping' && { ping4='ping -4'; ping6='ping -6'; } || log_error "command not found: ping"
-            ;;
-        *)
-            log_error "the value of the opts_ping_cmd_to_use option is invalid: $opts_ping_cmd_to_use"
-            ;;
-    esac
-
-    if ! is_usrgrp_mode; then
-        case "$opts_hostname_resolver" in
-            auto)
-                if command_is_exists 'dig'; then
-                    resolver_func='resolve_hostname_by_dig'
-                elif command_is_exists 'getent'; then
-                    resolver_func='resolve_hostname_by_getent'
-                elif command_is_exists 'ping'; then
-                    resolver_func='resolve_hostname_by_ping'
-                else
-                    log_error "command not found: dig/getent/ping"
-                fi
-                ;;
-            dig)
-                command_is_exists 'dig' && resolver_func='resolve_hostname_by_dig' || log_error "command not found: dig"
-                ;;
-            getent)
-                command_is_exists 'getent' && resolver_func='resolve_hostname_by_getent' || log_error "command not found: getent"
-                ;;
-            ping)
-                command_is_exists 'ping' && resolver_func='resolve_hostname_by_ping' || log_error "command not found: ping"
-                ;;
-            *)
-                log_error "the value of the opts_hostname_resolver option is invalid: $opts_hostname_resolver"
-                ;;
-        esac
-    fi
 }
 
-resolve_svraddr() {
-    is_usrgrp_mode && return
+update_domain_list() {
+    command_required 'curl'
 
-    if is_true "$ipv4"; then
-        proxy_svripv4=()
-        for svraddr in "${proxy_svraddr4[@]}"; do
-            is_ipv4_address "$svraddr" && local svripv4="$svraddr" || local svripv4=$(resolve_hostname4 "$svraddr")
-            proxy_svripv4+=("$svripv4")
-        done
+    local url="$1" filename="$2"
+
+    local data # local的同时赋值会丢失错误码
+    data="$(curl -4sSkL "$url" | grep -v -e '^[[:blank:]]*$' -e '^[[:blank:]]*#')" || log_error "download failed, exit-code: $?"
+
+    if head -n1 <<<"$data" | grep -q /; then
+        # server=/域名后缀/dns_ip
+        echo "$data" | awk -F/ '{print $2}' | sort | uniq >$filename
+    else
+        # 纯域名后缀
+        echo "$data" | sort | uniq >$filename
     fi
-
-    if is_true "$ipv6"; then
-        proxy_svripv6=()
-        for svraddr in "${proxy_svraddr6[@]}"; do
-            is_ipv6_address "$svraddr" && local svripv6="$svraddr" || local svripv6=$(resolve_hostname6 "$svraddr")
-            proxy_svripv6+=("$svripv6")
-        done
-    fi
-}
-
-update_chnlist() {
-    command_is_exists 'curl' || log_error "command not found: curl"
-    local url='https://raw.github.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
-    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
-    echo "$data" | awk -F/ '{print $2}' >$file_gfwlist_txt
-}
-
-readonly GFWLIST_TXT_PERL_SCRIPT_STRING='
-if (/URL Keywords/i) { $null = <> until $null =~ /^!/ }
-s#^\s*+$|^!.*+$|^@@.*+$|^\[AutoProxy.*+$|^/.*/$##i;
-s@^\|\|?|\|$@@;
-s@^https?:/?/?@@i;
-s@(?:/|%).*+$@@;
-s@\*[^.*]++$@\n@;
-s@^.*?\*[^.]*+(?=[^*]+$)@@;
-s@^\*?\.|^.*\.\*?$@@;
-s@(?=[^0-9a-zA-Z.-]).*+$@@;
-s@^\d+\.\d+\.\d+\.\d+(?::\d+)?$@@;
-s@^[^.]++$@@;
-s@^\s*+$@@
-'
-
-gfwlist_txt_append_domain_names() {
-    printf "twimg.edgesuite.net\n"
-    printf "blogspot.ae\nblogspot.al\nblogspot.am\nblogspot.ba\nblogspot.be\nblogspot.bg\nblogspot.bj\nblogspot.ca\nblogspot.cat\nblogspot.cf\nblogspot.ch\nblogspot.cl\nblogspot.co.at\nblogspot.co.id\nblogspot.co.il\nblogspot.co.ke\nblogspot.com\nblogspot.com.ar\nblogspot.com.au\nblogspot.com.br\nblogspot.com.by\nblogspot.com.co\nblogspot.com.cy\nblogspot.com.ee\nblogspot.com.eg\nblogspot.com.es\nblogspot.com.mt\nblogspot.com.ng\nblogspot.com.tr\nblogspot.com.uy\nblogspot.co.nz\nblogspot.co.uk\nblogspot.co.za\nblogspot.cv\nblogspot.cz\nblogspot.de\nblogspot.dk\nblogspot.fi\nblogspot.fr\nblogspot.gr\nblogspot.hk\nblogspot.hr\nblogspot.hu\nblogspot.ie\nblogspot.in\nblogspot.is\nblogspot.it\nblogspot.jp\nblogspot.kr\nblogspot.li\nblogspot.lt\nblogspot.lu\nblogspot.md\nblogspot.mk\nblogspot.mr\nblogspot.mx\nblogspot.my\nblogspot.nl\nblogspot.no\nblogspot.pe\nblogspot.pt\nblogspot.qa\nblogspot.re\nblogspot.ro\nblogspot.rs\nblogspot.ru\nblogspot.se\nblogspot.sg\nblogspot.si\nblogspot.sk\nblogspot.sn\nblogspot.td\nblogspot.tw\nblogspot.ug\nblogspot.vn\n"
-    printf "google.ac\ngoogle.ad\ngoogle.ae\ngoogle.al\ngoogle.am\ngoogle.as\ngoogle.at\ngoogle.az\ngoogle.ba\ngoogle.be\ngoogle.bf\ngoogle.bg\ngoogle.bi\ngoogle.bj\ngoogle.bs\ngoogle.bt\ngoogle.by\ngoogle.ca\ngoogle.cat\ngoogle.cc\ngoogle.cd\ngoogle.cf\ngoogle.cg\ngoogle.ch\ngoogle.ci\ngoogle.cl\ngoogle.cm\ngoogle.cn\ngoogle.co.ao\ngoogle.co.bw\ngoogle.co.ck\ngoogle.co.cr\ngoogle.co.id\ngoogle.co.il\ngoogle.co.in\ngoogle.co.jp\ngoogle.co.ke\ngoogle.co.kr\ngoogle.co.ls\ngoogle.com\ngoogle.co.ma\ngoogle.com.af\ngoogle.com.ag\ngoogle.com.ai\ngoogle.com.ar\ngoogle.com.au\ngoogle.com.bd\ngoogle.com.bh\ngoogle.com.bn\ngoogle.com.bo\ngoogle.com.br\ngoogle.com.bz\ngoogle.com.co\ngoogle.com.cu\ngoogle.com.cy\ngoogle.com.do\ngoogle.com.ec\ngoogle.com.eg\ngoogle.com.et\ngoogle.com.fj\ngoogle.com.gh\ngoogle.com.gi\ngoogle.com.gt\ngoogle.com.hk\ngoogle.com.jm\ngoogle.com.kh\ngoogle.com.kw\ngoogle.com.lb\ngoogle.com.lc\ngoogle.com.ly\ngoogle.com.mm\ngoogle.com.mt\ngoogle.com.mx\ngoogle.com.my\ngoogle.com.na\ngoogle.com.nf\ngoogle.com.ng\ngoogle.com.ni\ngoogle.com.np\ngoogle.com.om\ngoogle.com.pa\ngoogle.com.pe\ngoogle.com.pg\ngoogle.com.ph\ngoogle.com.pk\ngoogle.com.pr\ngoogle.com.py\ngoogle.com.qa\ngoogle.com.sa\ngoogle.com.sb\ngoogle.com.sg\ngoogle.com.sl\ngoogle.com.sv\ngoogle.com.tj\ngoogle.com.tr\ngoogle.com.tw\ngoogle.com.ua\ngoogle.com.uy\ngoogle.com.vc\ngoogle.com.vn\ngoogle.co.mz\ngoogle.co.nz\ngoogle.co.th\ngoogle.co.tz\ngoogle.co.ug\ngoogle.co.uk\ngoogle.co.uz\ngoogle.co.ve\ngoogle.co.vi\ngoogle.co.za\ngoogle.co.zm\ngoogle.co.zw\ngoogle.cv\ngoogle.cz\ngoogle.de\ngoogle.dj\ngoogle.dk\ngoogle.dm\ngoogle.dz\ngoogle.ee\ngoogle.es\ngoogle.fi\ngoogle.fm\ngoogle.fr\ngoogle.ga\ngoogle.ge\ngoogle.gf\ngoogle.gg\ngoogle.gl\ngoogle.gm\ngoogle.gp\ngoogle.gr\ngoogle.gy\ngoogle.hn\ngoogle.hr\ngoogle.ht\ngoogle.hu\ngoogle.ie\ngoogle.im\ngoogle.io\ngoogle.iq\ngoogle.is\ngoogle.it\ngoogle.je\ngoogle.jo\ngoogle.kg\ngoogle.ki\ngoogle.kz\ngoogle.la\ngoogle.li\ngoogle.lk\ngoogle.lt\ngoogle.lu\ngoogle.lv\ngoogle.md\ngoogle.me\ngoogle.mg\ngoogle.mk\ngoogle.ml\ngoogle.mn\ngoogle.ms\ngoogle.mu\ngoogle.mv\ngoogle.mw\ngoogle.ne\ngoogle.net\ngoogle.nl\ngoogle.no\ngoogle.nr\ngoogle.nu\ngoogle.org\ngoogle.pl\ngoogle.pn\ngoogle.ps\ngoogle.pt\ngoogle.ro\ngoogle.rs\ngoogle.ru\ngoogle.rw\ngoogle.sc\ngoogle.se\ngoogle.sh\ngoogle.si\ngoogle.sk\ngoogle.sm\ngoogle.sn\ngoogle.so\ngoogle.sr\ngoogle.st\ngoogle.td\ngoogle.tg\ngoogle.tk\ngoogle.tl\ngoogle.tm\ngoogle.tn\ngoogle.to\ngoogle.tt\ngoogle.vg\ngoogle.vu\ngoogle.ws\n"
 }
 
 update_gfwlist() {
-    command_is_exists 'curl'   || log_error "command not found: curl"
-    command_is_exists 'perl'   || log_error "command not found: perl"
-    command_is_exists 'base64' || log_error "command not found: base64"
+    update_domain_list "$url_gfwlist" $(filename_gfwlist)
+}
 
-    local url='https://raw.github.com/gfwlist/gfwlist/master/gfwlist.txt'
-    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
-
-    local base64_decode=''
-    base64 -d       </dev/null &>/dev/null && base64_decode='base64 -d'
-    base64 --decode </dev/null &>/dev/null && base64_decode='base64 --decode'
-    [ "$base64_decode" ] || log_error "command args is not support: base64 -d/--decode"
-
-    echo "$data" | $base64_decode | { perl -pe "$GFWLIST_TXT_PERL_SCRIPT_STRING"; gfwlist_txt_append_domain_names; } | sort | uniq >$file_gfwlist_txt
+update_chnlist() {
+    update_domain_list "$url_chnlist" $(filename_chnlist)
 }
 
 update_chnroute() {
-    command_is_exists 'curl' || log_error "command not found: curl"
-    local url='http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
-    local data; data=$(curl -4sSkL "$url") || log_error "download failed, exit-code: $?"
-    {
-        echo "create chnroute hash:net family inet"
-        echo "$data" | grep CN | grep ipv4 | awk -F'|' '{printf("add chnroute %s/%d\n", $4, 32-log($5)/log(2))}'
-    } >$file_chnroute_set
-    {
-        echo "create chnroute6 hash:net family inet6"
-        echo "$data" | grep CN | grep ipv6 | awk -F'|' '{printf("add chnroute6 %s/%d\n", $4, $5)}'
-    } >$file_chnroute6_set
+    command_required 'curl'
+
+    local data # local的同时赋值会丢失错误码
+    data="$(curl -4sSkL "$url_chnroute" | grep CN)" || log_error "download failed, exit-code: $?"
+
+    is_enabled_ipv4 && awk -F'|' '/ipv4/ {printf("%s/%d\n", $4, 32-log($5)/log(2))}' <<<"$data" >$(filename_chnroute)
+    is_enabled_ipv6 && awk -F'|' '/ipv6/ {printf("%s/%d\n", $4, $5)}' <<<"$data" >$(filename_chnroute6)
+}
+
+# is_blacklist <domain_list
+gen_dnsmasq_conf() {
+    local server server6
+    local setname setname6
+    local default default6
+
+    if (($1)); then
+        # domain_list是黑名单
+        server="$dns_remote"
+        server6="$dns_remote6"
+        setname="sstp_black"
+        setname6="sstp_black"
+        default="$dns_direct"
+        default6="$dns_direct6"
+    else
+        # domain_list是白名单
+        server="$dns_direct"
+        server6="$dns_direct6"
+        setname="sstp_white"
+        setname6="sstp_white"
+        default="$dns_remote"
+        default6="$dns_remote6"
+    fi
+
+    is_enabled_ipv4 && echo "server = $default"
+    is_enabled_ipv6 && echo "server = $default6"
+
+    while read -r domain_name; do
+        [ "$domain_name" ] || continue
+
+        is_enabled_ipv4 && echo "server = /$domain_name/$server"
+        is_enabled_ipv6 && echo "server = /$domain_name/$server6"
+
+        if is_enabled_ipv4 && is_enabled_ipv6; then
+            echo "ipset = /$domain_name/$setname,$setname6"
+        elif is_enabled_ipv4; then
+            echo "ipset = /$domain_name/$setname"
+        else
+            echo "ipset = /$domain_name/$setname6"
+        fi
+    done
 }
 
 start_dnsserver_global() {
-    local dnsmasq_config_string=$(cat <<EOF
-        $(echo "$dnsmasq_common_config")
-        $(is_true "$ipv4" && echo "server = $dns_remote")
-        $(is_true "$ipv6" && echo "server = $dns_remote6")
-        $(grep -E '^@' $file_ignlist_ext | cut -c2- | while read domain_name; do
-            is_true "$ipv4" && echo "server = /$domain_name/$dns_direct"
-            is_true "$ipv6" && echo "server = /$domain_name/$dns_direct6"
-            if is_true "$ipv4" && is_true "$ipv6"; then
-                echo "ipset = /$domain_name/privaddr,privaddr6"
-            elif is_true "$ipv4"; then
-                echo "ipset = /$domain_name/privaddr"
-            else
-                echo "ipset = /$domain_name/privaddr6"
-            fi
-        done)
-EOF
-)
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    list_ext_domain $(filename_ignlist_ext) | gen_dnsmasq_conf 0 
 }
 
 start_dnsserver_gfwlist() {
-    local dnsmasq_config_string=$(cat <<EOF
-        $(echo "$dnsmasq_common_config")
-        $(is_true "$ipv4" && echo "server = $dns_direct")
-        $(is_true "$ipv6" && echo "server = $dns_direct6")
-        $({ cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-; } | while read domain_name; do
-            is_true "$ipv4" && echo "server = /$domain_name/$dns_remote"
-            is_true "$ipv6" && echo "server = /$domain_name/$dns_remote6"
-            if is_true "$ipv4" && is_true "$ipv6"; then
-                echo "ipset = /$domain_name/gfwlist,gfwlist6"
-            elif is_true "$ipv4"; then
-                echo "ipset = /$domain_name/gfwlist"
-            else
-                echo "ipset = /$domain_name/gfwlist6"
-            fi
-        done)
-EOF
-)
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    { cat $(filename_gfwlist); list_ext_domain $(filename_gfwlist_ext); } | gen_dnsmasq_conf 1
 }
 
 start_dnsserver_chnroute() {
-    local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -o $chinadns_timeout -p $chinadns_repeat"
-    is_true "$chinadns_noip_as_chnip" && chinadns_args+=" -n"
-    is_true "$chinadns_gfwlist_mode" && chinadns_args+=" -g-"
-    is_true "$chinadns_fairmode" && chinadns_args+=" -f"
-    is_true "$chinadns_verbose" && chinadns_args+=" -v"
-    if is_true "$ipv4" && is_true "$ipv6"; then
+    local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -4 sstp_white -6 sstp_white6 -a -A sstp_black,sstp_black6"
+
+    is_true "$chinadns_verbose" && chinadns_args+=' -v'
+    is_true "$chinadns_chnlist_first" && chinadns_args+=' -M'
+
+    if is_enabled_ipv4 && is_enabled_ipv6; then
         chinadns_args+=" -c $dns_direct,$dns_direct6"
         chinadns_args+=" -t $dns_remote,$dns_remote6"
-    elif is_true "$ipv4"; then
+    elif is_enabled_ipv4; then
         chinadns_args+=" -c $dns_direct"
         chinadns_args+=" -t $dns_remote"
     else
         chinadns_args+=" -c $dns_direct6"
         chinadns_args+=" -t $dns_remote6"
     fi
-    ipset -X chnroute &>/dev/null
-    ipset -X chnroute6 &>/dev/null
-    ipset -R -exist <$file_chnroute_set
-    ipset -R -exist <$file_chnroute6_set
-    for privaddr in "${chinadns_privaddr4[@]}"; do echo "-A chnroute $privaddr"; done | ipset -R -exist &>/dev/null
-    for privaddr in "${chinadns_privaddr6[@]}"; do echo "-A chnroute6 $privaddr"; done | ipset -R -exist &>/dev/null
-    if is_true "$chinadns_gfwlist_mode"; then
-        local gfwlist_domain_string=$(cat $file_gfwlist_txt; grep -E '^@' $file_gfwlist_ext | cut -c2-)
-        status_chinadns_pid=$(chinadns-ng $chinadns_args <<<"$gfwlist_domain_string" &>>$chinadns_logfile & echo $!)
-    else
-        status_chinadns_pid=$(chinadns-ng $chinadns_args </dev/null &>>$chinadns_logfile & echo $!)
-    fi
 
-    local dnsmasq_config_string=$(cat <<EOF
-        $(echo "$dnsmasq_common_config")
-        server = 127.0.0.1#$chinadns_bind_port
-        $(grep -E '^@' $file_ignlist_ext | cut -c2- | while read domain_name; do
-            is_true "$ipv4" && echo "server = /$domain_name/$dns_direct"
-            is_true "$ipv6" && echo "server = /$domain_name/$dns_direct6"
-            if is_true "$ipv4" && is_true "$ipv6"; then
-                echo "ipset = /$domain_name/privaddr,privaddr6"
-            elif is_true "$ipv4"; then
-                echo "ipset = /$domain_name/privaddr"
-            else
-                echo "ipset = /$domain_name/privaddr6"
-            fi
-        done)
-EOF
-)
-    status_dnsmasq_pid=$(dnsmasq --keep-in-foreground --conf-file=- <<<"$dnsmasq_config_string" & echo $!)
+    pid_chinadns=$(
+        chinadns-ng $chinadns_args $chinadns_extra_options \
+        -m $(filename_chnlist),<(list_ext_domain $(filename_ignlist_ext)) \
+        -g $(filename_gfwlist),<(list_ext_domain $(filename_gfwlist_ext)) \
+        </dev/null &>>$chinadns_logfile & echo $!
+    )
+
+    echo "server = 127.0.0.1#$chinadns_bind_port"
 }
 
 start_dnsserver() {
-    local dnsmasq_append_config=("${dnsmasq_conf_string[@]}")
-    if ! is_usrgrp_mode; then
-        if is_true "$ipv4"; then
-            for ((i = 0; i < ${#proxy_svraddr4[@]}; ++i)); do
-                local server_host="${proxy_svraddr4[i]}"
-                local server_addr="${proxy_svripv4[i]}"
-                if is_domain_name "$server_host"; then
-                    dnsmasq_append_config+=("address = /$server_host/$server_addr")
+    if ! is_custom_dns; then
+        pid_dnsmasq=$(
+            {
+                is_true "$dnsmasq_log_enable" && echo 'log-queries'
+                echo "log-facility = $dnsmasq_log_file"
+                echo "log-async = 20"
+                echo "domain-needed"
+                echo "cache-size = $dnsmasq_cache_size"
+                { dnsmasq --help | grep -q min-cache-ttl; } && echo "min-cache-ttl = $dnsmasq_cache_time"
+                echo "no-negcache"
+                echo "no-resolv"
+                echo "port = $dns_mainport"
+                echo "dns-forward-max = $dnsmasq_query_maxcnt"
+                for arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $arg"; done
+                for arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $arg"; done
+                for arg in "${dnsmasq_conf_string[@]}"; do echo "$arg"; done
+                if is_global_mode; then
+                    start_dnsserver_global
+                elif is_gfwlist_mode; then
+                    start_dnsserver_gfwlist
+                elif is_chnroute_mode; then
+                    start_dnsserver_chnroute
                 fi
-            done
-        fi
-        if is_true "$ipv6"; then
-            for ((i = 0; i < ${#proxy_svraddr6[@]}; ++i)); do
-                local server_host="${proxy_svraddr6[i]}"
-                local server_addr="${proxy_svripv6[i]}"
-                if is_domain_name "$server_host"; then
-                    dnsmasq_append_config+=("address = /$server_host/$server_addr")
-                fi
-            done
-        fi
+            } | dnsmasq --keep-in-foreground --conf-file=- & echo $!
+        )
     fi
 
-    local dnsmasq_common_config=$(cat <<EOF
-        $(is_true "$dnsmasq_log_enable" && echo 'log-queries')
-        log-facility = $dnsmasq_log_file
-        log-async = 20
-        domain-needed
-        cache-size = $dnsmasq_cache_size
-        $([ $(dnsmasq --help | grep -c min-cache-ttl) -ne 0 ] && echo "min-cache-ttl = $dnsmasq_cache_time")
-        no-negcache
-        no-resolv
-        port = $dnsmasq_bind_port
-        dns-forward-max = $dnsmasq_query_maxcnt
-        $(for append_config in "${dnsmasq_append_config[@]}"; do echo "$append_config"; done)
-        $(for conf_dir_arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $conf_dir_arg"; done)
-        $(for conf_file_arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $conf_file_arg"; done)
-EOF
-)
-
-    if ! is_enabled_udp; then
-        local original_dns_remote="$dns_remote"
-        local original_dns_remote6="$dns_remote6"
-        dns_remote="127.0.0.1#$dns2tcp_bind_port"
-        dns_remote6="::1#$dns2tcp_bind_port"
-    fi
-
-    if is_global_mode; then
-        start_dnsserver_global
-    elif is_gfwlist_mode; then
-        start_dnsserver_gfwlist
-    elif is_chnroute_mode; then
-        start_dnsserver_chnroute
-    fi
-
-    if ! is_enabled_udp; then
-        local dns2tcp_listen_addr4="$dns_remote"
-        local dns2tcp_listen_addr6="$dns_remote6"
-        local dns2tcp_remote_addr4="$original_dns_remote"
-        local dns2tcp_remote_addr6="$original_dns_remote6"
-        dns_remote="$original_dns_remote"
-        dns_remote6="$original_dns_remote6"
-        if is_true "$ipv4"; then
-            local dns2tcp_args="-L $dns2tcp_listen_addr4 -R $dns2tcp_remote_addr4"
+    if is_enabled_dns2tcp; then
+        if is_enabled_ipv4; then
+            local dns2tcp_args="-L 127.0.0.1#$dns2tcp_bind_port -R $dns_remote $dns2tcp_extra_options"
             is_true "$dns2tcp_verbose" && dns2tcp_args+=" -v"
-            is_true "$dns2tcp_tcp_quickack" && dns2tcp_args+=" -a"
-            is_true "$dns2tcp_tcp_fastopen" && dns2tcp_args+=" -f"
-            [ "$dns2tcp_tcp_syncnt" ] && dns2tcp_args+=" -s $dns2tcp_tcp_syncnt"
-            status_dns2tcp4_pid=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
+            pid_dns2tcp4=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
         fi
-        if is_true "$ipv6"; then
-            local dns2tcp_args="-L $dns2tcp_listen_addr6 -R $dns2tcp_remote_addr6"
+        if is_enabled_ipv6; then
+            local dns2tcp_args="-L ::1#$dns2tcp_bind_port -R $dns_remote6 $dns2tcp_extra_options -6"
             is_true "$dns2tcp_verbose" && dns2tcp_args+=" -v"
-            is_true "$dns2tcp_tcp_quickack" && dns2tcp_args+=" -a"
-            is_true "$dns2tcp_tcp_fastopen" && dns2tcp_args+=" -f"
-            [ "$dns2tcp_tcp_syncnt" ] && dns2tcp_args+=" -s $dns2tcp_tcp_syncnt"
-            status_dns2tcp6_pid=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
+            pid_dns2tcp6=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
         fi
     fi
 
-    update_pidfile
+    save_pidfile
 }
 
 stop_dnsserver() {
-    kill -9 $status_dnsmasq_pid  &>/dev/null
-    kill -9 $status_chinadns_pid &>/dev/null
-    kill -9 $status_dns2tcp4_pid &>/dev/null
-    kill -9 $status_dns2tcp6_pid &>/dev/null
+    kill -9 $pid_dnsmasq  &>/dev/null
+    kill -9 $pid_chinadns &>/dev/null
+    kill -9 $pid_dns2tcp4 &>/dev/null
+    kill -9 $pid_dns2tcp6 &>/dev/null
     delete_pidfile
 }
 
 flush_dnscache() {
+    is_custom_dns && return
     ! ss_tproxy_is_started && return
-    kill -HUP "$status_dnsmasq_pid"
+    kill -HUP "$pid_dnsmasq"
 }
 
-modify_resolvconf() {
-    [ -z "$opts_overwrite_resolv" ] && return
-    if is_false "$opts_overwrite_resolv"; then
-        while umount /etc/resolv.conf &>/dev/null; do true; done
-        local temp_resolv_conf=$(mktemp)
-        chmod 0644 $temp_resolv_conf
-        mount -o bind $temp_resolv_conf /etc/resolv.conf
-        rm -f $temp_resolv_conf
-    fi
-    echo "# Generated by ss-tproxy at $(date '+%F %T')" >/etc/resolv.conf
-    is_true "$ipv4" && echo "nameserver 127.0.0.1" >>/etc/resolv.conf
-    is_true "$ipv6" && echo "nameserver ::1" >>/etc/resolv.conf
-}
-
-restore_resolvconf() {
-    [ -z "$opts_overwrite_resolv" ] && return
-    if is_false "$opts_overwrite_resolv"; then
-        while umount /etc/resolv.conf &>/dev/null; do true; done
-    else
-        echo "# Generated by ss-tproxy at $(date '+%F %T')" >/etc/resolv.conf
-        is_true "$ipv4" && echo "nameserver $dns_direct" >>/etc/resolv.conf
-        is_true "$ipv6" && echo "nameserver $dns_direct6" >>/etc/resolv.conf
-    fi
-}
-
-start_proxy_proc() {
-    eval "$proxy_startcmd" || log_error "failed to start local proxy process, exit-code: $?"
-}
-
-stop_proxy_proc() {
-    eval "$proxy_stopcmd" &>/dev/null
-}
-
-enable_ipforward() {
-    is_true "$ipv4" && set_sysctl_option 'net.ipv4.ip_forward' 1
-    is_true "$ipv6" && set_sysctl_option 'net.ipv6.conf.all.forwarding' 1
-}
-
-enable_rtlocalnet() {
-    set_sysctl_option 'net.ipv4.conf.all.route_localnet' 1
-}
-
-disable_icmpredir() {
-    for dir in $(ls /proc/sys/net/ipv4/conf); do
-        set_sysctl_option "net.ipv4.conf.${dir//.//}.send_redirects" 0
+# 4/6
+list_all_iface() {
+    for interface in $(ls /proc/sys/net/ipv$1/conf); do
+        echo "${interface//.//}" #将"."替换为"/"，见 https://github.com/zfl9/ss-tproxy/issues/166
     done
 }
 
-delete_gfwlist() {
+# 4/6 key=val
+sysctl_all_iface() {
+    for interface in $(list_all_iface $1); do
+        sysctl -wq net.ipv$1.conf.$interface.$2
+    done
+}
+
+set_kernel_param() {
+    # 允许ip转发，充当网关
+    is_enabled_ipv4 && sysctl -wq net.ipv4.ip_forward=1
+    is_enabled_ipv6 && sysctl_all_iface 6 forwarding=1
+
+    # 允许路由loopback地址，如果不开启，外部数据包将无法dnat至127.0.0.1
+    sysctl_all_iface 4 route_localnet=1
+
+    # 禁止发送icmp重定向包，防止内网机在ping的时候收到重定向消息("旁路由"拓扑)
+    sysctl_all_iface 4 send_redirects=0
+}
+
+# 进程启动失败将退出脚本
+start_proxyproc() {
+    eval "$proxy_startcmd" || log_error "failed to start local proxy process, exit-code: $?"
+}
+
+stop_proxyproc() {
+    eval "$proxy_stopcmd" &>/dev/null
+}
+
+_init_ipset() {
+    ipset -! create $1 hash:net family $(str_find $1 6 && echo inet6 || echo inet)
+    while read -r ip; do
+        [ "$ip" ] && echo "add $1 $ip"
+    done | ipset -! restore
+}
+
+# dns和iptables都需要ipset，为防止dns组件报错(A/AAAA)，v4和v6集合将始终创建
+start_ipset() {
+    if is_global_mode; then
+        { list_ext_ipv4 $(filename_ignlist_ext); echo "$dns_direct";  } | _init_ipset sstp_white
+        { list_ext_ipv6 $(filename_ignlist_ext); echo "$dns_direct6"; } | _init_ipset sstp_white6
+    elif is_gfwlist_mode; then
+        { list_ext_ipv4 $(filename_gfwlist_ext); get_remotedns_ip;  } | _init_ipset sstp_black
+        { list_ext_ipv6 $(filename_gfwlist_ext); get_remotedns6_ip; } | _init_ipset sstp_black6
+    elif is_chnroute_mode; then
+        { list_ext_ipv4 $(filename_ignlist_ext); echo "$dns_direct";  cat $(filename_chnroute);  } | _init_ipset sstp_white
+        { list_ext_ipv6 $(filename_ignlist_ext); echo "$dns_direct6"; cat $(filename_chnroute6); } | _init_ipset sstp_white6
+        { list_ext_ipv4 $(filename_gfwlist_ext); get_remotedns_ip;  } | _init_ipset sstp_black
+        { list_ext_ipv6 $(filename_gfwlist_ext); get_remotedns6_ip; } | _init_ipset sstp_black6
+    fi
+}
+
+# 考虑到dns缓存，restart不会清空ipset；若修改了黑白名单，请手动清理
+flush_ipset() {
     ss_tproxy_is_started && return
-    is_true "$ipv4" && ipset -X gfwlist  &>/dev/null
-    is_true "$ipv6" && ipset -X gfwlist6 &>/dev/null
+    ipset -! destroy sstp_white
+    ipset -! destroy sstp_white6
+    ipset -! destroy sstp_black
+    ipset -! destroy sstp_black6
 }
 
-delete_chnroute() {
-    ipset -X privaddr  &>/dev/null
-    ipset -X privaddr6 &>/dev/null
-    ipset -X chnroute  &>/dev/null
-    ipset -X chnroute6 &>/dev/null
+_flush_iproute() {
+    ip $1 rule  del   table $ipts_rt_tab &>/dev/null
+    ip $1 route flush table $ipts_rt_tab &>/dev/null
 }
 
-delete_iproute2() {
-    is_true "$ipv4" && {
-        ip -4 rule  del   table $ipts_rt_tab
-        ip -4 route flush table $ipts_rt_tab
-    } &>/dev/null
-
-    is_true "$ipv6" && {
-        ip -6 rule  del   table $ipts_rt_tab
-        ip -6 route flush table $ipts_rt_tab
-    } &>/dev/null
+flush_iproute() {
+    is_enabled_ipv4 && _flush_iproute -4
+    is_enabled_ipv6 && _flush_iproute -6
 }
 
 _flush_iptables() {
@@ -720,8 +604,8 @@ _flush_iptables() {
 }
 
 flush_iptables() {
-    is_true "$ipv4" && _flush_iptables "iptables"
-    is_true "$ipv6" && _flush_iptables "ip6tables"
+    is_enabled_ipv4 && _flush_iptables "iptables"
+    is_enabled_ipv6 && _flush_iptables "ip6tables"
 }
 
 _show_iptables() {
@@ -733,49 +617,57 @@ _show_iptables() {
 }
 
 show_iptables() {
-    is_true "$ipv4" && _show_iptables "iptables"
-    { is_true "$ipv4" && is_true "$ipv6"; } && echo
-    is_true "$ipv6" && _show_iptables "ip6tables"
+    is_enabled_ipv4 && _show_iptables "iptables"
+    { is_enabled_ipv4 && is_enabled_ipv6; } && echo
+    is_enabled_ipv6 && _show_iptables "ip6tables"
 }
 
-check_dnsredir() {
+add_dnsredir() {
     is_false "$ipts_reddns_onstop" && return
 
-    local direct_dns_ip
-    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
+    local direct_dns_ip direct_dns_ipx direct_dns_port
+    if is_ipv4_ipts $1; then
+        direct_dns_ip="$(get_directdns_ip)"
+        direct_dns_ipx="$(get_directdns_ip)"
+        direct_dns_port="$(get_directdns_port)"
+    else
+        direct_dns_ip="$(get_directdns_ip)"
+        direct_dns_ipx="[$(get_directdns_ip)]"
+        direct_dns_port="$(get_directdns_port)"
+    fi
 
     $1 -t nat -N SSTP_PREROUTING  &>/dev/null
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-    $1 -t nat -A SSTP_PREROUTING  -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j DNAT --to-destination $direct_dns_ip
-    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
+    $1 -t nat -A SSTP_PREROUTING  -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j DNAT --to $direct_dns_ipx:$direct_dns_port
+    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -d $direct_dns_ip --dport $direct_dns_port -j MASQUERADE
 }
 
-check_snatrule() {
-    local set_snat_rule='false'
-    { is_ipv4_ipts $1 && is_true "$ipts_set_snat";  } && set_snat_rule='true'
-    { is_ipv6_ipts $1 && is_true "$ipts_set_snat6"; } && set_snat_rule='true'
-    is_false "$set_snat_rule" && return
+add_snatrule() {
+    if is_ipv4_ipts $1; then
+        is_false "$ipts_set_snat" && return
+    else
+        is_false "$ipts_set_snat6" && return
+    fi
 
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
     $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -m conntrack --ctstate SNAT,DNAT   -j RETURN
-    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p tcp --syn                       -j MASQUERADE
+    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p tcp -m tcp --syn                -j MASQUERADE
     $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -m conntrack --ctstate NEW  -j MASQUERADE
     $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p icmp -m conntrack --ctstate NEW -j MASQUERADE
 }
 
-check_iptschain() {
+add_stopchain() {
     $1 -t nat -nL SSTP_PREROUTING  &>/dev/null && $1 -t nat -A PREROUTING  -j SSTP_PREROUTING
     $1 -t nat -nL SSTP_POSTROUTING &>/dev/null && $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
 }
 
-check_postrule() {
+add_stoprule() {
     ss_tproxy_is_started && return
-    { is_false "$ipts_reddns_onstop" && is_false "$ipts_set_snat" && is_false "$ipts_set_snat6"; } && return
-    is_true "$ipv4" && { check_dnsredir "iptables";  check_snatrule "iptables";  check_iptschain "iptables";  }
-    is_true "$ipv6" && { check_dnsredir "ip6tables"; check_snatrule "ip6tables"; check_iptschain "ip6tables"; }
+    is_enabled_ipv4 && { add_dnsredir "iptables";  add_snatrule "iptables";  add_stopchain "iptables";  }
+    is_enabled_ipv6 && { add_dnsredir "ip6tables"; add_snatrule "ip6tables"; add_stopchain "ip6tables"; }
 }
 
-_flush_postrule() {
+_flush_stoprule() {
     $1 -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
     $1 -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
     $1 -t nat -F SSTP_PREROUTING  &>/dev/null
@@ -784,60 +676,58 @@ _flush_postrule() {
     $1 -t nat -X SSTP_POSTROUTING &>/dev/null
 }
 
-flush_postrule() {
+flush_stoprule() {
     ss_tproxy_is_started && return
-    is_true "$ipv4" && _flush_postrule "iptables"
-    is_true "$ipv6" && _flush_postrule "ip6tables"
+    is_enabled_ipv4 && _flush_stoprule "iptables"
+    is_enabled_ipv6 && _flush_stoprule "ip6tables"
 }
 
 _delete_unused_iptchains() {
-    if is_empty_iptschain $1 mangle SSTP_PREROUTING; then
-        $1 -t mangle -D PREROUTING -j SSTP_PREROUTING
-        $1 -t mangle -X SSTP_PREROUTING
-    fi
-    if is_empty_iptschain $1 mangle SSTP_OUTPUT; then
-        $1 -t mangle -D OUTPUT -j SSTP_OUTPUT
-        $1 -t mangle -X SSTP_OUTPUT
-    fi
-    if is_empty_iptschain $1 nat SSTP_PREROUTING; then
-        $1 -t nat -D PREROUTING -j SSTP_PREROUTING
-        $1 -t nat -X SSTP_PREROUTING
-    fi
-    if is_empty_iptschain $1 nat SSTP_OUTPUT; then
-        $1 -t nat -D OUTPUT -j SSTP_OUTPUT
-        $1 -t nat -X SSTP_OUTPUT
-    fi
-    if is_empty_iptschain $1 nat SSTP_POSTROUTING; then
-        $1 -t nat -D POSTROUTING -j SSTP_POSTROUTING
-        $1 -t nat -X SSTP_POSTROUTING
-    fi
+    local list=(
+        mangle PREROUTING
+        mangle OUTPUT
+        nat PREROUTING
+        nat OUTPUT
+        nat POSTROUTING
+    )
+    for ((i = 0; i < ${#list[@]}; i += 2)); do
+        local table="${list[i]}" chain="${list[i+1]}"
+        if is_empty_iptschain $1 $table SSTP_$chain; then
+            $1 -t $table -D $chain -j SSTP_$chain
+            $1 -t $table -X SSTP_$chain
+        fi
+    done
 }
 
 delete_unused_iptchains() {
-    is_true "$ipv4" && _delete_unused_iptchains "iptables"
-    is_true "$ipv6" && _delete_unused_iptchains "ip6tables"
+    is_enabled_ipv4 && _delete_unused_iptchains "iptables"
+    is_enabled_ipv6 && _delete_unused_iptchains "ip6tables"
 }
 
-start_iptables_pre_rules() {
+start_iproute() {
+    ! is_need_iproute && return
+
+    local family
+    is_ipv4_ipts $1 && family="-4" || family="-6"
+
+    ip $family route add local default dev $ipts_if_lo table $ipts_rt_tab
+
+    if ip rule help 2>&1 | grep -Fwq protocol; then
+        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab protocol kernel
+    else
+        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab
+    fi
+}
+
+start_iptables_pre() {
     $1 -t mangle -N SSTP_PREROUTING
     $1 -t mangle -N SSTP_OUTPUT
     $1 -t nat    -N SSTP_PREROUTING
     $1 -t nat    -N SSTP_OUTPUT
     $1 -t nat    -N SSTP_POSTROUTING
-
-    if is_need_iproute; then
-        local iproute2_family
-        is_ipv4_ipts $1 && iproute2_family="-4" || iproute2_family="-6"
-        ip $iproute2_family route add local default dev $ipts_if_lo table $ipts_rt_tab
-        if ip rule help 2>&1 | grep -Fwq protocol; then
-            ip $iproute2_family rule add fwmark $ipts_rt_mark table $ipts_rt_tab protocol kernel
-        else
-            ip $iproute2_family rule add fwmark $ipts_rt_mark table $ipts_rt_tab
-        fi
-    fi
 }
 
-start_iptables_post_rules() {
+start_iptables_post() {
     $1 -t mangle -A PREROUTING  -j SSTP_PREROUTING
     $1 -t mangle -A OUTPUT      -j SSTP_OUTPUT
     $1 -t nat    -A PREROUTING  -j SSTP_PREROUTING
@@ -845,399 +735,403 @@ start_iptables_post_rules() {
     $1 -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 }
 
-start_iptables_tproxy_mode() {
-    local loopback_addr loopback_addrx
-    is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
-    is_ipv4_ipts $1 && loopback_addrx="127.0.0.1" || loopback_addrx="[::1]"
-
-    local gfwlist_setname
-    is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
-
-    local gfwlist_setfamily
-    is_ipv4_ipts $1 && gfwlist_setfamily="inet" || gfwlist_setfamily="inet6"
-
-    local grep_pattern
-    is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
-
-    local svr_ip_array
-    if ! is_usrgrp_mode; then
-        is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
-    fi
-
-    local direct_dns_ip direct_dns_ipx
-    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
-    is_ipv4_ipts $1 && direct_dns_ipx="$dns_direct" || direct_dns_ipx="[$dns_direct6]"
-
-    local remote_dns_ip remote_dns_port
-    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
-    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
-
-    local chnroute_setname
-    is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
-
-    local privaddr_setname
-    is_ipv4_ipts $1 && privaddr_setname="privaddr" || privaddr_setname="privaddr6"
-
-    local privaddr_array
-    is_ipv4_ipts $1 && privaddr_array=("${IPV4_RESERVED_IPADDRS[@]}") || privaddr_array=("${IPV6_RESERVED_IPADDRS[@]}")
-
-    if is_global_mode || is_chnroute_mode; then
-        ipset -X $privaddr_setname &>/dev/null
-        ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
-        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R -exist &>/dev/null
-        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R -exist &>/dev/null
-    elif is_gfwlist_mode; then
-        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R -exist &>/dev/null
-    fi
-
-    ######################### SSTP_RULE (tcp and udp) #########################
-
-    $1 -t mangle -N SSTP_RULE
-
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
-    $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
-
-    if ! is_usrgrp_mode; then
-        for svr_ip in "${svr_ip_array[@]}"; do
-            $1 -t mangle -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-            is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        done
-    fi
-
-    if is_enabled_udp; then
-        $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53               -j RETURN
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+# for: start_iptables_tproxy, start_iptables_redirect
+# local loopback_addr loopback_addrx direct_dns_ip direct_dns_ipx white_setname black_setname
+init_iptables_param() {
+    if is_ipv4_ipts $1; then
+        loopback_addr="127.0.0.1"
+        loopback_addrx="127.0.0.1"
+        remote_dns_ip="$(get_remotedns_ip)"
+        remote_dns_port="$(get_remotedns_port)"
+        white_setname="sstp_white"
+        black_setname="sstp_black"
     else
-        $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
+        loopback_addr="::1"
+        loopback_addrx="[::1]"
+        remote_dns_ip="$(get_remotedns6_ip)"
+        remote_dns_port="$(get_remotedns6_port)"
+        white_setname="sstp_white6"
+        black_setname="sstp_black6"
     fi
-
-    if is_gfwlist_mode; then
-        $1 -t mangle -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
-        is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    elif is_global_mode; then
-        $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
-        is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    elif is_chnroute_mode; then
-        $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-        $1 -t mangle -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j MARK --set-mark $ipts_rt_mark
-        is_enabled_udp && $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-    fi
-
-    $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
-
-    ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
-
-    if is_usrgrp_mode; then
-        $1 -t mangle -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
-        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ipx:53
-        $1 -t nat -A SSTP_POSTROUTING -m owner $(get_usrgrp_args) -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
-    fi
-
-    if is_nonstd_dnsport "$dnsmasq_bind_port"; then
-        $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
-    fi
-
-    $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-    is_enabled_udp && $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
-
-    $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
-
-    if is_false "$selfonly"; then
-        if is_nonstd_dnsport "$dnsmasq_bind_port"; then
-            is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
-            $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
-        fi
-
-        $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-        is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
-    fi
-
-    $1 -t mangle -A SSTP_PREROUTING -p tcp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport
-    is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
-
-    check_snatrule $1
 }
 
-start_iptables_redirect_mode() {
-    local loopback_addr loopback_addrx
-    is_ipv4_ipts $1 && loopback_addr="127.0.0.1" || loopback_addr="::1"
-    is_ipv4_ipts $1 && loopback_addrx="127.0.0.1" || loopback_addrx="[::1]"
-
-    local gfwlist_setname
-    is_ipv4_ipts $1 && gfwlist_setname="gfwlist" || gfwlist_setname="gfwlist6"
-
-    local gfwlist_setfamily
-    is_ipv4_ipts $1 && gfwlist_setfamily="inet" || gfwlist_setfamily="inet6"
-
-    local grep_pattern
-    is_ipv4_ipts $1 && grep_pattern="^-" || grep_pattern="^~"
-
-    local svr_ip_array
-    if ! is_usrgrp_mode; then
-        is_ipv4_ipts $1 && svr_ip_array=("${proxy_svripv4[@]}") || svr_ip_array=("${proxy_svripv6[@]}")
+# tproxy: mangle表
+# dnat: nat表
+# $ipts tproxy/dnat
+create_sstp_rule() {
+    local table action
+    if [ "$2" = 'tproxy' ]; then
+        table=mangle
+        action="-j CONNMARK --set-mark $ipts_rt_mark"
+    else
+        table=nat
+        action="-j DNAT --to-destination $loopback_addrx:$proxy_tcpport"
     fi
 
-    local direct_dns_ip direct_dns_ipx
-    is_ipv4_ipts $1 && direct_dns_ip="$dns_direct" || direct_dns_ip="$dns_direct6"
-    is_ipv4_ipts $1 && direct_dns_ipx="$dns_direct" || direct_dns_ipx="[$dns_direct6]"
-
-    local remote_dns_ip remote_dns_port
-    is_ipv4_ipts $1 && remote_dns_ip="${dns_remote%%#*}" || remote_dns_ip="${dns_remote6%%#*}"
-    is_ipv4_ipts $1 && remote_dns_port="${dns_remote##*#}" || remote_dns_port="${dns_remote6##*#}"
-
-    local chnroute_setname
-    is_ipv4_ipts $1 && chnroute_setname="chnroute" || chnroute_setname="chnroute6"
-
-    local privaddr_setname
-    is_ipv4_ipts $1 && privaddr_setname="privaddr" || privaddr_setname="privaddr6"
-
-    local privaddr_array
-    is_ipv4_ipts $1 && privaddr_array=("${IPV4_RESERVED_IPADDRS[@]}") || privaddr_array=("${IPV6_RESERVED_IPADDRS[@]}")
-
-    if is_global_mode || is_chnroute_mode; then
-        ipset -X $privaddr_setname &>/dev/null
-        ipset -N $privaddr_setname hash:net family $gfwlist_setfamily
-        for privaddr in "${privaddr_array[@]}"; do echo "-A $privaddr_setname $privaddr"; done | ipset -R -exist &>/dev/null
-        grep -E "$grep_pattern" $file_ignlist_ext | cut -c2- | while read ip_addr; do echo "-A $privaddr_setname $ip_addr"; done | ipset -R -exist &>/dev/null
+    $1 -t $table -N SSTP_RULE
+    if is_global_mode; then
+        $1 -t $table -A SSTP_RULE \
+            -m set ! --match-set $white_setname dst \
+            $action
     elif is_gfwlist_mode; then
-        ipset -N $gfwlist_setname hash:net family $gfwlist_setfamily &>/dev/null
-        grep -E "$grep_pattern" $file_gfwlist_ext | cut -c2- | while read ip_addr; do echo "-A $gfwlist_setname $ip_addr"; done | ipset -R -exist &>/dev/null
-    fi
-
-    ######################### SSTP_RULE (for tcp) #########################
-
-    $1 -t nat -N SSTP_RULE
-
-    if ! is_usrgrp_mode; then
-        for svr_ip in "${svr_ip_array[@]}"; do
-            $1 -t nat -A SSTP_RULE -p tcp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-        done
-    fi
-
-    if ! is_enabled_udp; then
-        $1 -t nat -A SSTP_RULE -p tcp -d $remote_dns_ip --dport $remote_dns_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
-    fi
-
-    if is_gfwlist_mode; then
-        $1 -t nat -A SSTP_RULE -p tcp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
-    elif is_global_mode; then
-        $1 -t nat -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
+        $1 -t $table -A SSTP_RULE \
+            -m set --match-set $black_setname dst \
+            $action
     elif is_chnroute_mode; then
-        $1 -t nat -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-        $1 -t nat -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-        $1 -t nat -A SSTP_RULE -p tcp -m multiport --dports $ipts_proxy_dst_port --syn -j DNAT --to $loopback_addrx:$proxy_tcpport
+        $1 -t $table -A SSTP_RULE \
+            -m set --match-set $white_setname dst \
+            -m set ! --match-set $black_setname dst \
+            -j RETURN
+        $1 -t $table -A SSTP_RULE \
+            $action
+    fi
+}
+
+# mangle表 OUTPUT/PREROUTING
+# $ipts tcp:1/0
+do_proxy_tproxy() {
+    local tcp=$2 udp=$(is_enabled_udp && echo 1 || echo 0)
+
+    create_sstp_rule $1 tproxy
+
+    # 放行本机代理进程
+    $1 -t mangle -A SSTP_OUTPUT \
+        -m owner --gid-owner $proxy_procgroup \
+        -j RETURN
+
+    # 放行本机发出的dns请求，留给nat去重定向
+    ((udp)) &&
+        $1 -t mangle -A SSTP_OUTPUT \
+            -p udp \
+            -m udp --dport 53 \
+            -m conntrack --ctstate NEW \
+            -m owner ! --gid-owner $dns_procgroup \
+            -j RETURN
+
+    # dns2tcp启用时，放行发给dns_remote@udp的请求，留给nat去重定向
+    ((udp)) && is_enabled_dns2tcp &&
+        $1 -t mangle -A SSTP_OUTPUT \
+            -d $remote_dns_ip \
+            -p udp \
+            -m udp --dport $remote_dns_port \
+            -m conntrack --ctstate NEW \
+            -j RETURN
+
+    # 本机传出流量 => SSTP_RULE
+    # 会被路由进入lo，进入prerouting，被tproxy
+    ((tcp)) &&
+        $1 -t mangle -A SSTP_OUTPUT \
+            -p tcp \
+            -m tcp --syn \
+            -m addrtype --src-type LOCAL ! --dst-type LOCAL \
+            -m multiport --dports $ipts_proxy_dst_port \
+            -j SSTP_RULE
+    ((udp)) &&
+        $1 -t mangle -A SSTP_OUTPUT \
+            -p udp \
+            -m conntrack --ctstate NEW \
+            -m addrtype --src-type LOCAL ! --dst-type LOCAL \
+            -m multiport --dports $ipts_proxy_dst_port \
+            -j SSTP_RULE
+    $1 -t mangle -A SSTP_OUTPUT \
+        -m connmark --mark $ipts_rt_mark \
+        -m conntrack --ctdir ORIGINAL \
+        -j MARK --set-mark $ipts_rt_mark
+
+    # 内网传出流量 => SSTP_RULE
+    # 所有发往LOCAL地址的包都会走这里，注意判定
+    if is_proxy_other; then
+        ((tcp)) &&
+            $1 -t mangle -A SSTP_PREROUTING \
+                -p tcp \
+                -m tcp --syn \
+                -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
+                -m multiport --dports $ipts_proxy_dst_port \
+                -j SSTP_RULE
+        ((udp)) &&
+            $1 -t mangle -A SSTP_PREROUTING \
+                -p udp \
+                -m conntrack --ctstate NEW \
+                -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
+                -m multiport --dports $ipts_proxy_dst_port \
+                -j SSTP_RULE
+        $1 -t mangle -A SSTP_PREROUTING \
+            -m connmark --mark $ipts_rt_mark \
+            -m conntrack --ctdir ORIGINAL \
+            -j MARK --set-mark $ipts_rt_mark
     fi
 
-    ######################### SSTP_RULE (for udp) #########################
+    # 黑名单packet => 代理进程socket
+    ((tcp)) &&
+        $1 -t mangle -A SSTP_PREROUTING \
+            -p tcp \
+            -m mark --mark $ipts_rt_mark \
+            -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport
+    ((udp)) &&
+        $1 -t mangle -A SSTP_PREROUTING \
+            -p udp \
+            -m mark --mark $ipts_rt_mark \
+            -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
+}
 
+# nat表 OUTPUT/PREROUTING -p tcp
+do_proxy_dnat() {
+    create_sstp_rule $1 dnat
+
+    # 放行本机代理进程
+    $1 -t nat -A SSTP_OUTPUT \
+        -m owner --gid-owner $proxy_procgroup \
+        -j RETURN
+
+    # 本机传出流量 => SSTP_RULE
+    $1 -t nat -A SSTP_OUTPUT \
+        -p tcp \
+        -m tcp --syn \
+        -m addrtype --src-type LOCAL ! --dst-type LOCAL \
+        -m multiport --dports $ipts_proxy_dst_port \
+        -m owner ! --gid-owner $proxy_procgroup \
+        -j SSTP_RULE
+
+    # 内网传出流量 => SSTP_RULE
+    # 所有发往LOCAL地址的包都会走这里，注意判定
+    is_proxy_other &&
+        $1 -t nat -A SSTP_PREROUTING \
+            -p tcp \
+            -m tcp --syn \
+            -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
+            -m multiport --dports $ipts_proxy_dst_port \
+            -j SSTP_RULE
+}
+
+# nat表 OUTPUT/PREROUTING -p udp
+# $ipts bypass:0/1
+redir_dns_request() {
+    local bypass=$2
+
+    # 放行本机代理进程
+    ((bypass)) &&
+        $1 -t nat -A SSTP_OUTPUT \
+            -m owner --gid-owner $proxy_procgroup \
+            -j RETURN
+
+    # 本机发出的dns请求
+    $1 -t nat -A SSTP_OUTPUT \
+        -p udp \
+        -m udp --dport 53 \
+        -m conntrack --ctstate NEW \
+        -m owner ! --gid-owner $dns_procgroup \
+        -j REDIRECT --to-ports $dns_mainport
+
+    # dns进程 => dns2tcp
+    is_enabled_dns2tcp &&
+        $1 -t nat -A SSTP_OUTPUT \
+            -d $remote_dns_ip \
+            -p udp \
+            -m udp --dport $remote_dns_port \
+            -m conntrack --ctstate NEW \
+            -m owner --gid-owner $dns_procgroup \
+            -j REDIRECT --to-ports $dns2tcp_bind_port
+
+    # 其他主机发来的dns请求
+    is_proxy_other && ((dns_mainport != 53)) &&
+        $1 -t nat -A SSTP_PREROUTING \
+            -p udp \
+            -m udp --dport 53 \
+            -m conntrack --ctstate NEW \
+            -m addrtype ! --src-type LOCAL --dst-type LOCAL \
+            -j REDIRECT --to-ports $dns_mainport
+}
+
+start_iptables_tproxy() {
+    local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
+    init_iptables_param $1
+
+    # 处理tcp/udp mangle表
+    local tcp=1
+    do_proxy_tproxy $1 $tcp
+
+    # 处理dns(udp) nat表
+    local bypass=1
+    redir_dns_request $1 $bypass
+}
+
+start_iptables_redirect() {
+    local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
+    init_iptables_param $1
+
+    # 处理tcp nat表
+    do_proxy_dnat $1
+
+    # 处理udp mangle表
     if is_enabled_udp; then
-        $1 -t mangle -N SSTP_RULE
-
-        $1 -t mangle -A SSTP_RULE -j CONNMARK --restore-mark
-        $1 -t mangle -A SSTP_RULE -m mark --mark $ipts_rt_mark -j RETURN
-
-        if ! is_usrgrp_mode; then
-            for svr_ip in "${svr_ip_array[@]}"; do
-                $1 -t mangle -A SSTP_RULE -p udp -d $svr_ip -m multiport --dports $proxy_svrport -j RETURN
-            done
-        fi
-
-        $1 -t mangle -A SSTP_RULE -p udp -d $direct_dns_ip --dport 53               -j RETURN
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j MARK --set-mark $ipts_rt_mark
-        $1 -t mangle -A SSTP_RULE -p udp -d $remote_dns_ip --dport $remote_dns_port -j RETURN
-
-        if is_gfwlist_mode; then
-            $1 -t mangle -A SSTP_RULE -p udp -m set --match-set $gfwlist_setname dst -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-        elif is_global_mode; then
-            $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-            $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-        elif is_chnroute_mode; then
-            $1 -t mangle -A SSTP_RULE -m set --match-set $privaddr_setname dst -j RETURN
-            $1 -t mangle -A SSTP_RULE -m set --match-set $chnroute_setname dst -j RETURN
-            $1 -t mangle -A SSTP_RULE -p udp -m multiport --dports $ipts_proxy_dst_port -m conntrack --ctstate NEW -j MARK --set-mark $ipts_rt_mark
-        fi
-
-        $1 -t mangle -A SSTP_RULE -j CONNMARK --save-mark
+        local tcp=0
+        do_proxy_tproxy $1 $tcp
     fi
 
-    ######################### SSTP_OUTPUT/SSTP_PREROUTING #########################
-
-    if is_usrgrp_mode; then
-        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -p udp -d $loopback_addr --dport 53 -j DNAT --to $direct_dns_ipx:53
-        $1 -t nat -A SSTP_POSTROUTING -m owner $(get_usrgrp_args) -p udp -d $direct_dns_ip --dport 53 -j MASQUERADE
-
-        $1 -t nat -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
-        is_enabled_udp && $1 -t mangle -A SSTP_OUTPUT -m owner $(get_usrgrp_args) -j RETURN
-    fi
-
-    if is_nonstd_dnsport "$dnsmasq_bind_port"; then
-        $1 -t nat -A SSTP_OUTPUT -p udp -d $loopback_addr --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
-    fi
-
-    $1 -t nat -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-    is_enabled_udp && $1 -t mangle -A SSTP_OUTPUT -m addrtype --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
-
-    is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -i $ipts_if_lo -m mark ! --mark $ipts_rt_mark -j RETURN
-
-    if is_false "$selfonly"; then
-        if is_nonstd_dnsport "$dnsmasq_bind_port"; then
-            is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j RETURN
-            $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j REDIRECT --to-ports $dnsmasq_bind_port
-        fi
-
-        $1 -t nat -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p tcp -j SSTP_RULE
-        is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -m addrtype ! --src-type LOCAL ! --dst-type LOCAL -p udp -j SSTP_RULE
-    fi
-
-    is_enabled_udp && $1 -t mangle -A SSTP_PREROUTING -p udp -m mark --mark $ipts_rt_mark -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
-
-    check_snatrule $1
+    # 处理dns(udp) nat表
+    local bypass=0 # do_proxy_dnat里面已经放行了
+    redir_dns_request $1 $bypass
 }
 
 start_iptables() {
-    is_true "$ipv4" && start_iptables_pre_rules "iptables"
-    is_true "$ipv6" && start_iptables_pre_rules "ip6tables"
+    is_enabled_ipv4 && start_iptables_pre "iptables"
+    is_enabled_ipv6 && start_iptables_pre "ip6tables"
 
     if is_true "$tproxy"; then
-        is_true "$ipv4" && start_iptables_tproxy_mode "iptables"
-        is_true "$ipv6" && start_iptables_tproxy_mode "ip6tables"
+        is_enabled_ipv4 && start_iptables_tproxy "iptables"
+        is_enabled_ipv6 && start_iptables_tproxy "ip6tables"
     else
-        is_true "$ipv4" && start_iptables_redirect_mode "iptables"
-        is_true "$ipv6" && start_iptables_redirect_mode "ip6tables"
+        is_enabled_ipv4 && start_iptables_redirect "iptables"
+        is_enabled_ipv6 && start_iptables_redirect "ip6tables"
     fi
 
-    is_true "$ipv4" && start_iptables_post_rules "iptables"
-    is_true "$ipv6" && start_iptables_post_rules "ip6tables"
+    is_enabled_ipv4 && add_snatrule "iptables"
+    is_enabled_ipv6 && add_snatrule "ip6tables"
+
+    is_enabled_ipv4 && start_iptables_post "iptables"
+    is_enabled_ipv6 && start_iptables_post "ip6tables"
 }
 
 start() {
     ss_tproxy_is_started && { stop; status; echo; }
-    waiting_network "$opts_ip_for_check_net"
-    [ "$(type -t pre_start)" = 'function' ] && pre_start
 
-    flush_postrule
-    enable_ipforward
-    enable_rtlocalnet
-    disable_icmpredir
-    restore_resolvconf
-    resolve_svraddr
-    start_proxy_proc
+    flush_stoprule
+
+    is_func pre_start && pre_start
+
+    set_kernel_param
+    start_proxyproc
+    start_ipset
     start_dnsserver
+    start_iproute
     start_iptables
-    modify_resolvconf
 
-    [ "$(type -t post_start)" = 'function' ] && post_start
+    is_func post_start && post_start
+
     delete_unused_iptchains
 }
 
 stop() {
-    [ "$(type -t pre_stop)" = 'function' ] && pre_stop
+    is_func pre_stop && pre_stop
 
-    restore_resolvconf
     flush_iptables
-    delete_chnroute
-    delete_iproute2
+    flush_iproute
     stop_dnsserver
-    stop_proxy_proc
-    check_postrule
+    # flush_ipset
+    stop_proxyproc
+    add_stoprule
 
-    [ "$(type -t post_stop)" = 'function' ] && post_stop
+    is_func post_stop && post_stop
+}
+
+# name func args...
+_status() {
+    local name="$1" func="$2"
+    shift 2
+    if $func "$@"; then
+        echo "$name: $(color_green '[running]')"
+    else
+        echo "$name: $(color_red '[stopped]')"
+    fi
 }
 
 status() {
-    echo "mode:     $mode"
-    tcp_port_is_exists $proxy_tcpport && echo "pxy/tcp:  $(color_green '[running]')" || echo "pxy/tcp:  $(color_red '[stopped]')"
-    if is_enabled_udp; then
-        udp_port_is_exists $proxy_udpport && echo "pxy/udp:  $(color_green '[running]')" || echo "pxy/udp:  $(color_red '[stopped]')"
+    echo "mode: $mode"
+
+    _status "proxy/tcp" tcp_port_is_exists $proxy_tcpport
+    is_enabled_udp && _status "proxy/udp" udp_port_is_exists $proxy_udpport
+
+    if ! is_custom_dns; then
+        _status "dnsmasq" process_is_running $pid_dnsmasq
+        is_chnroute_mode && _status "chinadns" process_is_running $pid_chinadns
     fi
-    process_is_running $status_dnsmasq_pid && echo "dnsmasq:  $(color_green '[running]')" || echo "dnsmasq:  $(color_red '[stopped]')"
-    if is_chnroute_mode; then
-        process_is_running $status_chinadns_pid && echo "chinadns: $(color_green '[running]')" || echo "chinadns: $(color_red '[stopped]')"
+
+    if is_enabled_dns2tcp; then
+        is_enabled_ipv4 && _status "dns2tcp4" process_is_running $pid_dns2tcp4
+        is_enabled_ipv6 && _status "dns2tcp6" process_is_running $pid_dns2tcp6
     fi
-    if ! is_enabled_udp; then
-        is_true "$ipv4" && { process_is_running $status_dns2tcp4_pid && echo "dns2tcp4: $(color_green '[running]')" || echo "dns2tcp4: $(color_red '[stopped]')"; }
-        is_true "$ipv6" && { process_is_running $status_dns2tcp6_pid && echo "dns2tcp6: $(color_green '[running]')" || echo "dns2tcp6: $(color_red '[stopped]')"; }
-    fi
+
+    is_func extra_status && extra_status
 }
 
 version() {
-    echo "ss-tproxy v4.6.3 (2022-08-28)"
+    echo "ss-tproxy v4.7 (2023-04-27)"
 }
 
 help() {
-    cat <<'EOF'
-Usage: ss-tproxy <COMMAND> [-x] [-c cfgfile] [name=value...]
+    cat <<EOF
+Usage: ss-tproxy <COMMAND> ... [-x] [-d basedir] [-c config] [name=value ...]
 COMMAND := {
     start               start ss-tproxy
     stop                stop ss-tproxy
     restart             restart ss-tproxy
     status              status of ss-tproxy
     show-iptables       show iptables rules
-    flush-postrule      flush legacy rules
-    flush-dnscache      flush dnsmasq cache
-    delete-gfwlist      delete ipset@gfwlist
-    update-chnlist      update chnlist list
-    update-gfwlist      update gfwlist list
-    update-chnroute     update chnroute list
+    flush-stoprule      flush stop iptables rules
+    flush-dnscache      flush dns cache
+    flush-ipset         flush ipset cache
+    update-chnlist      update chnlist.txt
+    update-chnroute     update chnroute.txt
+    update-gfwlist      update gfwlist.txt
     version             show version and exit
     help                show help and exit
 }
-Specify the -x option for debugging of bash scripts
-Specify the -c option to use given ss-tproxy cfgfile
-Specify the name=value to override ss-tproxy configs
+Specify the -x option to debug script
+Specify the -d option to use given base dir
+Specify the -c option to use given ss-tproxy.conf
+Specify the name=value to override ss-tproxy config
 Issues or bug report: https://github.com/zfl9/ss-tproxy
 See https://github.com/zfl9/ss-tproxy/wiki for more details
 EOF
 }
 
 main() {
-    local arguments=()
-    local optentries=()
+    local argv=("$@")
+    local arg_list=() #所有位置参数 会传给ss-tproxy.conf
+    local override_list=() #覆盖ss-tproxy.conf中的同名配置
 
-    local arglist=("$@")
-    for ((i = 0; i < ${#arglist[@]}; ++i)); do
-        local arg="${arglist[i]}"
+    for ((i = 0; i < ${#argv[@]}; ++i)); do
+        local arg="${argv[i]}"
         if [ "$arg" = '-x' ]; then
             set -x
+        elif [ "$arg" = '-d' ]; then
+            base_dir="${argv[++i]}"
         elif [ "$arg" = '-c' ]; then
-            ss_tproxy_config="${arglist[++i]}"
-        elif [ $(grep -c '=' <<<"$arg") -ne 0 ]; then
-            optentries+=("$arg")
+            config_file="${argv[++i]}"
+        elif str_find "$arg" '='; then
+            override_list+=("$arg")
         else
-            arguments+=("$arg")
+            arg_list+=("$arg")
         fi
     done
 
-    if [ "${#arguments[@]}" -eq 0 ]; then
+    if [ "${#arg_list[@]}" -eq 0 ]; then
         help
         return 0
     fi
 
+    load_pidfile
     load_config
     check_config
 
-    case "${arguments[0]}" in
+    case "${arg_list[0]}" in
         start)           start; status;;
         stop)            stop; status;;
         r*)              stop; status; echo; start; status;;
-        status)          status;;
+        stat*)           status;;
         show*)           show_iptables;;
-        flush-postrule)  flush_postrule;;
-        flush-dnscache)  flush_dnscache;;
-        delete*)         delete_gfwlist;;
+        flush-stop*)     flush_stoprule;;
+        flush-dns*)      flush_dnscache;;
+        flush-ip*)       flush_ipset;;
         update-chnlist)  update_chnlist;;
         update-gfwlist)  update_gfwlist;;
         update-chnroute) update_chnroute;;
         v*)              version;;
         h*)              help;;
-        *)               echo "$(color_yellow "Unknown option: ${arguments[0]}")"; help; return 1;;
+        *)               echo "$(color_yellow "Unknown option: ${arg_list[0]}")"; help; return 1;;
     esac
+
     return 0
 }
+
 main "$@"
