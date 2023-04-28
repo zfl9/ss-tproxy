@@ -358,7 +358,7 @@ get_dnsconf() {
         server="$dns_remote"
         server6="$dns_remote6"
         setname="sstp_black"
-        setname6="sstp_black"
+        setname6="sstp_black6"
         default="$dns_direct"
         default6="$dns_direct6"
     else
@@ -366,7 +366,7 @@ get_dnsconf() {
         server="$dns_direct"
         server6="$dns_direct6"
         setname="sstp_white"
-        setname6="sstp_white"
+        setname6="sstp_white6"
         default="$dns_remote"
         default6="$dns_remote6"
     fi
@@ -389,7 +389,7 @@ get_dnsconf() {
             if (v4 && v6) {
                 printf("server = /%s/%s\n", $0, server)
                 printf("server = /%s/%s\n", $0, server6)
-                printf("ipset = /%s/%s/%s\n", $0, setname, setname6)
+                printf("ipset = /%s/%s,%s\n", $0, setname, setname6)
             } else if (v4) {
                 printf("server = /%s/%s\n", $0, server)
                 printf("ipset = /%s/%s\n", $0, setname)
@@ -554,8 +554,6 @@ start_ipset() {
     fi
 }
 
-# todo: 将gfwlist的setname分开，不然切换mode时会有问题
-# 考虑到dns缓存，restart不会清空ipset；若修改了黑白名单，请手动清理
 flush_ipset() {
     ss_tproxy_is_started && return
     ipset -! destroy sstp_white
@@ -1025,7 +1023,7 @@ stop() {
     flush_iptables
     flush_iproute
     stop_dnsserver
-    # flush_ipset
+    flush_ipset
     stop_proxyproc
     add_stoprule
 
