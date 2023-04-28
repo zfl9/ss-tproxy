@@ -151,6 +151,10 @@ is_enabled_udp() {
     is_false "$tcponly"
 }
 
+is_enabled_chinadns() {
+    is_chnroute_mode || { is_gfwlist_mode && is_true "$chinadns_for_gfwlist"; }
+}
+
 is_enabled_dns2tcp() {
     case "$dns2tcp_enable" in
         auto)
@@ -277,7 +281,7 @@ check_config() {
         command_required 'dnsmasq'
         set_command_group "$dns_procgroup" 'dnsmasq'
 
-        is_chnroute_mode && {
+        is_enabled_chinadns && {
             command_required 'chinadns-ng'
             set_command_group "$dns_procgroup" 'chinadns-ng'
         }
@@ -405,7 +409,11 @@ get_global_dnsconf() {
 }
 
 get_gfwlist_dnsconf() {
-    { cat gfwlist.txt; list_ext_domain gfwlist.ext; } | get_dnsconf 1
+    if is_enabled_chinadns; then
+        echo "server = 127.0.0.1#$chinadns_bind_port"
+    else
+        { cat gfwlist.txt; list_ext_domain gfwlist.ext; } | get_dnsconf 1
+    fi
 }
 
 get_chnroute_dnsconf() {
@@ -413,7 +421,13 @@ get_chnroute_dnsconf() {
 }
 
 start_chinadns() {
-    local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -4 sstp_white -6 sstp_white6 -a -A sstp_black,sstp_black6"
+    local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -4 sstp_white -6 sstp_white6 -A sstp_black,sstp_black6"
+
+    if is_gfwlist_mode; then
+        chinadns_args+=" -d chn"
+    else # chnroute
+        chinadns_args+=" -a"
+    fi
 
     is_true "$chinadns_verbose" && chinadns_args+=' -v'
     is_true "$chinadns_chnlist_first" && chinadns_args+=' -M'
@@ -429,17 +443,25 @@ start_chinadns() {
         chinadns_args+=" -t $dns_remote6"
     fi
 
-    pid_chinadns=$(
-        chinadns-ng $chinadns_args $chinadns_extra_options \
-        -m chnlist.txt,<(list_ext_domain ignlist.ext) \
-        -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
-        </dev/null &>>$chinadns_logfile & echo $!
-    )
+    if is_gfwlist_mode; then
+        pid_chinadns=$(
+            chinadns-ng $chinadns_args $chinadns_extra_options \
+            -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
+            </dev/null &>>$chinadns_logfile & echo $!
+        )
+    else # chnroute
+        pid_chinadns=$(
+            chinadns-ng $chinadns_args $chinadns_extra_options \
+            -m chnlist.txt,<(list_ext_domain ignlist.ext) \
+            -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
+            </dev/null &>>$chinadns_logfile & echo $!
+        )
+    fi
 }
 
 start_dnsserver() {
     if ! is_custom_dns; then
-        is_chnroute_mode && start_chinadns
+        is_enabled_chinadns && start_chinadns
 
         pid_dnsmasq=$(
             {
@@ -554,8 +576,8 @@ start_ipset() {
     fi
 }
 
+# stop就清空，如果只是换节点或重启代理，不要通过ss-tproxy进行，请直接操作代理进程
 flush_ipset() {
-    ss_tproxy_is_started && return
     ipset -! destroy sstp_white
     ipset -! destroy sstp_white6
     ipset -! destroy sstp_black
@@ -844,6 +866,7 @@ do_proxy_tproxy() {
             -j SSTP_RULE
     $1 -t mangle -A SSTP_OUTPUT \
         -m connmark --mark $ipts_rt_mark \
+        -m conntrack --ctdir ORIGINAL \
         -j MARK --set-mark $ipts_rt_mark
 
     # 内网传出流量 => SSTP_RULE
@@ -865,6 +888,7 @@ do_proxy_tproxy() {
                 -j SSTP_RULE
         $1 -t mangle -A SSTP_PREROUTING \
             -m connmark --mark $ipts_rt_mark \
+            -m conntrack --ctdir ORIGINAL \
             -j MARK --set-mark $ipts_rt_mark
     fi
 
@@ -1049,7 +1073,7 @@ status() {
 
     if ! is_custom_dns; then
         _status "dnsmasq" process_is_running $pid_dnsmasq
-        is_chnroute_mode && _status "chinadns" process_is_running $pid_chinadns
+        is_enabled_chinadns && _status "chinadns" process_is_running $pid_chinadns
     fi
 
     if is_enabled_dns2tcp; then
@@ -1075,7 +1099,6 @@ COMMAND := {
     show-iptables       show iptables rules
     flush-stoprule      flush stop iptables rules
     flush-dnscache      flush dns cache
-    flush-ipset         flush ipset cache
     update-chnlist      update chnlist.txt
     update-chnroute     update chnroute.txt
     update-gfwlist      update gfwlist.txt
@@ -1130,7 +1153,6 @@ main() {
         show*)           show_iptables;;
         flush-stop*)     flush_stoprule;;
         flush-dns*)      flush_dnscache;;
-        flush-ip*)       flush_ipset;;
         update-chnlist)  update_chnlist;;
         update-gfwlist)  update_gfwlist;;
         update-chnroute) update_chnroute;;
