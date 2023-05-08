@@ -459,22 +459,36 @@ start_chinadns() {
     fi
 }
 
+# is_ipv4(0/1)
+start_dns2tcp() {
+    local args
+    if (($1)); then
+        args="-L 127.0.0.1#$dns2tcp_bind_port -R $dns_remote"
+    else
+        args="-L       ::1#$dns2tcp_bind_port -R $dns_remote6 -6"
+    fi
+    is_true "$dns2tcp_verbose" && args+=" -v"
+    dns2tcp $args $dns2tcp_extra_options </dev/null &>>$dns2tcp_logfile & echo $!
+}
+
 start_dnsserver() {
     if ! is_custom_dns; then
         is_enabled_chinadns && start_chinadns
 
         pid_dnsmasq=$(
             {
+                echo "port = $dns_mainport"
                 echo "group = $dns_procgroup"
                 is_true "$dnsmasq_log_enable" && echo 'log-queries'
                 echo "log-facility = $dnsmasq_log_file"
                 echo "log-async = 20"
                 echo "domain-needed"
-                echo "cache-size = $dnsmasq_cache_size"
-                { dnsmasq --help | grep -q min-cache-ttl; } && echo "min-cache-ttl = $dnsmasq_cache_time"
-                echo "no-negcache"
                 echo "no-resolv"
-                echo "port = $dns_mainport"
+                echo "no-negcache"
+                echo "cache-size = $dnsmasq_cache_size"
+                if ((dnsmasq_cache_time_min)) && dnsmasq --help | grep -q min-cache-ttl; then
+                    echo "min-cache-ttl = $dnsmasq_cache_time_min"
+                fi
                 echo "dns-forward-max = $dnsmasq_query_maxcnt"
                 for arg in "${dnsmasq_conf_dir[@]}"; do echo "conf-dir = $arg"; done
                 for arg in "${dnsmasq_conf_file[@]}"; do echo "conf-file = $arg"; done
@@ -491,16 +505,8 @@ start_dnsserver() {
     fi
 
     if is_enabled_dns2tcp; then
-        if is_enabled_ipv4; then
-            local dns2tcp_args="-L 127.0.0.1#$dns2tcp_bind_port -R $dns_remote $dns2tcp_extra_options"
-            is_true "$dns2tcp_verbose" && dns2tcp_args+=" -v"
-            pid_dns2tcp4=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
-        fi
-        if is_enabled_ipv6; then
-            local dns2tcp_args="-L ::1#$dns2tcp_bind_port -R $dns_remote6 $dns2tcp_extra_options -6"
-            is_true "$dns2tcp_verbose" && dns2tcp_args+=" -v"
-            pid_dns2tcp6=$(dns2tcp $dns2tcp_args </dev/null &>>$dns2tcp_logfile & echo $!)
-        fi
+        is_enabled_ipv4 && pid_dns2tcp4=$(start_dns2tcp 1)
+        is_enabled_ipv6 && pid_dns2tcp6=$(start_dns2tcp 0)
     fi
 
     save_pidfile
