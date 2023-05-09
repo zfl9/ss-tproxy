@@ -169,7 +169,7 @@ is_enabled_dns2tcp() {
             false
             ;;
         *)
-            log_error "invalid config value of dns2tcp_enable: $dns2tcp_enable"
+            log_error "invalid config value for dns2tcp_enable: '$dns2tcp_enable'"
             ;;
     esac
 }
@@ -178,11 +178,13 @@ is_need_iproute() {
     is_true "$tproxy" || is_enabled_udp
 }
 
+# ip#port
 get_ip_from_addr() {
     local addr="$1"
     echo "${addr%#*}"
 }
 
+# ip#port
 get_port_from_addr() {
     local addr="$1"
     echo "${addr#*#}"
@@ -220,6 +222,7 @@ get_remotedns6_port() {
     get_port_from_addr "$dns_remote6"
 }
 
+# $ipts table chain
 is_empty_iptschain() {
     local ipts="$1" table="$2" chain="$3"
     [ $($ipts -t $table -S $chain | wc -l) -le 1 ]
@@ -248,26 +251,25 @@ load_config() {
     for override in "${override_list[@]}"; do eval "$override"; done
 }
 
-file_required() {
-    file_is_exists "$1" || log_error "file not found: $1"
-}
-
 check_config() {
     { ! is_enabled_ipv4 && ! is_enabled_ipv6; } &&
         log_error "both ipv4 and ipv6 are disabled, nothing to do"
 
     if is_global_mode; then
+        # 白名单
         file_required ignlist.ext
     elif is_gfwlist_mode; then
+        # 黑名单
         file_required gfwlist.txt
         file_required gfwlist.ext
     elif is_chnroute_mode; then
-        file_required gfwlist.txt
-        file_required gfwlist.ext
+        # 白名单 + 黑名单(优先)
+        file_required ignlist.ext
         file_required chnlist.txt
-        file_required ignlist.ext #chnlist扩展
         file_required chnroute.txt
         file_required chnroute6.txt
+        file_required gfwlist.txt
+        file_required gfwlist.ext
     else
         log_error "invalid config value for mode: '$mode'"
     fi
@@ -317,13 +319,15 @@ check_config() {
     esac
 }
 
+# url filename
 update_domain_list() {
     command_required 'curl'
 
     local url="$1" filename="$2"
 
-    local data # local的同时赋值会丢失错误码
-    data="$(curl -4sSkL "$url" | grep -v -e '^[[:blank:]]*$' -e '^[[:blank:]]*#')" || log_error "download failed, exit-code: $?"
+    local data # 声明和赋值必须分开，不然错误码会丢失
+    data="$(curl -4sSkL "$url" | grep -v -e '^[[:space:]]*$' -e '^[[:space:]]*#')" ||
+        log_error "download failed: $url (exit-code: $?)"
 
     if head -n1 <<<"$data" | grep -q /; then
         # server=/域名后缀/dns_ip
@@ -345,8 +349,9 @@ update_chnlist() {
 update_chnroute() {
     command_required 'curl'
 
-    local data # local的同时赋值会丢失错误码
-    data="$(curl -4sSkL "$url_chnroute" | grep CN)" || log_error "download failed, exit-code: $?"
+    local data # 声明和赋值必须分开，不然错误码会丢失
+    data="$(curl -4sSkL "$url_chnroute" | grep CN)" ||
+        log_error "download failed: $url_chnroute (exit-code: $?)"
 
     awk -F'|' '/ipv4/ {printf("%s/%d\n", $4, 32-log($5)/log(2))}' <<<"$data" >chnroute.txt
     awk -F'|' '/ipv6/ {printf("%s/%d\n", $4, $5)}' <<<"$data" >chnroute6.txt
@@ -422,37 +427,37 @@ get_chnroute_dnsconf() {
 }
 
 start_chinadns() {
-    local chinadns_args="-b 127.0.0.1 -l $chinadns_bind_port -4 sstp_white -6 sstp_white6 -A sstp_black,sstp_black6"
+    local args="-b 127.0.0.1 -l $chinadns_bind_port -4 sstp_white -6 sstp_white6 -A sstp_black,sstp_black6"
 
     if is_gfwlist_mode; then
-        chinadns_args+=" -d chn"
+        args+=" -d chn"
     else # chnroute
-        chinadns_args+=" -a"
+        args+=" -a"
     fi
 
-    is_true "$chinadns_verbose" && chinadns_args+=' -v'
-    is_true "$chinadns_chnlist_first" && chinadns_args+=' -M'
+    is_true "$chinadns_verbose" && args+=' -v'
+    is_true "$chinadns_chnlist_first" && args+=' -M'
 
     if is_enabled_ipv4 && is_enabled_ipv6; then
-        chinadns_args+=" -c $dns_direct,$dns_direct6"
-        chinadns_args+=" -t $dns_remote,$dns_remote6"
+        args+=" -c $dns_direct,$dns_direct6"
+        args+=" -t $dns_remote,$dns_remote6"
     elif is_enabled_ipv4; then
-        chinadns_args+=" -c $dns_direct"
-        chinadns_args+=" -t $dns_remote"
+        args+=" -c $dns_direct"
+        args+=" -t $dns_remote"
     else
-        chinadns_args+=" -c $dns_direct6"
-        chinadns_args+=" -t $dns_remote6"
+        args+=" -c $dns_direct6"
+        args+=" -t $dns_remote6"
     fi
 
     if is_gfwlist_mode; then
         pid_chinadns=$(
-            chinadns-ng $chinadns_args $chinadns_extra_options \
+            chinadns-ng $args $chinadns_extra_options \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
             </dev/null &>>$chinadns_logfile & echo $!
         )
     else # chnroute
         pid_chinadns=$(
-            chinadns-ng $chinadns_args $chinadns_extra_options \
+            chinadns-ng $args $chinadns_extra_options \
             -m chnlist.txt,<(list_ext_domain ignlist.ext) \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
             </dev/null &>>$chinadns_logfile & echo $!
@@ -652,20 +657,32 @@ add_dnsredir() {
     is_false "$ipts_reddns_onstop" && return
 
     local direct_dns_ip direct_dns_ipx direct_dns_port
+
     if is_ipv4_ipts $1; then
         direct_dns_ip="$(get_directdns_ip)"
         direct_dns_ipx="$(get_directdns_ip)"
         direct_dns_port="$(get_directdns_port)"
     else
-        direct_dns_ip="$(get_directdns_ip)"
-        direct_dns_ipx="[$(get_directdns_ip)]"
-        direct_dns_port="$(get_directdns_port)"
+        direct_dns_ip="$(get_directdns6_ip)"
+        direct_dns_ipx="[$(get_directdns6_ip)]"
+        direct_dns_port="$(get_directdns6_port)"
     fi
 
     $1 -t nat -N SSTP_PREROUTING  &>/dev/null
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-    $1 -t nat -A SSTP_PREROUTING  -m addrtype ! --src-type LOCAL --dst-type LOCAL -p udp --dport 53 -j DNAT --to $direct_dns_ipx:$direct_dns_port
-    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -d $direct_dns_ip --dport $direct_dns_port -j MASQUERADE
+
+    $1 -t nat -A SSTP_PREROUTING \
+        -p udp \
+        -m udp --dport 53 \
+        -m addrtype ! --src-type LOCAL --dst-type LOCAL \
+        -j DNAT --to-destination $direct_dns_ipx:$direct_dns_port
+
+    $1 -t nat -A SSTP_POSTROUTING \
+        -d $direct_dns_ip \
+        -p udp \
+        -m udp --dport $direct_dns_port \
+        -m addrtype ! --src-type LOCAL \
+        -j MASQUERADE
 }
 
 add_snatrule() {
