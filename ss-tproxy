@@ -225,7 +225,7 @@ is_empty_iptschain() {
 }
 
 load_pidfile() {
-    file_is_exists .pid && source .pid
+    file_is_exists /run/ss-tproxy.pid && source /run/ss-tproxy.pid
 }
 
 save_pidfile() {
@@ -234,11 +234,11 @@ save_pidfile() {
         echo "pid_chinadns=$pid_chinadns"
         echo "pid_dns2tcp4=$pid_dns2tcp4"
         echo "pid_dns2tcp6=$pid_dns2tcp6"
-    } >.pid
+    } >/run/ss-tproxy.pid
 }
 
 delete_pidfile() {
-    rm -f .pid &>/dev/null
+    rm -f /run/ss-tproxy.pid &>/dev/null
 }
 
 load_config() {
