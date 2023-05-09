@@ -1105,9 +1105,9 @@ COMMAND := {
     show-iptables       show iptables rules
     flush-stoprule      flush stop iptables rules
     flush-dnscache      flush dns cache
+    update-gfwlist      update gfwlist.txt
     update-chnlist      update chnlist.txt
     update-chnroute     update chnroute.txt
-    update-gfwlist      update gfwlist.txt
     version             show version and exit
     help                show help and exit
 }
@@ -1159,8 +1159,8 @@ main() {
         show*)           show_iptables;;
         flush-stop*)     flush_stoprule;;
         flush-dns*)      flush_dnscache;;
-        update-chnlist)  update_chnlist;;
         update-gfwlist)  update_gfwlist;;
+        update-chnlist)  update_chnlist;;
         update-chnroute) update_chnroute;;
         v*)              version;;
         h*)              help;;
