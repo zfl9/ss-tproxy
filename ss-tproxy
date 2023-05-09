@@ -4,9 +4,9 @@ PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 # 除了主脚本，其他文件都放这个目录，此值可被命令行参数覆盖
 base_dir='/etc/ss-tproxy' # 同时也是工作目录
-config_file='ss-tproxy.conf' # 相对于base_dir
+config_file='ss-tproxy.conf' # 可被命令行参数覆盖
 
-# 已存在的函数和变量尽量别改名和删除，因为可能被 ss-tproxy.conf 引用(钩子函数)
+# 已存在的函数和变量尽量别改名/删除，因为可能被 ss-tproxy.conf 引用(如钩子函数)
 # 由于需要执行 iptables、策略路由、内核参数 等特权操作，脚本必须以 root 权限执行
 
 font_bold() {
@@ -25,6 +25,7 @@ color_yellow() {
     printf "\e[31m$*\e[0m"
 }
 
+# 打印错误消息，并退出脚本
 log_error() {
     echo "$(font_bold $(color_yellow '[ERROR]')) $*" 1>&2
     exit 1
@@ -107,8 +108,8 @@ ss_tproxy_is_started() {
     ip6tables -t nat    -S SSTP_OUTPUT &>/dev/null ||
     ip -4 rule 2>/dev/null | grep -q "lookup $ipts_rt_tab" ||
     ip -6 rule 2>/dev/null | grep -q "lookup $ipts_rt_tab" ||
-    ip -4 route show table $ipts_rt_tab &>/dev/null | grep -q '^' ||
-    ip -6 route show table $ipts_rt_tab &>/dev/null | grep -q '^'
+    ip -4 route show table $ipts_rt_tab 2>/dev/null | grep -q '^' ||
+    ip -6 route show table $ipts_rt_tab 2>/dev/null | grep -q '^'
 }
 
 is_ipv4_ipts() {
@@ -152,7 +153,7 @@ is_enabled_udp() {
 }
 
 is_enabled_chinadns() {
-    is_chnroute_mode || { is_gfwlist_mode && is_true "$chinadns_for_gfwlist"; }
+    is_chnroute_mode || { is_gfwlist_mode && is_true "$chinadns_for_gfwlist" && command_is_exists 'chinadns-ng'; }
 }
 
 is_enabled_dns2tcp() {
@@ -168,7 +169,7 @@ is_enabled_dns2tcp() {
             false
             ;;
         *)
-            log_error "invalid option value of dns2tcp_enable: $dns2tcp_enable"
+            log_error "invalid config value of dns2tcp_enable: $dns2tcp_enable"
             ;;
     esac
 }
@@ -268,7 +269,7 @@ check_config() {
         file_required chnroute.txt
         file_required chnroute6.txt
     else
-        log_error "invalid option value for mode: '$mode'"
+        log_error "invalid config value for mode: '$mode'"
     fi
 
     is_need_iproute && command_required 'ip'
@@ -311,7 +312,7 @@ check_config() {
             netstat='netstat'
             ;;
         *)
-            log_error "invalid option value for opts_ss_netstat: '$opts_ss_netstat'"
+            log_error "invalid config value for opts_ss_netstat: '$opts_ss_netstat'"
             ;;
     esac
 }
@@ -1164,7 +1165,7 @@ main() {
         update-chnroute) update_chnroute;;
         v*)              version;;
         h*)              help;;
-        *)               echo "$(color_yellow "Unknown option: ${arg_list[0]}")"; help; return 1;;
+        *)               echo "$(color_yellow "Unknown command: ${arg_list[0]}")"; help; return 1;;
     esac
 
     return 0
