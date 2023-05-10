@@ -120,6 +120,19 @@ is_ipv6_ipts() {
     [ "$1" = 'ip6tables' ]
 }
 
+# $ipts table chain
+chain_is_exists() {
+    local table="$2" chain="$3"
+    $1 -t $table -S $chain &>/dev/null
+}
+
+# 先判断chain是否存在
+# $ipts table chain
+chain_is_empty() {
+    local table="$2" chain="$3"
+    [ $($1 -t $table -S $chain | wc -l) -le 1 ]
+}
+
 is_global_mode() {
     [ "$mode" = 'global' ]
 }
@@ -220,12 +233,6 @@ get_remotedns_port() {
 
 get_remotedns6_port() {
     get_port_from_addr "$dns_remote6"
-}
-
-# $ipts table chain
-is_empty_iptschain() {
-    local ipts="$1" table="$2" chain="$3"
-    [ $($ipts -t $table -S $chain | wc -l) -le 1 ]
 }
 
 load_pidfile() {
@@ -567,7 +574,7 @@ stop_proxyproc() {
     eval "$proxy_stopcmd" &>/dev/null
 }
 
-_init_ipset() {
+init_ipset() {
     ipset -! create $1 hash:net family $(str_find $1 6 && echo inet6 || echo inet)
     sed "s/^/add $1 /" | ipset -! restore
 }
@@ -575,16 +582,16 @@ _init_ipset() {
 # dns和iptables都需要ipset，为防止dns组件报错(A/AAAA)，v4和v6集合将始终创建
 start_ipset() {
     if is_global_mode; then
-        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  } | _init_ipset sstp_white
-        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; } | _init_ipset sstp_white6
+        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  } | init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; } | init_ipset sstp_white6
     elif is_gfwlist_mode; then
-        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | _init_ipset sstp_black
-        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | _init_ipset sstp_black6
+        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | init_ipset sstp_black6
     elif is_chnroute_mode; then
-        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  cat chnroute.txt;  } | _init_ipset sstp_white
-        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; cat chnroute6.txt; } | _init_ipset sstp_white6
-        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | _init_ipset sstp_black
-        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | _init_ipset sstp_black6
+        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  cat chnroute.txt;  } | init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; cat chnroute6.txt; } | init_ipset sstp_white6
+        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | init_ipset sstp_black6
     fi
 }
 
@@ -596,64 +603,7 @@ flush_ipset() {
     ipset -! destroy sstp_black6
 }
 
-_flush_iproute() {
-    while ip $1 rule del table $ipts_rt_tab &>/dev/null; do true; done
-    ip $1 route flush table $ipts_rt_tab &>/dev/null
-}
-
-flush_iproute() {
-    # 不做判断，防止相关配置改动导致残留
-    _flush_iproute -4
-    _flush_iproute -6
-}
-
-_flush_iptables() {
-    $1 -t mangle -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
-    $1 -t mangle -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
-    $1 -t nat    -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
-    $1 -t nat    -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
-    $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
-
-    $1 -t mangle -F SSTP_PREROUTING  &>/dev/null
-    $1 -t mangle -X SSTP_PREROUTING  &>/dev/null
-    $1 -t mangle -F SSTP_OUTPUT      &>/dev/null
-    $1 -t mangle -X SSTP_OUTPUT      &>/dev/null
-    $1 -t nat    -F SSTP_PREROUTING  &>/dev/null
-    $1 -t nat    -X SSTP_PREROUTING  &>/dev/null
-    $1 -t nat    -F SSTP_OUTPUT      &>/dev/null
-    $1 -t nat    -X SSTP_OUTPUT      &>/dev/null
-    $1 -t nat    -F SSTP_POSTROUTING &>/dev/null
-    $1 -t nat    -X SSTP_POSTROUTING &>/dev/null
-
-    $1 -t mangle -F SSTP_RULE &>/dev/null
-    $1 -t mangle -X SSTP_RULE &>/dev/null
-    $1 -t nat    -F SSTP_RULE &>/dev/null
-    $1 -t nat    -X SSTP_RULE &>/dev/null
-}
-
-flush_iptables() {
-    # 不做判断，防止相关配置改动导致残留
-    _flush_iptables "iptables"
-    _flush_iptables "ip6tables"
-}
-
-_show_iptables() {
-    echo "$(color_green "==> $1-mangle <==")"
-    $1 -t mangle -S
-    echo
-    echo "$(color_green "==> $1-nat <==")"
-    $1 -t nat -S
-}
-
-show_iptables() {
-    is_enabled_ipv4 && _show_iptables "iptables"
-    { is_enabled_ipv4 && is_enabled_ipv6; } && echo
-    is_enabled_ipv6 && _show_iptables "ip6tables"
-}
-
 add_dnsredir() {
-    ! is_proxy_other && return
-
     is_false "$ipts_reddns_onstop" && return
 
     local direct_dns_ip direct_dns_ipx direct_dns_port
@@ -686,8 +636,6 @@ add_dnsredir() {
 }
 
 add_snatrule() {
-    ! is_proxy_other && return
-    
     if is_ipv4_ipts $1; then
         is_false "$ipts_set_snat" && return
     else
@@ -701,53 +649,46 @@ add_snatrule() {
     $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p icmp -m conntrack --ctstate NEW -j MASQUERADE
 }
 
-add_stopchain() {
-    $1 -t nat -S SSTP_PREROUTING  &>/dev/null && $1 -t nat -A PREROUTING  -j SSTP_PREROUTING
-    $1 -t nat -S SSTP_POSTROUTING &>/dev/null && $1 -t nat -A POSTROUTING -j SSTP_POSTROUTING
+# $ipts table 预定义链
+add_sstp_chain() {
+    local table="$2" chain="$3"
+    if chain_is_exists $1 $table SSTP_$chain; then
+        $1 -t $table -A $chain -j SSTP_$chain
+    fi
+}
+
+_add_stoprule() {
+    add_dnsredir $1
+    add_snatrule $1
+
+    add_sstp_chain $1 nat PREROUTING
+    add_sstp_chain $1 nat POSTROUTING
 }
 
 add_stoprule() {
-    ss_tproxy_is_started && return
-    is_enabled_ipv4 && { add_dnsredir "iptables";  add_snatrule "iptables";  add_stopchain "iptables";  }
-    is_enabled_ipv6 && { add_dnsredir "ip6tables"; add_snatrule "ip6tables"; add_stopchain "ip6tables"; }
+    ! is_proxy_other && return
+
+    is_enabled_ipv4 && _add_stoprule "iptables"
+    is_enabled_ipv6 && _add_stoprule "ip6tables"
 }
 
 _flush_stoprule() {
     $1 -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
     $1 -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
+
     $1 -t nat -F SSTP_PREROUTING  &>/dev/null
     $1 -t nat -X SSTP_PREROUTING  &>/dev/null
+
     $1 -t nat -F SSTP_POSTROUTING &>/dev/null
     $1 -t nat -X SSTP_POSTROUTING &>/dev/null
 }
 
 flush_stoprule() {
     ss_tproxy_is_started && return
+
     # 不做判断，防止相关配置改动导致残留
     _flush_stoprule "iptables"
     _flush_stoprule "ip6tables"
-}
-
-_delete_unused_iptchains() {
-    local list=(
-        mangle PREROUTING
-        mangle OUTPUT
-        nat PREROUTING
-        nat OUTPUT
-        nat POSTROUTING
-    )
-    for ((i = 0; i < ${#list[@]}; i += 2)); do
-        local table="${list[i]}" chain="${list[i+1]}"
-        if is_empty_iptschain $1 $table SSTP_$chain; then
-            $1 -t $table -D $chain -j SSTP_$chain
-            $1 -t $table -X SSTP_$chain
-        fi
-    done
-}
-
-delete_unused_iptchains() {
-    is_enabled_ipv4 && _delete_unused_iptchains "iptables"
-    is_enabled_ipv6 && _delete_unused_iptchains "ip6tables"
 }
 
 _start_iproute() {
@@ -767,6 +708,17 @@ start_iproute() {
 
     is_enabled_ipv4 && _start_iproute -4
     is_enabled_ipv6 && _start_iproute -6
+}
+
+_flush_iproute() {
+    while ip $1 rule del table $ipts_rt_tab &>/dev/null; do true; done
+    ip $1 route flush table $ipts_rt_tab &>/dev/null
+}
+
+flush_iproute() {
+    # 不做判断，防止相关配置改动导致残留
+    _flush_iproute -4
+    _flush_iproute -6
 }
 
 start_iptables_pre() {
@@ -1039,11 +991,79 @@ start_iptables() {
         is_enabled_ipv6 && start_iptables_redirect "ip6tables"
     fi
 
-    is_enabled_ipv4 && add_snatrule "iptables"
-    is_enabled_ipv6 && add_snatrule "ip6tables"
+    if is_proxy_other; then
+        is_enabled_ipv4 && add_snatrule "iptables"
+        is_enabled_ipv6 && add_snatrule "ip6tables"
+    fi
 
     is_enabled_ipv4 && start_iptables_post "iptables"
     is_enabled_ipv6 && start_iptables_post "ip6tables"
+}
+
+_delete_unused_chain() {
+    local list=(
+        mangle PREROUTING
+        mangle OUTPUT
+        nat PREROUTING
+        nat OUTPUT
+        nat POSTROUTING
+    )
+    for ((i = 0; i < ${#list[@]}; i += 2)); do
+        local table="${list[i]}" chain="${list[i+1]}"
+        if chain_is_empty $1 $table SSTP_$chain; then
+            $1 -t $table -D $chain -j SSTP_$chain
+            $1 -t $table -X SSTP_$chain
+        fi
+    done
+}
+
+delete_unused_chain() {
+    is_enabled_ipv4 && _delete_unused_chain "iptables"
+    is_enabled_ipv6 && _delete_unused_chain "ip6tables"
+}
+
+_flush_iptables() {
+    $1 -t mangle -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
+    $1 -t mangle -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
+    $1 -t nat    -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
+
+    $1 -t mangle -F SSTP_PREROUTING  &>/dev/null
+    $1 -t mangle -X SSTP_PREROUTING  &>/dev/null
+    $1 -t mangle -F SSTP_OUTPUT      &>/dev/null
+    $1 -t mangle -X SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -F SSTP_PREROUTING  &>/dev/null
+    $1 -t nat    -X SSTP_PREROUTING  &>/dev/null
+    $1 -t nat    -F SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -X SSTP_OUTPUT      &>/dev/null
+    $1 -t nat    -F SSTP_POSTROUTING &>/dev/null
+    $1 -t nat    -X SSTP_POSTROUTING &>/dev/null
+
+    $1 -t mangle -F SSTP_RULE &>/dev/null
+    $1 -t mangle -X SSTP_RULE &>/dev/null
+    $1 -t nat    -F SSTP_RULE &>/dev/null
+    $1 -t nat    -X SSTP_RULE &>/dev/null
+}
+
+flush_iptables() {
+    # 不做判断，防止相关配置改动导致残留
+    _flush_iptables "iptables"
+    _flush_iptables "ip6tables"
+}
+
+_show_iptables() {
+    echo "$(color_green "==> $1-mangle <==")"
+    $1 -t mangle -S
+    echo
+    echo "$(color_green "==> $1-nat <==")"
+    $1 -t nat -S
+}
+
+show_iptables() {
+    is_enabled_ipv4 && _show_iptables "iptables"
+    { is_enabled_ipv4 && is_enabled_ipv6; } && echo
+    is_enabled_ipv6 && _show_iptables "ip6tables"
 }
 
 start() {
@@ -1062,7 +1082,7 @@ start() {
 
     is_func post_start && post_start
 
-    delete_unused_iptchains
+    delete_unused_chain
 }
 
 stop() {
