@@ -737,8 +737,7 @@ start_iptables_post() {
     $1 -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 }
 
-# for: start_iptables_tproxy, start_iptables_redirect
-# local loopback_addr loopback_addrx direct_dns_ip direct_dns_ipx white_setname black_setname
+# local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
 init_iptables_param() {
     if is_ipv4_ipts $1; then
         loopback_addr="127.0.0.1"
@@ -949,9 +948,6 @@ redir_dns_request() {
 }
 
 start_iptables_tproxy() {
-    local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
-    init_iptables_param $1
-
     # 处理tcp/udp mangle表
     local tcp=1
     do_proxy_tproxy $1 $tcp
@@ -962,9 +958,6 @@ start_iptables_tproxy() {
 }
 
 start_iptables_redirect() {
-    local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
-    init_iptables_param $1
-
     # 处理tcp nat表
     do_proxy_dnat $1
 
@@ -979,25 +972,28 @@ start_iptables_redirect() {
     redir_dns_request $1 $bypass
 }
 
-start_iptables() {
-    is_enabled_ipv4 && start_iptables_pre "iptables"
-    is_enabled_ipv6 && start_iptables_pre "ip6tables"
+_start_iptables() {
+    start_iptables_pre $1
+
+    local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
+    init_iptables_param $1
 
     if is_true "$tproxy"; then
-        is_enabled_ipv4 && start_iptables_tproxy "iptables"
-        is_enabled_ipv6 && start_iptables_tproxy "ip6tables"
+        start_iptables_tproxy $1
     else
-        is_enabled_ipv4 && start_iptables_redirect "iptables"
-        is_enabled_ipv6 && start_iptables_redirect "ip6tables"
+        start_iptables_redirect $1
     fi
 
     if is_proxy_other; then
-        is_enabled_ipv4 && add_snat_rule "iptables"
-        is_enabled_ipv6 && add_snat_rule "ip6tables"
+        add_snat_rule $1
     fi
 
-    is_enabled_ipv4 && start_iptables_post "iptables"
-    is_enabled_ipv6 && start_iptables_post "ip6tables"
+    start_iptables_post $1
+}
+
+start_iptables() {
+    is_enabled_ipv4 && _start_iptables "iptables"
+    is_enabled_ipv6 && _start_iptables "ip6tables"
 }
 
 _delete_unused_chain() {
