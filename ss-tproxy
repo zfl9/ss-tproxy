@@ -603,7 +603,7 @@ flush_ipset() {
     ipset -! destroy sstp_black6
 }
 
-add_dnsredir() {
+add_reddns_rule() {
     is_false "$ipts_reddns_onstop" && return
 
     local direct_dns_ip direct_dns_ipx direct_dns_port
@@ -635,7 +635,7 @@ add_dnsredir() {
         -j MASQUERADE
 }
 
-add_snatrule() {
+add_snat_rule() {
     if is_ipv4_ipts $1; then
         is_false "$ipts_set_snat" && return
     else
@@ -658,8 +658,8 @@ add_sstp_chain() {
 }
 
 _add_stoprule() {
-    add_dnsredir $1
-    add_snatrule $1
+    add_reddns_rule $1
+    add_snat_rule $1
 
     add_sstp_chain $1 nat PREROUTING
     add_sstp_chain $1 nat POSTROUTING
@@ -992,8 +992,8 @@ start_iptables() {
     fi
 
     if is_proxy_other; then
-        is_enabled_ipv4 && add_snatrule "iptables"
-        is_enabled_ipv6 && add_snatrule "ip6tables"
+        is_enabled_ipv4 && add_snat_rule "iptables"
+        is_enabled_ipv6 && add_snat_rule "ip6tables"
     fi
 
     is_enabled_ipv4 && start_iptables_post "iptables"
