@@ -539,17 +539,10 @@ flush_dnscache() {
     kill -HUP "$pid_dnsmasq"
 }
 
-# 4/6
-list_all_iface() {
-    for interface in $(ls /proc/sys/net/ipv$1/conf); do
-        echo "${interface//.//}" #将"."替换为"/"，见 https://github.com/zfl9/ss-tproxy/issues/166
-    done
-}
-
 # 4/6 key=val
 sysctl_all_iface() {
-    for interface in $(list_all_iface $1); do
-        sysctl -wq net.ipv$1.conf.$interface.$2
+    for path in /proc/sys/net/ipv$1/conf/*; do
+        sysctl -wq ${path#/proc/sys/}/$2
     done
 }
 
