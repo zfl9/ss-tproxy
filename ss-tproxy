@@ -132,8 +132,8 @@ is_chnroute_mode() {
     [ "$mode" = 'chnroute' ]
 }
 
-is_custom_dns() {
-    is_true "$dns_custom"
+is_built_in_dns() {
+    is_false "$dns_custom"
 }
 
 is_proxy_other() {
@@ -165,7 +165,7 @@ is_enabled_dns2tcp() {
             true
             ;;
         false)
-            ! is_custom_dns && log_error "can't disable dns2tcp when using built-in dns"
+            is_built_in_dns && log_error "can't disable dns2tcp when using built-in dns"
             false
             ;;
         *)
@@ -280,7 +280,7 @@ check_config() {
     is_enabled_ipv4 && command_required 'iptables'
     is_enabled_ipv6 && command_required 'ip6tables'
 
-    ! is_custom_dns && {
+    is_built_in_dns && {
         command_required 'dnsmasq'
         set_command_group "$dns_procgroup" 'dnsmasq'
 
@@ -427,16 +427,7 @@ get_chnroute_dnsconf() {
 }
 
 start_chinadns() {
-    local args="-b 127.0.0.1 -l $chinadns_bind_port -4 sstp_white -6 sstp_white6 -A sstp_black,sstp_black6"
-
-    if is_gfwlist_mode; then
-        args+=" -d chn"
-    else # chnroute
-        args+=" -a"
-    fi
-
-    is_true "$chinadns_verbose" && args+=' -v'
-    is_true "$chinadns_chnlist_first" && args+=' -M'
+    local args="$chinadns_extra_options -b 127.0.0.1 -l $chinadns_bind_port"
 
     if is_enabled_ipv4 && is_enabled_ipv6; then
         args+=" -c $dns_direct,$dns_direct6"
@@ -449,23 +440,37 @@ start_chinadns() {
         args+=" -t $dns_remote6"
     fi
 
+    is_true "$chinadns_verbose" && args+=' -v'
+
     if is_gfwlist_mode; then
         pid_chinadns=$(
-            chinadns-ng $args $chinadns_extra_options \
+            chinadns-ng \
+            $args \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
-            </dev/null &>>$chinadns_logfile & echo $!
+            -d chn \
+            -A sstp_black,sstp_black6 \
+            </dev/null &>>$chinadns_logfile &
+            echo $!
         )
     else # chnroute
         pid_chinadns=$(
-            chinadns-ng $args $chinadns_extra_options \
-            -m chnlist.txt,<(list_ext_domain ignlist.ext) \
+            chinadns-ng \
+            $args \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
-            </dev/null &>>$chinadns_logfile & echo $!
+            -m chnlist.txt,<(list_ext_domain ignlist.ext) \
+            $(is_true "$chinadns_chnlist_first" && echo '-M') \
+            -4 sstp_white \
+            -6 sstp_white6 \
+            -a \
+            -A sstp_black,sstp_black6 \
+            </dev/null &>>$chinadns_logfile &
+            echo $!
         )
     fi
 }
 
-# is_ipv4(0/1)
+# is_ipv4
+# 此函数需要在subshell中执行
 start_dns2tcp() {
     local args
     if (($1)); then
@@ -474,11 +479,12 @@ start_dns2tcp() {
         args="-L       ::1#$dns2tcp_bind_port -R $dns_remote6 -6"
     fi
     is_true "$dns2tcp_verbose" && args+=" -v"
-    dns2tcp $args $dns2tcp_extra_options </dev/null &>>$dns2tcp_logfile & echo $!
+    dns2tcp $dns2tcp_extra_options $args </dev/null &>>$dns2tcp_logfile &
+    echo $!
 }
 
 start_dnsserver() {
-    if ! is_custom_dns; then
+    if is_built_in_dns; then
         is_enabled_chinadns && start_chinadns
 
         pid_dnsmasq=$(
@@ -506,7 +512,8 @@ start_dnsserver() {
                 elif is_chnroute_mode; then
                     get_chnroute_dnsconf
                 fi
-            } | dnsmasq --keep-in-foreground --conf-file=- & echo $!
+            } | dnsmasq --keep-in-foreground --conf-file=- &
+            echo $!
         )
     fi
 
@@ -527,7 +534,7 @@ stop_dnsserver() {
 }
 
 flush_dnscache() {
-    is_custom_dns && return
+    ! is_built_in_dns && return
     ! ss_tproxy_is_started && return
     kill -HUP "$pid_dnsmasq"
 }
@@ -1095,7 +1102,7 @@ status() {
     _status "proxy/tcp" tcp_port_is_exists $proxy_tcpport
     is_enabled_udp && _status "proxy/udp" udp_port_is_exists $proxy_udpport
 
-    if ! is_custom_dns; then
+    if is_built_in_dns; then
         _status "dnsmasq" process_is_running $pid_dnsmasq
         is_enabled_chinadns && _status "chinadns" process_is_running $pid_chinadns
     fi
