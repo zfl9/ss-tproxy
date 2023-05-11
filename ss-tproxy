@@ -843,14 +843,14 @@ do_proxy_tproxy() {
         $1 -t mangle -A SSTP_OUTPUT \
             -p tcp \
             -m tcp --syn \
-            -m addrtype --src-type LOCAL ! --dst-type LOCAL \
+            -m addrtype --src-type LOCAL \
             $(get_dst_port_match) \
             -j SSTP_RULE
     ((udp)) &&
         $1 -t mangle -A SSTP_OUTPUT \
             -p udp \
             -m conntrack --ctstate NEW \
-            -m addrtype --src-type LOCAL ! --dst-type LOCAL \
+            -m addrtype --src-type LOCAL \
             $(get_dst_port_match) \
             -j SSTP_RULE
 
