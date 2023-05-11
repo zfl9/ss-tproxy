@@ -769,8 +769,8 @@ get_dst_port_match() {
         echo "-m multiport --dports $ipts_proxy_dst_port"
 }
 
-# tproxy: mangle表
-# dnat: nat表
+# tproxy: mangle表 (tcp,udp)
+# dnat:   nat表    (tcp)
 # $ipts tproxy/dnat
 create_sstp_rule() {
     local table action
@@ -792,6 +792,7 @@ create_sstp_rule() {
             -m set --match-set $black_setname dst \
             $action
     elif is_chnroute_mode; then
+        # 放行白名单ip (若该ip同时也位于黑名单，则不放行)
         $1 -t $table -A SSTP_RULE \
             -m set --match-set $white_setname dst \
             -m set ! --match-set $black_setname dst \
@@ -802,9 +803,9 @@ create_sstp_rule() {
 }
 
 # mangle表 OUTPUT/PREROUTING
-# $ipts tcp:1/0
 do_proxy_tproxy() {
-    local tcp=$2 udp=$(is_enabled_udp && echo 1 || echo 0)
+    local tcp=$(is_true "$tproxy" && echo 1 || echo 0)
+    local udp=$(is_enabled_udp && echo 1 || echo 0)
 
     create_sstp_rule $1 tproxy
 
@@ -957,8 +958,7 @@ redir_dns_request() {
 
 start_iptables_tproxy() {
     # 处理tcp/udp mangle表
-    local tcp=1
-    do_proxy_tproxy $1 $tcp
+    do_proxy_tproxy $1
 
     # 处理dns(udp) nat表
     local bypass=1
@@ -971,8 +971,7 @@ start_iptables_redirect() {
 
     # 处理udp mangle表
     if is_enabled_udp; then
-        local tcp=0
-        do_proxy_tproxy $1 $tcp
+        do_proxy_tproxy $1
     fi
 
     # 处理dns(udp) nat表
