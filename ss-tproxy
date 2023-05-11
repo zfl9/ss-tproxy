@@ -697,7 +697,7 @@ flush_stoprule() {
 _start_iproute() {
     local family="$1"
 
-    # 将请求方向的数据包交付到本地(tproxy代理进程)
+    # 将请求方向的包路由至本地(从而进入prerouting链)
     ip $family route add local default dev $ipts_if_lo table $ipts_rt_tab
 
     # https://github.com/zfl9/ss-tproxy/pull/186
@@ -809,6 +809,11 @@ do_proxy_tproxy() {
 
     create_sstp_rule $1 tproxy
 
+    # 放行发往本机的流量
+    $1 -t mangle -A SSTP_OUTPUT \
+        -m addrtype --dst-type LOCAL \
+        -j RETURN
+
     # 放行本机代理进程
     $1 -t mangle -A SSTP_OUTPUT \
         -m owner --gid-owner $proxy_procgroup \
@@ -819,17 +824,17 @@ do_proxy_tproxy() {
         $1 -t mangle -A SSTP_OUTPUT \
             -p udp \
             -m udp --dport 53 \
-            -m conntrack --ctstate NEW \
+            -m addrtype --src-type LOCAL \
             -m owner ! --gid-owner $dns_procgroup \
             -j RETURN
 
-    # 使用dns2tcp时，放行发给dns_remote的udp请求，留给nat去重定向
+    # 使用dns2tcp时，放行发往dns_remote的udp请求，留给nat去重定向
     ((udp)) && is_enabled_dns2tcp &&
         $1 -t mangle -A SSTP_OUTPUT \
             -d $remote_dns_ip \
             -p udp \
             -m udp --dport $remote_dns_port \
-            -m conntrack --ctstate NEW \
+            -m addrtype --src-type LOCAL \
             -j RETURN
 
     # 本机传出流量 => SSTP_RULE
@@ -848,10 +853,16 @@ do_proxy_tproxy() {
             -m addrtype --src-type LOCAL ! --dst-type LOCAL \
             $(get_dst_port_match) \
             -j SSTP_RULE
+    # 必定是original方向，因为reply方向的包在开头就被return了
+    # 打mark是为了配合策略路由，将包路由到本地，进入prerouting
     $1 -t mangle -A SSTP_OUTPUT \
         -m connmark --mark $ipts_rt_mark \
-        -m conntrack --ctdir ORIGINAL \
         -j MARK --set-mark $ipts_rt_mark
+
+    # 放行发往本机的流量，包括tproxy的reply包
+    $1 -t mangle -A SSTP_PREROUTING \
+        -m addrtype --dst-type LOCAL \
+        -j RETURN
 
     # 内网传出流量 => SSTP_RULE
     # 所有发往LOCAL地址的包都会走这里，注意判定
@@ -860,33 +871,29 @@ do_proxy_tproxy() {
             $1 -t mangle -A SSTP_PREROUTING \
                 -p tcp \
                 -m tcp --syn \
-                -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
+                -m addrtype ! --src-type LOCAL \
                 $(get_dst_port_match) \
                 -j SSTP_RULE
         ((udp)) &&
             $1 -t mangle -A SSTP_PREROUTING \
                 -p udp \
                 -m conntrack --ctstate NEW \
-                -m addrtype ! --src-type LOCAL ! --dst-type LOCAL \
+                -m addrtype ! --src-type LOCAL \
                 $(get_dst_port_match) \
                 -j SSTP_RULE
-        $1 -t mangle -A SSTP_PREROUTING \
-            -m connmark --mark $ipts_rt_mark \
-            -m conntrack --ctdir ORIGINAL \
-            -j MARK --set-mark $ipts_rt_mark
     fi
 
     # 黑名单packet => 代理进程socket
     ((tcp)) &&
         $1 -t mangle -A SSTP_PREROUTING \
             -p tcp \
-            -m mark --mark $ipts_rt_mark \
-            -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport
+            -m connmark --mark $ipts_rt_mark \
+            -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport --tproxy-mark $ipts_rt_mark
     ((udp)) &&
         $1 -t mangle -A SSTP_PREROUTING \
             -p udp \
-            -m mark --mark $ipts_rt_mark \
-            -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
+            -m connmark --mark $ipts_rt_mark \
+            -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport --tproxy-mark $ipts_rt_mark
 }
 
 # nat表 OUTPUT/PREROUTING -p tcp
@@ -1032,6 +1039,7 @@ _flush_iptables() {
     $1 -t nat    -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
     $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
 
+    # todo 改为 grep 匹配 (SSTP_*)，便于维护
     $1 -t mangle -F SSTP_PREROUTING  &>/dev/null
     $1 -t mangle -X SSTP_PREROUTING  &>/dev/null
     $1 -t mangle -F SSTP_OUTPUT      &>/dev/null
