@@ -701,8 +701,11 @@ _start_iproute() {
     ip $family route add local default dev $ipts_if_lo table $ipts_rt_tab
 
     # https://github.com/zfl9/ss-tproxy/pull/186
+    # https://man7.org/linux/man-pages/man8/ip-rule.8.html
+    # https://man7.org/linux/man-pages/man7/rtnetlink.7.html
+    # https://stackoverflow.com/questions/10259266/what-does-proto-kernel-means-in-unix-routing-table
     if ip rule help 2>&1 | grep -Fwq protocol; then
-        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab protocol kernel
+        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab protocol static
     else
         ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab
     fi
