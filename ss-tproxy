@@ -853,11 +853,14 @@ do_proxy_tproxy() {
             -m addrtype --src-type LOCAL ! --dst-type LOCAL \
             $(get_dst_port_match) \
             -j SSTP_RULE
+
     # 必定是original方向，因为reply方向的包在开头就被return了
     # 打mark是为了配合策略路由，将包路由到本地，进入prerouting
     $1 -t mangle -A SSTP_OUTPUT \
         -m connmark --mark $ipts_rt_mark \
         -j MARK --set-mark $ipts_rt_mark
+
+    ###################### prerouting ######################
 
     # 放行发往本机的流量，包括tproxy的reply包
     $1 -t mangle -A SSTP_PREROUTING \
@@ -883,7 +886,7 @@ do_proxy_tproxy() {
                 -j SSTP_RULE
     fi
 
-    # 黑名单packet => 代理进程socket
+    # 黑名单packet => 代理进程socket，并打mark，让其路由到local
     ((tcp)) &&
         $1 -t mangle -A SSTP_PREROUTING \
             -p tcp \
