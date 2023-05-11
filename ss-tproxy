@@ -574,8 +574,9 @@ stop_proxyproc() {
     eval "$proxy_stopcmd" &>/dev/null
 }
 
+# setname <ip_list
 init_ipset() {
-    ipset -! create $1 hash:net family $(str_find $1 6 && echo inet6 || echo inet)
+    ipset create $1 hash:net family $(str_find $1 6 && echo inet6 || echo inet)
     sed "s/^/add $1 /" | ipset -! restore
 }
 
@@ -643,10 +644,12 @@ add_snat_rule() {
     fi
 
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -m conntrack --ctstate SNAT,DNAT   -j RETURN
-    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p tcp -m tcp --syn                -j MASQUERADE
-    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p udp -m conntrack --ctstate NEW  -j MASQUERADE
-    $1 -t nat -A SSTP_POSTROUTING -m addrtype ! --src-type LOCAL -p icmp -m conntrack --ctstate NEW -j MASQUERADE
+
+    $1 -t nat -A SSTP_POSTROUTING \
+        -m owner ! --socket-exists \
+        -m conntrack --ctstate NEW \
+        -m conntrack ! --ctstate SNAT,DNAT \
+        -j MASQUERADE
 }
 
 # $ipts table 预定义链
