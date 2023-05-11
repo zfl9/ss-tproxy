@@ -697,8 +697,10 @@ flush_stoprule() {
 _start_iproute() {
     local family="$1"
 
+    # 将请求方向的数据包交付到本地(tproxy代理进程)
     ip $family route add local default dev $ipts_if_lo table $ipts_rt_tab
 
+    # https://github.com/zfl9/ss-tproxy/pull/186
     if ip rule help 2>&1 | grep -Fwq protocol; then
         ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab protocol kernel
     else
