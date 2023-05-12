@@ -697,7 +697,9 @@ flush_stoprule() {
 _start_iproute() {
     local family="$1"
 
-    # 将请求方向的包路由至本地(从而进入prerouting链)
+    # 将数据包路由至本地
+    # 内网过来的包: prerouting -> routing -> input(lo)
+    # 本机发出的包: output -> routing -> postrouting(lo) -> prerouting(lo) -> routing -> input(lo)
     ip $family route add local default dev $ipts_if_lo table $ipts_rt_tab
 
     # https://github.com/zfl9/ss-tproxy/pull/186
