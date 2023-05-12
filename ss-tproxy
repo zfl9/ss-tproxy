@@ -862,10 +862,22 @@ do_proxy_tproxy() {
 
     ###################### prerouting ######################
 
-    # 放行发往本机的流量，包括tproxy的reply包
+    # 放行发往本机的流量
     $1 -t mangle -A SSTP_PREROUTING \
         -m addrtype --dst-type LOCAL \
         -j RETURN
+
+    # 处理本机传出的包，已经打过mark了，直接tproxy
+    ((tcp)) &&
+        $1 -t mangle -A SSTP_PREROUTING \
+            -p tcp \
+            -m mark --mark $ipts_rt_mark \
+            -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport
+    ((udp)) &&
+        $1 -t mangle -A SSTP_PREROUTING \
+            -p udp \
+            -m mark --mark $ipts_rt_mark \
+            -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport
 
     # 内网传出流量 => SSTP_RULE
     # 所有发往LOCAL地址的包都会走这里，注意判定
@@ -884,19 +896,17 @@ do_proxy_tproxy() {
                 -m addrtype ! --src-type LOCAL \
                 $(get_dst_port_match) \
                 -j SSTP_RULE
+        ((tcp)) &&
+            $1 -t mangle -A SSTP_PREROUTING \
+                -p tcp \
+                -m connmark --mark $ipts_rt_mark \
+                -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport --tproxy-mark $ipts_rt_mark
+        ((udp)) &&
+            $1 -t mangle -A SSTP_PREROUTING \
+                -p udp \
+                -m connmark --mark $ipts_rt_mark \
+                -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport --tproxy-mark $ipts_rt_mark
     fi
-
-    # 黑名单packet => 代理进程socket，并打mark，让其路由到local
-    ((tcp)) &&
-        $1 -t mangle -A SSTP_PREROUTING \
-            -p tcp \
-            -m connmark --mark $ipts_rt_mark \
-            -j TPROXY --on-ip $loopback_addr --on-port $proxy_tcpport --tproxy-mark $ipts_rt_mark
-    ((udp)) &&
-        $1 -t mangle -A SSTP_PREROUTING \
-            -p udp \
-            -m connmark --mark $ipts_rt_mark \
-            -j TPROXY --on-ip $loopback_addr --on-port $proxy_udpport --tproxy-mark $ipts_rt_mark
 }
 
 # nat表 OUTPUT/PREROUTING -p tcp
