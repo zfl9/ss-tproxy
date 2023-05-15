@@ -863,7 +863,6 @@ do_proxy_tproxy() {
             -j RETURN
 
     # 本机传出流量 => SSTP_RULE
-    # 会被路由进入lo，进入prerouting，被tproxy
     ((tcp)) &&
         $1 -t mangle -A SSTP_OUTPUT \
             -p tcp \
@@ -895,7 +894,6 @@ do_proxy_tproxy() {
         -j RETURN
 
     # 内网传出流量 => SSTP_RULE
-    # 所有发往LOCAL地址的包都会走这里，注意判定
     if is_proxy_other; then
         ((tcp)) &&
             $1 -t mangle -A SSTP_PREROUTING \
@@ -913,7 +911,7 @@ do_proxy_tproxy() {
                 -j SSTP_RULE
     fi
 
-    # 本机发出的/内网过来的skb => 代理进程的监听套接字
+    # 本机发出的/内网过来的skb => 代理进程
     ((tcp)) &&
         $1 -t mangle -A SSTP_PREROUTING \
             -p tcp \
@@ -940,7 +938,6 @@ do_proxy_dnat() {
         -j SSTP_RULE
 
     # 内网传出流量 => SSTP_RULE
-    # 所有发往LOCAL地址的包都会走这里，注意判定
     is_proxy_other &&
         $1 -t nat -A SSTP_PREROUTING \
             -p tcp \
@@ -1146,7 +1143,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.7 (2023-04-27)"
+    echo "ss-tproxy v4.7 (2023-05-15)"
 }
 
 help() {
