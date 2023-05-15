@@ -286,6 +286,15 @@ check_config() {
         log_error "invalid config value for mode: '$mode'"
     fi
 
+    [ "$proxy_procgroup" -a "$proxy_procgroup" != 0 -a "$proxy_procgroup" != root ] ||
+        log_error "invalid config value for proxy_procgroup: '$proxy_procgroup'"
+
+    [ "$dns_procgroup" -a "$dns_procgroup" != 0 -a "$dns_procgroup" != root ] ||
+        log_error "invalid config value for dns_procgroup: '$dns_procgroup'"
+
+    [ "$proxy_procgroup" != "$dns_procgroup" ] ||
+        log_error "proxy_procgroup and dns_procgroup must be different: '$proxy_procgroup'"
+
     is_need_iproute && command_required 'ip'
 
     command_required 'ipset'
