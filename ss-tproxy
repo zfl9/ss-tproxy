@@ -921,17 +921,13 @@ do_proxy_tproxy() {
 do_proxy_dnat() {
     create_sstp_rule $1 dnat
 
-    # 放行本机代理进程 #redir_dns_request
-    $1 -t nat -A SSTP_OUTPUT \
-        -m owner --gid-owner $proxy_procgroup \
-        -j RETURN
-
     # 本机传出流量 => SSTP_RULE
     $1 -t nat -A SSTP_OUTPUT \
         -p tcp \
         -m tcp --syn \
-        -m addrtype --src-type LOCAL ! --dst-type LOCAL \
+        -m addrtype ! --dst-type LOCAL \
         $(get_dst_port_match) \
+        -m owner ! --gid-owner $proxy_procgroup \
         -j SSTP_RULE
 
     # 内网传出流量 => SSTP_RULE
@@ -947,17 +943,12 @@ do_proxy_dnat() {
 
 # nat表 OUTPUT/PREROUTING -p udp
 redir_dns_request() {
-    # 放行本机代理进程 #do_proxy_dnat
-    is_tcp_tproxy &&
-        $1 -t nat -A SSTP_OUTPUT \
-            -m owner --gid-owner $proxy_procgroup \
-            -j RETURN
-
     # 本机发出的dns请求
     $1 -t nat -A SSTP_OUTPUT \
         -p udp \
         -m udp --dport 53 \
         -m conntrack --ctstate NEW \
+        -m owner ! --gid-owner $proxy_procgroup \
         -m owner ! --gid-owner $dns_procgroup \
         -j REDIRECT --to-ports $dns_mainport
 
