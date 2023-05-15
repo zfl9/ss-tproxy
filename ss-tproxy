@@ -1053,8 +1053,11 @@ _flush_iptables() {
     $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
 
     for table in mangle nat; do
-        for chain in $($1 -t $table -S | grep -- '-N SSTP_' | awk '{print $2}'); do
+        local chain_list=$($1 -t $table -S | grep -- '-N SSTP_' | awk '{print $2}')
+        for chain in $chain_list; do
             $1 -t $table -F $chain
+        done
+        for chain in $chain_list; do
             $1 -t $table -X $chain
         done
     done
