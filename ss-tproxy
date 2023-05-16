@@ -44,9 +44,8 @@ is_false() {
     ! is_true "$1"
 }
 
-# 是否为"非负整数"
-is_integer() {
-    [ "$1" -a -z "${1//[0-9]/}" ]
+is_uint() {
+    [ "$1" ] && [ -z "${1//[0-9]/}" ]
 }
 
 # str substr
@@ -87,7 +86,7 @@ command_required() {
 }
 
 group_is_exists() {
-    if is_integer "$1"; then # gid
+    if is_uint "$1"; then # gid
         grep -q ":$1:" /etc/group
     else # name
         grep -q "^$1:" /etc/group
@@ -95,7 +94,7 @@ group_is_exists() {
 }
 
 create_group() {
-    if is_integer "$1"; then # gid
+    if is_uint "$1"; then # gid
         log_error "gid:'$1' not exists, please check proxy_procgroup/dns_procgroup"
     elif command_is_exists groupadd; then
         groupadd "$1" || log_error "failed to create group:'$1' via groupadd, exit-code: $?"
