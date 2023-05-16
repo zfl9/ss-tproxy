@@ -44,6 +44,11 @@ is_false() {
     ! is_true "$1"
 }
 
+# 是否为"非负整数"
+is_integer() {
+    [ "$1" -a -z "${1//[0-9]/}" ]
+}
+
 # str substr
 str_find() {
     [[ "$1" == *"$2"* ]]
@@ -79,6 +84,26 @@ command_is_exists() {
 
 command_required() {
     command_is_exists "$1" || log_error "command not found: $1"
+}
+
+group_is_exists() {
+    if is_integer "$1"; then # gid
+        grep -q ":$1:" /etc/group
+    else # name
+        grep -q "^$1:" /etc/group
+    fi
+}
+
+create_group() {
+    if is_integer "$1"; then # gid
+        log_error "gid:'$1' not exists, please check proxy_procgroup/dns_procgroup"
+    elif command_is_exists groupadd; then
+        groupadd "$1" || log_error "failed to create group:'$1' via groupadd, exit-code: $?"
+    elif command_is_exists addgroup; then
+        addgroup "$1" || log_error "failed to create group:'$1' via addgroup, exit-code: $?"
+    else
+        log_error "group:'$1' not exists, and groupadd/addgroup are not found, please create it manually"
+    fi
 }
 
 # group command
@@ -294,6 +319,9 @@ check_config() {
 
     [ "$proxy_procgroup" != "$dns_procgroup" ] ||
         log_error "proxy_procgroup and dns_procgroup must be different: '$proxy_procgroup'"
+
+    group_is_exists "$proxy_procgroup" || create_group "$proxy_procgroup"
+    group_is_exists "$dns_procgroup"   || create_group "$dns_procgroup"
 
     is_need_iproute && command_required 'ip'
 
@@ -581,7 +609,7 @@ set_kernel_param() {
 
 # 进程启动失败将退出脚本
 start_proxyproc() {
-    eval "$proxy_startcmd" || log_error "failed to start local proxy process, exit-code: $?"
+    eval "$proxy_startcmd" || log_error "failed to execute the 'proxy_startcmd', exit-code: $?"
 }
 
 stop_proxyproc() {
@@ -1048,6 +1076,7 @@ delete_unused_chain() {
 _flush_iptables() {
     $1 -t mangle -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
     $1 -t mangle -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
+
     $1 -t nat    -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
     $1 -t nat    -D OUTPUT      -j SSTP_OUTPUT      &>/dev/null
     $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
@@ -1200,7 +1229,7 @@ main() {
         return 0
     fi
 
-    cd $base_dir
+    cd $base_dir || log_error "base directory not exists: '$base_dir'"
 
     load_pidfile
     load_config
