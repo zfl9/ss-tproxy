@@ -915,7 +915,7 @@ do_proxy_tproxy() {
         -m addrtype --dst-type LOCAL \
         -j RETURN
 
-    # 放行reply流量，只处理original方向的
+    # 放行reply流量，只处理original方向
     $1 -t mangle -A SSTP_PREROUTING \
         -m conntrack --ctdir REPLY \
         -j RETURN
@@ -992,7 +992,7 @@ redir_dns_request() {
             -p udp \
             -m udp --dport $remote_dns_port \
             -m conntrack --ctstate NEW \
-            -m owner --gid-owner $dns_procgroup \
+            -m owner ! --gid-owner $proxy_procgroup \
             -j REDIRECT --to-ports $dns2tcp_bind_port
 
     # 其他主机发来的dns请求
@@ -1138,6 +1138,7 @@ stop() {
     stop_dnsserver
     flush_ipset
     stop_proxyproc
+
     add_stoprule
 
     is_func post_stop && post_stop
@@ -1174,7 +1175,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.7 (2023-05-15)"
+    echo "ss-tproxy v4.7 (2023-05-16)"
 }
 
 help() {
@@ -1210,17 +1211,14 @@ main() {
 
     for ((i = 0; i < ${#argv[@]}; ++i)); do
         local arg="${argv[i]}"
-        if [ "$arg" = '-x' ]; then
-            set -x
-        elif [ "$arg" = '-d' ]; then
-            base_dir="${argv[++i]}"
-        elif [ "$arg" = '-c' ]; then
-            config_file="${argv[++i]}"
-        elif str_find "$arg" '='; then
-            override_list+=("$arg")
-        else
-            arg_list+=("$arg")
-        fi
+        case "$arg" in
+            -x) set -x;;
+            -d) base_dir="${argv[++i]}";;
+            -c) config_file="${argv[++i]}";;
+            -*) echo "$(color_yellow "Unknown option: $arg")"; help; return 1;;
+            *=*) override_list+=("$arg");;
+            *) arg_list+=("$arg");;
+        esac
     done
 
     if [ "${#arg_list[@]}" -eq 0 ]; then
@@ -1228,7 +1226,14 @@ main() {
         return 0
     fi
 
-    cd $base_dir || log_error "base directory not exists: '$base_dir'"
+    [ "$base_dir" ] ||
+        log_error "-d is specified, but no argument is given"
+
+    [ "$config_file" ] ||
+        log_error "-c is specified, but no argument is given"
+
+    cd -- "$base_dir" ||
+        log_error "base directory not exists: $base_dir"
 
     load_pidfile
     load_config
