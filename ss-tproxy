@@ -656,6 +656,7 @@ flush_ipset() {
     ipset -! destroy sstp_black6
 }
 
+# stop后，dns进程未运行，为保证内网机器正常上网，需要重定向dns请求至直连dns
 add_reddns_rule() {
     is_false "$ipts_reddns_onstop" && return
 
@@ -688,6 +689,7 @@ add_reddns_rule() {
         -j MASQUERADE
 }
 
+# start和stop后都可能需要，取决于ss-tproxy.conf配置
 add_snat_rule() {
     if is_ipv4_ipts $1; then
         is_false "$ipts_set_snat" && return
@@ -721,6 +723,7 @@ _add_stoprule() {
     add_sstp_chain $1 nat POSTROUTING
 }
 
+# 内网dns重定向、设置snat规则
 add_stoprule() {
     ! is_proxy_other && return
 
@@ -728,23 +731,10 @@ add_stoprule() {
     is_enabled_ipv6 && _add_stoprule "ip6tables"
 }
 
-_flush_stoprule() {
-    $1 -t nat -D PREROUTING  -j SSTP_PREROUTING  &>/dev/null
-    $1 -t nat -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
-
-    $1 -t nat -F SSTP_PREROUTING  &>/dev/null
-    $1 -t nat -X SSTP_PREROUTING  &>/dev/null
-
-    $1 -t nat -F SSTP_POSTROUTING &>/dev/null
-    $1 -t nat -X SSTP_POSTROUTING &>/dev/null
-}
-
 flush_stoprule() {
     ss_tproxy_is_started && return
 
-    # 不做判断，防止相关配置改动导致残留
-    _flush_stoprule "iptables"
-    _flush_stoprule "ip6tables"
+    flush_iptables
 }
 
 _start_iproute() {
@@ -1125,7 +1115,8 @@ show_iptables() {
 start() {
     ss_tproxy_is_started && { stop; status; echo; }
 
-    flush_stoprule
+    # 清空并删除sstp_*规则，如stoprule
+    flush_iptables
 
     is_func pre_start && pre_start
 
@@ -1138,6 +1129,7 @@ start() {
 
     is_func post_start && post_start
 
+    # post_start可能会添加规则到sstp_*，所以放到后面
     delete_unused_chain
 }
 
@@ -1150,6 +1142,7 @@ stop() {
     flush_ipset
     stop_proxyproc
 
+    # 内网dns重定向、设置snat规则
     add_stoprule
 
     is_func post_stop && post_stop
@@ -1200,7 +1193,7 @@ COMMAND := {
     restart             restart ss-tproxy
     status              status of ss-tproxy
     show-iptables       show iptables rules
-    flush-stoprule      flush stop iptables rules
+    flush-stoprule      flush stop rules
     flush-dnscache      flush dns cache
     update-gfwlist      update gfwlist.txt
     update-chnlist      update chnlist.txt
