@@ -563,6 +563,8 @@ start_dnsserver() {
             } | dnsmasq --keep-in-foreground --conf-file=- &
             echo $!
         )
+    else
+        is_func custom_dns_start && custom_dns_start
     fi
 
     if is_enabled_dns2tcp; then
@@ -574,17 +576,26 @@ start_dnsserver() {
 }
 
 stop_dnsserver() {
+    if ! is_built_in_dns; then
+        is_func custom_dns_stop && custom_dns_stop
+    fi
+
     kill -9 $pid_dnsmasq  &>/dev/null
     kill -9 $pid_chinadns &>/dev/null
     kill -9 $pid_dns2tcp4 &>/dev/null
     kill -9 $pid_dns2tcp6 &>/dev/null
+
     delete_pidfile
 }
 
 flush_dnscache() {
-    ! is_built_in_dns && return
     ! ss_tproxy_is_started && return
-    kill -HUP "$pid_dnsmasq"
+
+    if is_built_in_dns; then
+        kill -HUP "$pid_dnsmasq"
+    else
+        is_func custom_dns_flush && custom_dns_flush
+    fi
 }
 
 # 4/6 key=val
@@ -1164,6 +1175,8 @@ status() {
     if is_built_in_dns; then
         _status "dnsmasq" process_is_running $pid_dnsmasq
         is_enabled_chinadns && _status "chinadns" process_is_running $pid_chinadns
+    else
+        is_func custom_dns_status && custom_dns_status
     fi
 
     if is_enabled_dns2tcp; then
