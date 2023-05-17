@@ -328,7 +328,7 @@ check_config() {
     is_enabled_ipv4 && command_required 'iptables'
     is_enabled_ipv6 && command_required 'ip6tables'
 
-    is_built_in_dns && {
+    if is_built_in_dns; then
         command_required 'dnsmasq'
         set_command_group "$dns_procgroup" 'dnsmasq'
 
@@ -336,7 +336,9 @@ check_config() {
             command_required 'chinadns-ng'
             set_command_group "$dns_procgroup" 'chinadns-ng'
         }
-    }
+    else
+        is_func custom_dns_init && custom_dns_init
+    fi
 
     is_enabled_dns2tcp && {
         command_required 'dns2tcp'
@@ -589,10 +591,8 @@ stop_dnsserver() {
 }
 
 flush_dnscache() {
-    ! ss_tproxy_is_started && return
-
     if is_built_in_dns; then
-        kill -HUP "$pid_dnsmasq"
+        ss_tproxy_is_started && kill -HUP "$pid_dnsmasq"
     else
         is_func custom_dns_flush && custom_dns_flush
     fi
