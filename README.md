@@ -1,51 +1,61 @@
 # Linux 透明代理
+
 ## 什么是正向代理？
-代理软件通常分为客户端（client）和服务端（server），server 运行在境外服务器（通常为 Linux 服务器），client 运行在本地主机（如 Windows、Linux、Android、iOS），client 与 server 之间通常使用 tcp 或 udp 协议进行数据通信。大多数 client 被实现为一个 http、socks5 代理服务器，一个软件如果想通过 client 进行科学上网，需要使用 http、socks5 协议与 client 进行数据交互，这是绝大多数人的使用方式。这种代理方式，我们称之为 **正向代理**。所谓正向代理就是，一个软件如果想要使用 client 的代理服务，需要经过特定的设置，否则不会经过 client 的代理。
+
+科学上网代理套件通常分为客户端（client）和服务端（server），server 运行在境外服务器（通常为 Linux 服务器），client 运行在本地主机（如 Windows、Linux、Android、iOS），client 与 server 之间通常使用 tcp 或 udp 协议进行数据通信。本文只关心 client。大多数 client 被实现为一个本地的 http、socks5 代理服务器，一个软件如果想通过 client 进行科学上网，需要使用 http、socks5 协议与 client 进行交互，这是大多数人的使用方式。这种代理方式，我们称之为 **正向代理**。所谓正向代理就是，一个软件如果想要使用 client 的代理服务，需要经过特定的设置，否则不会经过 client 的代理。
+
+> 这里说的 client，应该理解为 **代理的传入协议**，普通代理和透明代理的区别就是传入协议不同。
 
 ## 什么是透明代理？
-在正向代理中，一个软件如果想走 client 的代理服务，我们必须显式配置该软件，对该软件来说，有没有走代理是很明确的，大家都“心知肚明”。而透明代理则与正向代理相反，当我们设置好合适的防火墙规则（仅以 Linux 的 iptables 为例），我们将不再需要显式配置这些软件来让其经过代理或者不经过代理（直连），因为这些软件发出的流量会自动被 iptables 规则所处理，那些我们认为需要代理的流量，会被通过合适的方法发送到 client 进程，而那些我们不需要代理的流量，则直接放行（直连）。这个过程对于我们使用的软件来说是完全透明的，软件自身对其一无所知。这就叫做 **透明代理**。注意，所谓透明是对我们使用的软件透明，而非对 client、server 或目标网站透明，理解这一点非常重要。
+
+在正向代理中，一个软件如果想走 client 的代理服务，我们必须显式配置该软件，对该软件来说，有没有走代理是很明确的，大家都“心知肚明”。而透明代理则与正向代理相反，当我们设置好合适的防火墙规则（以 Linux 的 iptables 为例），我们将不再需要显式配置这些软件来让其经过代理或者不经过代理（直连），因为这些软件发出的流量会自动被 iptables 规则所处理，那些我们认为需要代理的流量，会被通过合适的方法发送到 client 进程，而那些我们不需要代理的流量，则直接放行（直连）。这个过程对于我们使用的软件来说是完全透明的，软件自身对其一无所知。这就叫做 **透明代理**。注意，所谓透明是对我们使用的软件（如浏览器）透明，而非对 client、server 或目标网站透明，理解这一点非常重要。
 
 ## 透明代理如何工作？
-在正向代理中，期望使用代理的软件会通过 http、socks5 协议与 client 进程进行交互，以此完成代理操作。而在透明代理中，我们的软件发出的流量是完全正常的流量，并没有像正向代理那样，使用 http、socks5 等专用协议，这些流量经过 iptables 规则的处理后，会被通过“合适的方法”发送给 client 进程（当然是指那些我们认为需要走代理的流量）。注意，此时 client 进程接收到不再是 http、socks5 协议数据，而是经过 iptables 处理的“透明代理数据”，“透明代理数据”从本质上来说与正常数据没有区别，只是多了一些“元数据”在里面，使得 client 进程可以通过 netfilter 或操作系统提供的 API 接口来获取这些元数据（元数据其实就是原始目的地址和原始目的端口）。那么这个“合适的方法”是什么？目前来说有两种：
+
+在正向代理中，期望使用代理的软件（如浏览器）会通过 http、socks5 协议与 client 进程进行交互，以此完成代理操作。而在透明代理中，这些软件传出的流量是常规流量，并没有像正向代理那样，使用 http、socks5 等专用代理协议，这些流量经过 iptables 规则的处理后，会被通过“合适的方法”发送给 client 进程（当然是指那些我们认为需要走代理的流量）。注意，此时 client 进程收到的是被 iptables 处理过的“透明代理数据”，“透明代理数据”从本质上来说与正常数据没有区别，只是多了一些“元数据”，使得 client 进程可以通过 Linux 系统调用来获取这些元数据（元数据其实就是原始目的地址和原始目的端口）。那么这个“合适的方法”是什么？目前来说有两种：
+
 - REDIRECT：只支持 TCP 协议的透明代理。
 - TPROXY：支持 TCP 和 UDP 协议的透明代理。
 
 因此，对于 TCP 透明代理，有两种实现方式，一种是 REDIRECT，一种是 TPROXY；而对于 UDP 透明代理，只能通过 TPROXY 方式来实现。为方便叙述，本文以 **纯 TPROXY 模式** 指代 TCP 和 UDP 都使用 TPROXY 来实现，以 **REDIRECT + TPROXY 模式** 指代 TCP 使用 REDIRECT 实现，而 UDP 使用 TPROXY 来实现，有时候简称 **REDIRECT 模式**，它们都是一个意思。
 
 ## 此脚本的作用及由来
-通过上面的介绍，其实可以知道，在构建透明代理的过程中，需要的仅仅是 iptables、iproute2 以及 ss/ssr/v2ray 等支持透明代理的软件，那 ss-tproxy 脚本的作用是什么呢？如果你尝试搭建过透明代理，那么你就会体会到，这一过程其实并不容易，你需要设置许多繁琐的 iptables 规则，还要应对国内复杂的 DNS 环境，另外还要考虑 UDP 透明代理的支持，此外你通常还希望这个透明代理能实现分流操作，而不是一股脑的全走代理。于是就有了 ss-tproxy 脚本，该脚本的目的就是辅助大家快速地搭建一个透明代理环境，该透明代理支持 gfwlist、chnroute 等常见分流模式，以及一个无污染的 DNS 解析服务；除此之外，ss-tproxy 脚本不做任何其它事情；因此你仍然需要 iptables、iproute2 以及 ss/ssr/v2ray 等支持透明代理的软件，因为透明代理的底层服务是由它们共同运作的，理解这一点非常重要。
 
-> 为什么叫做 `ss-tproxy`？因为该脚本最早的时候只支持 ss 的透明代理，当然现在它并不局限于特定的代理软件。
+通过上面的介绍，其实可以知道，在构建透明代理的过程中，需要的仅仅是 iptables、iproute2 以及 ss/ssr/v2ray 等支持透明代理的软件，那 ss-tproxy 脚本的作用是什么呢？如果你尝试搭建过透明代理，那么你就会体会到，这一过程其实并不容易，你需要设置许多繁琐的 iptables 规则，还要应对国内复杂的 DNS 环境，另外还要考虑 UDP 透明代理的支持，并且支持常见的分流模式，而不是全都走代理。于是就有了 ss-tproxy 脚本，该脚本的目的就是辅助大家快速地搭建一个透明代理环境，该透明代理支持 gfwlist、chnroute 等常见分流模式，以及一个无污染的 DNS 解析服务；除此之外，ss-tproxy 脚本不做任何其它事情；因此你仍然需要 iptables、iproute2 以及 ss/ssr/v2ray 等支持透明代理的软件，因为透明代理的底层服务是由它们共同运作的，理解这一点非常重要。
 
-另外还有一点需要注意，透明代理使用的 client 与正向代理使用的 client 通常是不同的，因为正向代理的 client 是 http、socks5 服务器，而透明代理的 client 则是透明代理服务器，它们之间有本质上的区别。对于 ss，你需要使用 ss-libev 版本（ss-redir），ssr 则需要使用 ssr-libev 版本（ssr-redir），而对于 v2ray，配置好 `dokodemo-door` 入站协议即可。再次强调，透明代理只是 client 不同，并不关心你的 server 是什么版本，因此你的 vps 上，可以运行所有与之兼容的 server 版本，以 ss/ssr 为例，你可以使用 python 版的 ss、ssr，也可以使用 golang 版的 ss、ssr 等等，只要它们之间可以兼容。
+> 为什么叫做 `ss-tproxy`？因为该脚本最初只支持 ss 的透明代理，当然现在它并不局限于特定的代理软件。
 
-如果没有条件使用 ss-libev、ssr-libev，或者只有 socks5 client，也可以使用 redsocks/redsocks2/ipt2socks 等工具将 iptables 透明代理数据转换为 socks5 协议数据，这样就可以与后端的 socks5 client 进行交互了。[redsocks](https://github.com/darkk/redsocks) 目前只支持 TCP 透明代理，[redsocks2](https://github.com/semigodking/redsocks) 支持 TCP、UDP 透明代理，[ipt2socks](https://github.com/zfl9/ipt2socks) 支持 TCP、UDP 透明代理。其中 ipt2socks 是我自己利用业余时间写的一个小工具，编译、配置、使用方法都比前两者简单，并且只有一个核心功能：`iptables-to-socks5`，没有附带任何不必要的功能（redsocks2 集成了很多我不想要的东西）。`iptables-to-socks5` 的具体配置方法见 FAQ。
+另外还有一点需要注意，透明代理使用的 client 与正向代理使用的 client 通常是不同的，因为正向代理的 client 是 http、socks5 服务器，而透明代理的 client 则是“透明代理”服务器，它们之间有本质上的区别。对于 ss，需要使用 ss-libev 版本（ss-redir）或者 ss-rust，ssr 则需要使用 ssr-libev 版本（ssr-redir），而对于 v2ray，配置好 `dokodemo-door` 入站协议即可（v2ray 相当于 ss-local、ss-redir、ss-server 的多合一版本），其他代理套件请自行甄别。
 
-ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境中，可以透明代理 ss-tproxy 主机本身以及所有网关指向 ss-tproxy 主机的其它主机的 TCP、UDP 流量。也就是说，你可以在任意一台 Linux 主机上部署 ss-tproxy 脚本，然后同一局域网内的其它主机可以随时将其网关及 DNS 指向 ss-tproxy 主机，这样它们的 TCP 和 UDP 流量就会自动走代理了。
+再次强调，透明代理只是 client 不同（准确来说，是“传入协议”不同），并不关心你的 server 是什么版本，因此 vps/机场 上，可以运行所有与之兼容的 server 版本，以 ss/ssr 为例，你可以使用 python 版的 ss、ssr，也可以使用 libev 版的 ss、ssr 等等，只要它们之间可以兼容。
+
+如果没有条件使用 ss-libev、ssr-libev 等原生支持“透明代理”传入的工具（觉得编译太麻烦），或者代理套件只支持 socks5 传入，可以借助 redsocks/redsocks2/ipt2socks 等工具，为其提供透明代理传入。[redsocks](https://github.com/darkk/redsocks) 目前只支持 TCP 透明代理，[redsocks2](https://github.com/semigodking/redsocks) 支持 TCP、UDP 透明代理，[ipt2socks](https://github.com/zfl9/ipt2socks) 支持 TCP、UDP 透明代理。其中 ipt2socks 是我自己写的一个小工具，编译、配置、使用方法都比前两者简单，并且只有一个核心功能：`iptables-to-socks5`，没有附带任何不必要的功能。
+
+ss-tproxy 可以运行在 Linux 软路由/网关、Linux 物理机、Linux 虚拟机等环境，可以透明代理 ss-tproxy 主机自身、同一局域网的其它主机（网关和DNS指向ss-tproxy主机）的 TCP、UDP 流量。比如在树莓派（更推荐 N1 盒子）上跑 ss-tproxy 脚本，同一局域网内的其它主机可以随时将其网关及 DNS 指向 ss-tproxy 主机，这样它们的 TCP 和 UDP 流量就会自动走代理了。
 
 ## 脚本简介
-- 添加 `global` 分流模式、`tcponly` 代理模式
-- 支持 IPv4、IPv6 双栈透明代理（v4.0 优化版）
-- 无需指定内网网段，利用 `addrtype` 模块进行匹配
-- `v4.6.1+`版本起不再需要指定代理服务器的地址信息
-- 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，修复若干问题
-- 完美兼容"端口映射"，只代理"主动出站"的流量，规则更加细致化
-- 支持配置要代理的黑名单端口，这样可以比较好的处理 BT/PT 流量
-- 支持自定义 dnsmasq/chinadns 端口，支持加载外部 dnsmasq 配置
-- ss-tproxy stop 后，支持重定向内网主机发出的 DNS 到本地直连 DNS
-- 支持网络可用性检查，无需利用其它的 hook 来避免脚本自启失败问题
-- 脚本逻辑优化及结构调整，尽量提高脚本的可移植性，去除非核心依赖
 
-v4.0/v4.6 仍支持 `global`、`gfwlist`、`chnroute`、`chnlist` 4 种分流模式：
-- `global` 分流模式：除保留地址外，其它所有流量都走代理出去，即全局模式。
-- `gfwlist` 分流模式：`gfwlist.txt` 中的域名走代理，其余走直连，即黑名单模式。
-- `chnroute` 分流模式：除了国内地址、保留地址之外，其余均走代理，即白名单模式。
-- `chnlist` 分流模式：本质还是 `gfwlist` 模式，只是域名列表为国内域名，即回国模式。
+- 支持 global、gfwlist、chnroute 分流，支持回国代理模式。
+- 支持 IPv4、IPv6 双栈透明代理，支持 TCP、UDP 透明代理。
+- TCP 可使用 REDIRECT 或 TPROXY 方式，支持纯 TPROXY 模式。
+- 只代理"主动出站"的流量，不影响 DMZ 主机、端口映射等应用。
+- 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，支持黑白名单、ipset 操作。
+- 自带一套开箱即用的 DNS 解析方案，也允许用户自定义 DNS 方案。
+
+---
+
+脚本自带的分流模式，从本质上说，就是 **白名单**、**黑名单** 的各种组合：
+
+- `global`：**白名单模式**，白名单走直连（保留地址），其余走代理。
+- `gfwlist`：**黑名单模式**，黑名单走代理（gfwlist域名），其余走直连。
+- `chnroute`：**黑名单+白名单**，黑名单走代理（gfwlist域名），白名单走直连（保留地址，大陆域名/地址），其余走代理（国外域名/地址），黑名单优先级高于白名单（对于ipset）。
+- 回国模式：本质还是 gfwlist 模式，具体说明见 ss-tproxy.conf。
 
 > 有人可能会疑问，为什么使用 ss-tproxy 后，可以访问谷歌，但无法 ping 谷歌？<br>
-> 因为 ping 走的是 ICMP 协议，几乎没有代理软件会处理 ICMP，所以 ICMP 走直连。
+因为 ping 走的是 ICMP 协议，几乎没有代理软件会处理 ICMP，所以 ICMP 走直连。
 
 ## 相关依赖
+
 - `iptables`：用于配置 IPv4 透明代理规则，仅在启用 IPv4 透明代理时需要。
 - `ip6tables`：用于配置 IPv6 透明代理规则，仅在启用 IPv6 透明代理时需要。
 - `ipset`：用于存储 gfwlist/chnlist 的黑名单 IP、global/chnroute 的白名单 IP。
