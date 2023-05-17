@@ -1181,7 +1181,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.7 (2023-05-16)"
+    echo "ss-tproxy v4.7 (2023-05-17)"
 }
 
 help() {
