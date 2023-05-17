@@ -656,87 +656,6 @@ flush_ipset() {
     ipset -! destroy sstp_black6
 }
 
-# stop后，dns进程未运行，为保证内网机器正常上网，需要重定向dns请求至直连dns
-add_reddns_rule() {
-    is_false "$ipts_reddns_onstop" && return
-
-    local direct_dns_ip direct_dns_ipx direct_dns_port
-
-    if is_ipv4_ipts $1; then
-        direct_dns_ip="$(get_directdns_ip)"
-        direct_dns_ipx="$(get_directdns_ip)"
-        direct_dns_port="$(get_directdns_port)"
-    else
-        direct_dns_ip="$(get_directdns6_ip)"
-        direct_dns_ipx="[$(get_directdns6_ip)]"
-        direct_dns_port="$(get_directdns6_port)"
-    fi
-
-    $1 -t nat -N SSTP_PREROUTING  &>/dev/null
-    $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-
-    $1 -t nat -A SSTP_PREROUTING \
-        -p udp \
-        -m udp --dport 53 \
-        -m addrtype ! --src-type LOCAL --dst-type LOCAL \
-        -j DNAT --to-destination $direct_dns_ipx:$direct_dns_port
-
-    $1 -t nat -A SSTP_POSTROUTING \
-        -d $direct_dns_ip \
-        -p udp \
-        -m udp --dport $direct_dns_port \
-        -m addrtype ! --src-type LOCAL \
-        -j MASQUERADE
-}
-
-# start和stop后都可能需要，取决于ss-tproxy.conf配置
-add_snat_rule() {
-    if is_ipv4_ipts $1; then
-        is_false "$ipts_set_snat" && return
-    else
-        is_false "$ipts_set_snat6" && return
-    fi
-
-    $1 -t nat -N SSTP_POSTROUTING &>/dev/null
-
-    # 排除dmz/端口映射(外网->内网)，只匹配"内网->外网"连接
-    $1 -t nat -A SSTP_POSTROUTING \
-        -m owner ! --socket-exists \
-        -m conntrack --ctstate NEW,RELATED --ctdir ORIGINAL \
-        -m conntrack ! --ctstate SNAT,DNAT \
-        -j MASQUERADE
-}
-
-# $ipts table 预定义链
-add_sstp_chain() {
-    local table="$2" chain="$3"
-    if chain_is_exists $1 $table SSTP_$chain; then
-        $1 -t $table -A $chain -j SSTP_$chain
-    fi
-}
-
-_add_stoprule() {
-    add_reddns_rule $1
-    add_snat_rule $1
-
-    add_sstp_chain $1 nat PREROUTING
-    add_sstp_chain $1 nat POSTROUTING
-}
-
-# 内网dns重定向、设置snat规则
-add_stoprule() {
-    ! is_proxy_other && return
-
-    is_enabled_ipv4 && _add_stoprule "iptables"
-    is_enabled_ipv6 && _add_stoprule "ip6tables"
-}
-
-flush_stoprule() {
-    ss_tproxy_is_started && return
-
-    flush_iptables
-}
-
 _start_iproute() {
     local family="$1"
 
@@ -1110,6 +1029,87 @@ show_iptables() {
     is_enabled_ipv4 && _show_iptables "iptables"
     { is_enabled_ipv4 && is_enabled_ipv6; } && echo
     is_enabled_ipv6 && _show_iptables "ip6tables"
+}
+
+# stop后，dns进程未运行，为保证内网机器正常上网，需要重定向dns请求至直连dns
+add_reddns_rule() {
+    is_false "$ipts_reddns_onstop" && return
+
+    local direct_dns_ip direct_dns_ipx direct_dns_port
+
+    if is_ipv4_ipts $1; then
+        direct_dns_ip="$(get_directdns_ip)"
+        direct_dns_ipx="$(get_directdns_ip)"
+        direct_dns_port="$(get_directdns_port)"
+    else
+        direct_dns_ip="$(get_directdns6_ip)"
+        direct_dns_ipx="[$(get_directdns6_ip)]"
+        direct_dns_port="$(get_directdns6_port)"
+    fi
+
+    $1 -t nat -N SSTP_PREROUTING  &>/dev/null
+    $1 -t nat -N SSTP_POSTROUTING &>/dev/null
+
+    $1 -t nat -A SSTP_PREROUTING \
+        -p udp \
+        -m udp --dport 53 \
+        -m addrtype ! --src-type LOCAL --dst-type LOCAL \
+        -j DNAT --to-destination $direct_dns_ipx:$direct_dns_port
+
+    $1 -t nat -A SSTP_POSTROUTING \
+        -d $direct_dns_ip \
+        -p udp \
+        -m udp --dport $direct_dns_port \
+        -m addrtype ! --src-type LOCAL \
+        -j MASQUERADE
+}
+
+# start和stop后都可能需要，取决于ss-tproxy.conf配置
+add_snat_rule() {
+    if is_ipv4_ipts $1; then
+        is_false "$ipts_set_snat" && return
+    else
+        is_false "$ipts_set_snat6" && return
+    fi
+
+    $1 -t nat -N SSTP_POSTROUTING &>/dev/null
+
+    # 排除dmz/端口映射(外网->内网)，只匹配"内网->外网"连接
+    $1 -t nat -A SSTP_POSTROUTING \
+        -m owner ! --socket-exists \
+        -m conntrack --ctstate NEW,RELATED --ctdir ORIGINAL \
+        -m conntrack ! --ctstate SNAT,DNAT \
+        -j MASQUERADE
+}
+
+# $ipts table 预定义链
+add_sstp_chain() {
+    local table="$2" chain="$3"
+    if chain_is_exists $1 $table SSTP_$chain; then
+        $1 -t $table -A $chain -j SSTP_$chain
+    fi
+}
+
+_add_stoprule() {
+    add_reddns_rule $1
+    add_snat_rule $1
+
+    add_sstp_chain $1 nat PREROUTING
+    add_sstp_chain $1 nat POSTROUTING
+}
+
+# 内网dns重定向、设置snat规则
+add_stoprule() {
+    ! is_proxy_other && return
+
+    is_enabled_ipv4 && _add_stoprule "iptables"
+    is_enabled_ipv6 && _add_stoprule "ip6tables"
+}
+
+flush_stoprule() {
+    ss_tproxy_is_started && return
+
+    flush_iptables
 }
 
 start() {
