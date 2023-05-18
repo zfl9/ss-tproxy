@@ -105,9 +105,9 @@ TPROXY 相关：
 
 - `curl`：用于更新 gfwlist.txt、chnlist.txt、chnroute.txt，需要支持 https。
 
-如果某些模式基本不用，那对应的依赖也不用管。比如，不打算使用 IPv6 透明代理，则无需关心 ip6tables；不打算使用 chnroute 模式，则无需关心 chinadns-ng。脚本执行时会检查当前配置所需的依赖，根据提示安装缺少的依赖即可。
+如果某些模式基本不用，那对应的依赖也不用管。比如，不打算使用 IPv6 透明代理，则无需关心 ip6tables；不打算使用 chnroute 模式，则无需关心 chinadns-ng。脚本会检查当前配置所需的依赖，根据提示安装缺少的依赖即可。
 
-[ss-tproxy 脚本相关依赖的安装方式参考](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
+[ss-tproxy 脚本相关的依赖的安装方式参考](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 
 ## 下载脚本
 ```bash
