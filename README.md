@@ -82,21 +82,30 @@ ipt2socks 是我编写的一个简单 C 程序，只专注于给科学上网套�
 
 ## 相关依赖
 
+基础依赖：
+
 - `iptables`：用于配置 IPv4 透明代理规则，仅在启用 IPv4 透明代理时需要。
 - `ip6tables`：用于配置 IPv6 透明代理规则，仅在启用 IPv6 透明代理时需要。
-- `ipset`：用于存储 gfwlist/chnlist 的黑名单 IP、global/chnroute 的白名单 IP。
-- `xt_TPROXY`：TPROXY 内核模块，在 redirect + tcponly 模式下，不需要此依赖。
-- `ip`：用于配置策略路由(TPROXY)，在 redirect + tcponly 模式下，不需要此依赖。
-- `dnsmasq`：DNS 服务，对于 gfwlist/chnlist 模式，该 dnsmasq 需支持 `--ipset` 选项。
-- `chinadns-ng`：chnroute 模式的 DNS 服务，注意是 [chinadns-ng](https://github.com/zfl9/chinadns-ng)，不是原版 chinadns。
-- `dns2tcp`：将 DNS 查询从 UDP 转为 TCP，仅在 tcponly 模式需要，注意是 [zfl9/dns2tcp](https://github.com/zfl9/dns2tcp)。
+- `ipset`：用于存储黑名单/白名单的 IP，使 iptables 规则与 dns 组件实现联动。
 
-使用内置命令更新 gfwlist/chnlist/chnroute 列表时，会用到这些依赖：
-- `curl`：用于更新 chnlist、gfwlist、chnroute 分流模式的相关列表。
-- `base64`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `base64` 格式编码的。
-- `perl`：用于更新 gfwlist 的域名列表，gfwlist.txt 是 `adblock plus` 规则，要进行转换。
+TPROXY 相关：
 
-如果某些模式你基本不用，那么对应的依赖就不用管。比如，你不打算使用 IPv6 透明代理，则无需关心 ip6tables，又比如你不打算使用 chnroute 模式，也无需关心 chinadns-ng。ss-tproxy 脚本在启动时会检查当前配置所需的依赖，只需要根据提示安装缺少的依赖即可。
+- `xt_TPROXY`：TPROXY 内核模块，涉及到 TPROXY 规则时需要此依赖（如 UDP）。
+- `iproute2`：用于配置策略路由，完成 TPROXY 操作，与 xt_TPROXY 是互相配套的。
+
+默认 DNS 方案：
+
+- `dnsmasq`：基础 DNS 服务，对于 global/gfwlist 模式，需要支持 `--ipset` 选项。
+- `chinadns-ng`：用于 chnroute 模式，v4.7 开始，也可用于 gfwlist 模式，提升性能。
+- `dns2tcp`：用于 tcponly 模式，将 DNS 查询从 UDP 转为 TCP，注意是 [zfl9/dns2tcp](https://github.com/zfl9/dns2tcp)。
+
+> 使用自定义 DNS 方案时，不需要上述 DNS 依赖。
+
+其他依赖：
+
+- `curl`：用于更新 gfwlist.txt、chnlist.txt、chnroute.txt，需要支持 https。
+
+如果某些模式基本不用，那对应的依赖也不用管。比如，不打算使用 IPv6 透明代理，则无需关心 ip6tables；不打算使用 chnroute 模式，则无需关心 chinadns-ng。脚本执行时会检查当前配置所需的依赖，根据提示安装缺少的依赖即可。
 
 [ss-tproxy 脚本相关依赖的安装方式参考](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 
