@@ -660,10 +660,10 @@ start_ipset() {
 
 # stop就清空，如果只是换节点或重启代理，不要通过ss-tproxy进行，请直接操作代理进程
 flush_ipset() {
-    ipset -! destroy sstp_white
-    ipset -! destroy sstp_white6
-    ipset -! destroy sstp_black
-    ipset -! destroy sstp_black6
+    ipset destroy sstp_white  &>/dev/null
+    ipset destroy sstp_white6 &>/dev/null
+    ipset destroy sstp_black  &>/dev/null
+    ipset destroy sstp_black6 &>/dev/null
 }
 
 _start_iproute() {
