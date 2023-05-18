@@ -363,18 +363,15 @@ ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求�
 ## 代理软件配置
 
 <details><summary>ss-libev</summary>
-    
-`ss-redir`配置文件`/etc/ss.json`，例如
-- `本地监听端口`请确保与`ss-tproxy.conf`文件中的`proxy_tcpport`、`proxy_udpport`配置项保持一致
-- 若使用`proxy_svraddr/svrport`机制(不建议)，请确保`服务器地址/端口`与`proxy_svraddr/svrport`一致
-- `本地监听地址`填`127.0.0.1`；对于`v4.6.1`以前的版本，填`0.0.0.0`，若只代理ss-tproxy自身，可填回环
+ 
+ss 配置文件 /etc/ss.json，与常规配置相同，无特别之处。
 
 ```javascript
 {
     "server": "服务器地址",
     "server_port": 服务器端口,
-    "local_address": "本地监听地址",
-    "local_port": 本地监听端口,
+    "local_address": "127.0.0.1",
+    "local_port": 60080,
     "method": "加密方式",
     "password": "用户密码",
     "no_delay": true,
@@ -383,62 +380,82 @@ ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求�
 }
 ```
 
-`ss-tproxy.conf`启动和停止命令，例如
-```bash
-#老版本(v4.6.0及以下)
-#请确保proxy_svraddr/svrport与'服务器地址/端口'一致
-#proxy_startcmd='(ss-redir -c /etc/ss.json -u -v </dev/null &>>/var/log/ss-redir.log &)' # -v 表示记录详细日志
-proxy_startcmd='(ss-redir -c /etc/ss.json -u </dev/null &>>/var/log/ss-redir.log &)' # 这里就不记录详细日志了
-proxy_stopcmd='kill -9 $(pidof ss-redir)'
+配置 ss-tproxy.conf，填写启动和停止命令：
 
-#新版本(v4.6.1及以上)
-#第一次运行时，请执行下面这两个操作
-#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
-#2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/ss-redir
-#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
-#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/ss-redir && chmod 4755 /path/to/ss-redir
-proxy_procuser='proxy'
-#proxy_startcmd='su proxy -c"(ss-redir -c /etc/ss.json -u -v </dev/null &>>/tmp/ss-redir.log &)"' # -v 表示记录详细日志
-proxy_startcmd='su proxy -c"(ss-redir -c /etc/ss.json -u </dev/null &>>/tmp/ss-redir.log &)"' # 这里就不记录详细日志了
-proxy_stopcmd='kill -9 $(pidof ss-redir)'
+```bash
+# 这里只介绍 v4.7+ 版本的配置
+
+proxy_startcmd='start_ss'
+proxy_stopcmd='stop_ss'
+
+start_ss() {
+    # 设置 setgid 权限位 (只需执行一次)
+    set_proxy_group ss-redir
+
+    (ss-redir -c /etc/ss.json -u </dev/null &>>/var/log/ss-redir.log &)
+
+    # -v 表示记录详细日志
+    # (ss-redir -c /etc/ss.json -u -v </dev/null &>>/var/log/ss-redir.log &)
+}
+
+stop_ss() {
+    kill -9 $(pidof ss-redir)
+}
 ```
 
 </details>
 
 <details><summary>ssr-libev</summary>
 
-`ssr-redir`配置文件`/etc/ssr.json`，例如
-> 基本同ss-libev，这里就不详细贴出了，随便一搜就有，注意事项也同ss-libev
+ssr 配置文件 /etc/ssr.json，与常规配置相同，无特别之处。
 
-`ss-tproxy.conf`启动和停止命令，例如
+```javascript
+{
+    "server": "服务器地址",
+    "server_port": 服务器端口,
+    "local_address": "127.0.0.1",
+    "local_port": 60080,
+    "method": "加密方式",
+    "password": "用户密码",
+    "protocol": "origin",
+    "protocol_param": "",
+    "obfs": "plain",
+    "obfs_param": ""
+}
+```
+
+配置 ss-tproxy.conf，填写启动和停止命令：
+
 ```bash
-#老版本(v4.6.0及以下)
-#请确保proxy_svraddr/svrport与'服务器地址/端口'一致
-#proxy_startcmd='(ssr-redir -c /etc/ssr.json -u -v </dev/null &>>/var/log/ssr-redir.log &)'
-proxy_startcmd='(ssr-redir -c /etc/ssr.json -u </dev/null &>>/var/log/ssr-redir.log &)'
-proxy_stopcmd='kill -9 $(pidof ssr-redir)'
+# 这里只介绍 v4.7+ 版本的配置
 
-#新版本(v4.6.1及以上)
-#第一次运行时，请执行下面这两个操作
-#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
-#2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/ssr-redir
-#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
-#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/ssr-redir && chmod 4755 /path/to/ssr-redir
-proxy_procuser='proxy'
-#proxy_startcmd='su proxy -c"(ssr-redir -c /etc/ssr.json -u -v </dev/null &>>/tmp/ssr-redir.log &)"' # -v 表示记录详细日志
-proxy_startcmd='su proxy -c"(ssr-redir -c /etc/ssr.json -u </dev/null &>>/tmp/ssr-redir.log &)"' # 这里就不记录详细日志了
-proxy_stopcmd='kill -9 $(pidof ssr-redir)'
+proxy_startcmd='start_ssr'
+proxy_stopcmd='stop_ssr'
+
+start_ssr() {
+    # 设置 setgid 权限位 (只需执行一次)
+    set_proxy_group ssr-redir
+
+    (ssr-redir -c /etc/ssr.json -u </dev/null &>>/var/log/ssr-redir.log &)
+
+    # -v 表示记录详细日志
+    # (ssr-redir -c /etc/ssr.json -u -v </dev/null &>>/var/log/ssr-redir.log &)
+}
+
+stop_ssr() {
+    kill -9 $(pidof ssr-redir)
+}
 ```
 
 </details>
 
 <details><summary>v2ray</summary>
 
-v2ray 的透明代理配置比较简单，只需在原有客户端配置加上 `dokodemo-door` 入站协议，例如
+v2ray 配置文件 /etc/v2ray.json，在原有配置上，添加 dokodemo-door 入站协议即可。
 
-> 由于 v2ray 配置复杂，在报告问题之前，请检查配置是否有问题，这里不解答任何 v2ray 配置问题<br>
-> **原则上不建议在 v2ray 上配置任何分流或路由规则**，脚本会为你做这些事，否则出问题请自行解决<br>
-> 据反馈，`dokodemo-door` 的 UDP 存在断流 bug，可尝试使用 `redsocks2/ipt2socks + socks5` 来缓解
+- 由于 v2ray 配置复杂，在报告问题之前，请检查配置是否有问题，这里不解答 v2ray 配置问题
+- **原则上不建议在 v2ray 上配置任何分流或路由规则**，脚本会为你做这些事，请尽量保持配置简单
+- 据反馈，`dokodemo-door` 的 UDP 存在断流 bug，可尝试使用 ipt2socks 配合 socks5 入站协议缓解
 
 ```javascript
 {
@@ -451,16 +468,16 @@ v2ray 的透明代理配置比较简单，只需在原有客户端配置加上 `
   "inbounds": [
     {
       "protocol": "dokodemo-door",
-      "listen": "0.0.0.0", // 如果只代理本机，可填写回环地址
-      //"listen": "127.0.0.1", // v4.6.1+版本可填写回环地址
-      "port": 60080, // 必须与proxy_tcpport/udpport保持一致
+      "listen": "127.0.0.1",
+      "port": 60080, // 必须与proxy_tcpport/proxy_udpport保持一致
       "settings": {
-        "network": "tcp,udp", // 注意这里是 tcp + udp
+        "network": "tcp,udp",
         "followRedirect": true
       },
       "streamSettings": {
         "sockopt": {
-          //"tproxy": "tproxy" // tproxy + tproxy 模式 (纯tproxy)
+          // 若有改动，请同步修改 ss-tproxy.conf 的 tproxy 配置
+          // "tproxy": "tproxy" // tproxy + tproxy 模式 (纯tproxy)
           "tproxy": "redirect" // redirect + tproxy 模式 (redirect)
         }
       }
@@ -473,10 +490,10 @@ v2ray 的透明代理配置比较简单，只需在原有客户端配置加上 `
       "settings": {
         "servers": [
           {
-            "address": "node.proxy.net", // 服务器地址 (如果是v4.6.1之前的版本，请与proxy_svraddr一致)
-            "port": 12345,               // 服务器端口 (如果是v4.6.1之前的版本，请与proxy_svrport一致)
-            "method": "aes-128-gcm",     // 加密方式
-            "password": "password"       // 用户密码
+            "address": "服务器地址",
+            "port": 服务器端口,
+            "method": "加密方式",
+            "password": "用户密码"
           }
         ]
       }
@@ -485,40 +502,44 @@ v2ray 的透明代理配置比较简单，只需在原有客户端配置加上 `
 }
 ```
 
-`ss-tproxy.conf`启动和停止命令，例如
-```bash
-#老版本(v4.6.0及以下)
-#请确保proxy_svraddr/svrport与'服务器地址/端口'一致
-proxy_startcmd='systemctl start v2ray'
-proxy_stopcmd='systemctl stop v2ray'
+配置 ss-tproxy.conf，填写启动和停止命令：
 
-#新版本(v4.6.1及以上)
-#第一次运行时，请执行下面这两个操作
-#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
-#2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/{v2ray,v2ctl}
-#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
-#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/{v2ray,v2ctl} && chmod 4755 /path/to/{v2ray,v2ctl}
-proxy_procuser='proxy'
-proxy_startcmd='su proxy -c"(v2ray -config /etc/v2ray.json </dev/null &>/dev/null &)"'
-proxy_stopcmd='kill -9 $(pidof v2ray) $(pidof v2ctl)'
-#当然也可以使用systemctl来封装上述startcmd/stopcmd，具体不再细说。
+```bash
+# 这里只介绍 v4.7+ 版本的配置
+
+proxy_startcmd='start_v2ray'
+proxy_stopcmd='stop_v2ray'
+
+start_v2ray() {
+    # 设置 setgid 权限位 (只需执行一次)
+    set_proxy_group v2ray
+    set_proxy_group v2ctl
+
+    (v2ray -config /etc/v2ray.json </dev/null &>/dev/null &)
+}
+
+stop_v2ray() {
+    kill -9 $(pidof v2ray) $(pidof v2ctl)
+}
 ```
 
 </details>
 
-<details><summary>socks5</summary>
+<details><summary>socks5(trojan)</summary>
 
-对于socks5代理（如：非libev版本的ss/ssr，或其他代理软件），可使用 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入支持。以trojan为例（trojan支持nat传入，但只支持tcp，因此与ipt2socks配合用），配置例子来自trojan官方文档：
+- 如果手上只有 socks5 代理，可以将 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入
+- 以 trojan 为例，trojan 原生不支持 udp 透明代理传入，所以配合 ipt2socks 来实现
+- 假设 trojan 配置文件为 /etc/trojan.json，注意 run_type 为 client，也就是 socks5 传入
 
 ```javascript
 {
     "run_type": "client",
     "local_addr": "127.0.0.1",
     "local_port": 1080,
-    "remote_addr": "example.com", // 服务器地址 (如果是v4.6.1之前的版本，请与proxy_svraddr一致)
-    "remote_port": 443, // 服务器端口 (如果是v4.6.1之前的版本，请与proxy_svrport一致)
+    "remote_addr": "服务器地址",
+    "remote_port": 服务器端口,
     "password": [
-        "password1" // 用户密码
+        "用户密码"
     ],
     "log_level": 1,
     "ssl": {
@@ -546,34 +567,34 @@ proxy_stopcmd='kill -9 $(pidof v2ray) $(pidof v2ctl)'
 }
 ```
 
-`ss-tproxy.conf`启动和停止命令，例如
-```bash
-#老版本(v4.6.0及以下)
-#请确保proxy_svraddr/svrport与'服务器地址/端口'一致
-tproxy='true' #ipt2socks默认为tproxy模式
-proxy_startcmd='(trojan -c /etc/trojan.json </dev/null &>>/var/log/trojan.log & ipt2socks </dev/null &>>/var/log/ipt2socks.log &)'
-proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
+配置 ss-tproxy.conf，填写启动和停止命令：
 
-#新版本(v4.6.1及以上)
-#第一次运行时，请执行下面这两个操作
-#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
-#2.授予透明代理相关权限: setcap cap_net_bind_service,cap_net_admin+ep /path/to/{trojan,ipt2socks}
-#>> 若setcap不可用，可使用suid权限位，此时需配置：proxy_procuser=''、proxy_procgroup='proxy'
-#>> 将所有者(组)改为root，并授予suid权限：chown root:root /path/to/{trojan,ipt2socks} && chmod 4755 /path/to/{trojan,ipt2socks}
-tproxy='true' #ipt2socks默认为tproxy模式
-proxy_procuser='proxy'
-proxy_startcmd='su proxy -c"(trojan -c /etc/trojan.json </dev/null &>>/var/log/trojan.log & ipt2socks </dev/null &>>/var/log/ipt2socks.log &)"'
-proxy_stopcmd='kill -9 $(pidof trojan) $(pidof ipt2socks)'
+```bash
+# 这里只介绍 v4.7+ 版本的配置
+
+tproxy='true' # ipt2socks默认为tproxy模式
+proxy_startcmd='start_trojan'
+proxy_stopcmd='stop_trojan'
+
+start_trojan() {
+    # 设置 setgid 权限位 (只需执行一次)
+    set_proxy_group trojan
+    set_proxy_group ipt2socks
+
+    (trojan -c /etc/trojan.json </dev/null &>>/var/log/trojan.log &)
+    (ipt2socks </dev/null &>>/var/log/ipt2socks.log &)
+}
+
+stop_trojan() {
+    kill -9 $(pidof trojan) $(pidof ipt2socks)
+}
 ```
 
 </details>
 
 <details><summary>hysteria</summary>
 
-hysteria 直接支持tproxy透明代理  
-
-
-/etc/hysteria/config.json
+hysteria 配置文件 /etc/hysteria.json，这里使用 **纯 TPROXY 模式**：
 
 ```json
 {
@@ -584,66 +605,38 @@ hysteria 直接支持tproxy透明代理
   "retry": -1,
   "retry_interval": 1,
   "tproxy_tcp": {
-    "listen": "0.0.0.0:60080",
+    "listen": "127.0.0.1:60080",
     "timeout": 300
   },
   "tproxy_udp": {
-    "listen": "0.0.0.0:60080",
+    "listen": "127.0.0.1:60080",
     "timeout": 300
-  },
+  }
 }
 ```
 
+配置 ss-tproxy.conf，填写启动和停止命令：
 
-新版本(v4.6.1及以上) 初始化配置
 ```bash
-#第一次运行时，请执行下面这三个操作
-#1.创建proxy用户和组: useradd -Mr -d/tmp -s/bin/bash proxy
-#2.建立hysteria.service文件 : vim /usr/lib/systemd/system/hy.service;
-#3.授予执行权限: chmod +x /usr/bin/hysteria
-```
+# 这里只介绍 v4.7+ 版本的配置
 
-hy.service:
-```
-[Unit]
-Description=Hysteria Client Service
-After=network.target
+tproxy='true' # 纯tproxy模式
+proxy_startcmd='start_hy'
+proxy_stopcmd='stop_hy'
 
-[Service]
-Type=simple
-ExecStart=/usr/bin/hysteria -config /etc/hysteria/config.json
-WorkingDirectory=/etc/hysteria
-User=proxy
-Environment=HYSTERIA_LOG_LEVEL=info
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_RAW
-NoNewPrivileges=true
+start_hy() {
+    # 设置 setgid 权限位 (只需执行一次)
+    set_proxy_group hysteria
 
-[Install]
-WantedBy=multi-user.target
-```
+    (hysteria -c /etc/hysteria.json </dev/null &>>/var/log/hysteria.log &)
+}
 
-
-
-配置`ss-tproxy.conf`启动和停止命令
-```bash
-proxy_procuser='proxy'
-tproxy='true'
-proxy_startcmd='systemctl start hy'
-proxy_stopcmd='systemctl stop hy'
-post_start() {
-    local n=0 max=5 #最大等待 5*0.5s = 2.5s
-    while ! tcp_port_is_exists $proxy_tcpport && ((++n <= max)); do
-        echo "wait hy start ..."
-        sleep 0.5s
-    done
+stop_hy() {
+    kill -9 $(pidof hysteria)
 }
 ```
-
-如果启动ss-tproxy时,hysteria无法启动,请单独启动hysteria以确认hysteria的配置及网络情况
 
 </details>
-
 
 > 如果觉得配置和修改`proxy_startcmd`、`proxy_stopcmd`太麻烦（如经常切换节点），可参考：[切换代理小技巧](#切换代理小技巧)
 

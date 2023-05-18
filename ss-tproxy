@@ -113,6 +113,16 @@ set_command_group() {
     chmod g+xs "$path"
 }
 
+# command
+set_proxy_group() {
+    set_command_group "$proxy_procgroup" "$1"
+}
+
+# command
+set_dns_group() {
+    set_command_group "$dns_procgroup" "$1"
+}
+
 process_is_running() {
     kill -0 "$1" &>/dev/null
 }
@@ -330,11 +340,11 @@ check_config() {
 
     if is_built_in_dns; then
         command_required 'dnsmasq'
-        set_command_group "$dns_procgroup" 'dnsmasq'
+        set_dns_group 'dnsmasq'
 
         is_enabled_chinadns && {
             command_required 'chinadns-ng'
-            set_command_group "$dns_procgroup" 'chinadns-ng'
+            set_dns_group 'chinadns-ng'
         }
     else
         is_func custom_dns_init && custom_dns_init
@@ -342,7 +352,7 @@ check_config() {
 
     is_enabled_dns2tcp && {
         command_required 'dns2tcp'
-        set_command_group "$dns_procgroup" 'dns2tcp'
+        set_dns_group 'dns2tcp'
     }
 
     case "$opts_ss_netstat" in
