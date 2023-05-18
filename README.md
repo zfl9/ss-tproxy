@@ -109,7 +109,8 @@ TPROXY 相关：
 
 [ss-tproxy 脚本相关的依赖的安装方式参考](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 
-## 下载脚本
+## 获取脚本
+
 ```bash
 git clone https://github.com/zfl9/ss-tproxy
 cd ss-tproxy
@@ -117,49 +118,67 @@ chmod +x ss-tproxy
 ```
 
 ## 安装脚本
+
 > 请确保当前用户有权限读写以下目录，如没有，请先运行`sudo su`进入超级用户(root)。
 
-- install命令可用
+- install 命令可用
+
 ```bash
 install ss-tproxy /usr/local/bin
 install -d /etc/ss-tproxy
-install -m 644 ss-tproxy.conf gfwlist* chnroute* ignlist* /etc/ss-tproxy
+install -m 644 *.conf *.txt *.ext /etc/ss-tproxy
 install -m 644 ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
-- install命令不可用
+
+- install 命令不可用
+
 ```bash
 cp -af ss-tproxy /usr/local/bin
 mkdir -p /etc/ss-tproxy
-cp -af ss-tproxy.conf gfwlist* chnroute* ignlist* /etc/ss-tproxy
+cp -af *.conf *.txt *.ext /etc/ss-tproxy
 cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
 
 ## 卸载脚本
+
 ```bash
+# 停止脚本 (v4.7版本之前)
 ss-tproxy stop
 ss-tproxy flush-postrule
 ss-tproxy delete-gfwlist
+
+# 停止脚本 (v4.7版本开始)
+ss-tproxy stop
+ss-tproxy flush-stoprule
+
+# 删除文件
 rm -fr /usr/local/bin/ss-tproxy # 删除脚本
 rm -fr /etc/ss-tproxy # 删除配置(做好备份)
 rm -fr /etc/systemd/system/ss-tproxy.service # service文件
 ```
 
 ## 升级脚本
-脚本目前没有自我更新能力，只能卸载后重新安装，后续也许会添加自我更新指令。
+
+脚本目前没有自我更新能力，只能卸载后重新安装，也许后续会支持。
+
+不同版本的配置文件、数据文件，不保证兼容，避免背上不必要的历史包袱。
 
 ## 文件列表
+
 - `ss-tproxy`：shell 脚本，欢迎各位大佬一起来改进这个脚本。
 - `ss-tproxy.conf`：配置文件，本质是 shell 脚本，修改需重启生效。
-- `ss-tproxy.service`：systemd 服务文件，用于 ss-tproxy 的开机自启。
-- `chnroute.set`：存储大陆地址段的 ipset 文件（IPv4），不要手动修改。
-- `chnroute6.set`：存储大陆地址段的 ipset 文件（IPv6），不要手动修改。
-- `gfwlist.txt`：存储 gfwlist、chnlist 分流模式的黑名单域名，不要手动修改。
-- `gfwlist.ext`：存储 gfwlist、chnlist 分流模式的扩展黑名单，可配置，重启生效。
-- `ignlist.ext`：存储 global、chnroute 分流模式的扩展白名单，可配置，重启生效。
+- `ss-tproxy.service`：systemd 服务文件，用于 ss-tproxy 开机自启。
+- `chnlist.txt`：用于 chnroute 模式，大陆域名列表，别去手动修改。
+- `chnroute.txt`：用于 chnroute 模式，大陆v4地址段，别去手动修改。
+- `chnroute6.txt`：用于 chnroute 模式，大陆v6地址段，别去手动修改。
+- `gfwlist.txt`：用于 gfwlist/chnroute 模式，gfw域名列表，别去手动修改。
+- `gfwlist.ext`：用于 gfwlist/chnroute 模式，扩展黑名单，可配置，重启生效。
+- `ignlist.ext`：用于 global/chnroute 模式，扩展白名单，可配置，重启生效。
 
 > ss-tproxy 只是一个 shell 脚本，并不是常驻后台的服务，因此所有的修改都需要 restart 来生效。
 
 ## 配置说明
+
 > 注意，配置文件在 /etc/ss-tproxy/ 目录，不是 git clone 下来的目录！
 
 配置项有点多，但通常只需修改 ss-tproxy.conf 前面的少数配置项（开头至`proxy`配置段）
@@ -171,181 +190,174 @@ rm -fr /etc/systemd/system/ss-tproxy.service # service文件
 </details>
 
 <details><summary>mode</summary>
-    
+
 分流模式，默认为 chnroute 模式，可根据需要修改为 global/gfwlist 模式。
 
-如果需要使用 `chnlist` 回国模式，则 mode 依旧为 `gfwlist`，具体的：
-- gfwlist 模式与 chnlist 模式共享 `gfwlist.txt`、`gfwlist.ext` 文件
-- 首先执行 `ss-tproxy update-chnlist` 将 gfwlist.txt 替换为国内域名列表
-- 手动编辑 gfwlist.ext 扩展黑名单，将其中的 Telegram IPv4/IPv6 地址段注释
-- 手动修改 `dns_direct/dns_direct6` 配置项，改为本地 DNS（如 Google DNS）
-- 手动修改 `dns_remote/dns_remote6` 配置项，改为大陆 DNS（如 114 DNS，走代理）
-
-> 如果需要从 chnlist 回国模式切换为 gfwlist 国内模式，则进行相反的操作（update-gfwlist）
-    
 </details>
 
 <details><summary>ipv4、ipv6</summary>
-    
+
 - 启用 IPv4/IPv6 透明代理，你需要确保本机代理进程能正确处理 IPv4/IPv6 相关数据包，脚本不检查它
 - 启用 IPv6 透明代理应检查当前的 Linux 内核版本是否为 `v3.9.0+`，以及 ip6tables 的版本是否为 `v1.4.18+`
-    
+
 </details>
 
 <details><summary>tproxy</summary>
     
-true 为纯 TPROXY，false 为 REDIRECT/TPROXY 混合（具体解释前面有）：
-- ss/ssr/trojan 目前是 REDIRECT/TPROXY 混合模式
-- v2ray 经配置后可使用纯 TPROXY 模式（见下）
-- ipt2socks 默认配置是纯 TPROXY 模式
-- hysteria 示例配置是纯 TPROXY 模式
-- 其他代理套件请各位自己辨别测试
+- true 表示 tcp 和 udp 都使用 TPROXY，**纯 TPROXY 模式**。
+- false 表示 tcp 使用 REDIRECT，udp 使用 TPROXY，**混合模式**。
 
-> ss-libev v3.3.5+ 已加入纯 tproxy 支持，在启动参数中增加`-T`或在json文件中添加`"tcp_tproxy": true`配置行，即可启用
-    
+列举一些常见的代理套件：
+
+- ss/ssr/trojan：混和模式
+- v2ray：两者都可，取决于配置
+- ipt2socks：默认纯 TPROXY 模式
+- hysteria：支持纯 TPROXY 模式
+- trojan-go：只使用纯 TPROXY 模式
+- ss-libev：3.3.5+ 支持纯 TPROXY 模式
+
+> 此配置非常重要，配置不当将无法透明代理。
+
 </details>
 
 <details><summary>tcponly</summary>
 
-- true 表示仅代理 TCP 流量（需要依赖 dns2tcp）
-- false 表示代理 TCP 和 UDP 流量（这是默认值）
+- true 表示仅代理 TCP 流量
+- false 表示代理 TCP 和 UDP 流量
+
+> 某些机场、server 不支持 UDP，请注意判别。
 
 </details>
 
 <details><summary>selfonly</summary>
-    
+
 - true 表示仅代理 ss-tproxy 主机自身的流量
-- false 表示代理 ss-tproxy 主机自身以及所有网关指向 ss-tproxy 主机的流量
-    
+- false 表示代理 ss-tproxy 主机自身以及内网主机的流量
+
+> 内网主机如果想走代理，必须将 **网关**、**DNS** 都指向 ss-tproxy 主机。
+
 </details>
 
-<details><summary>proxy_procuser、proxy_procgroup</summary>
+<details><summary>proxy_procgroup</summary>
     
-- **v4.6.1新增**：替代之前的`proxy_svraddr/proxy_svrport`配置，用来实现`本机代理进程`流量放行
-- 现在只需要让`本机代理进程`以指定user/group身份运行，即可'放行'它们传出的流量（避免环路）
-- `proxy_procuser`填写`本机代理进程`的user/uid，`proxy_procgroup`填写`本机代理进程`的group/gid
-- 两者选其一(不建议都填)；此文档使用`proxy`用户(组)，见`proxy_startcmd/proxy_stopcmd`配置说明
-    
-</details>
-
-<details><summary>proxy_svraddr4、proxy_svraddr6</summary>
-    
-**不建议使用此机制，请使用`proxy_procuser`/`proxy_procgroup`**：填写 VPS 服务器的外网 IPv4/IPv6 地址，IP 或域名都可以，填域名要注意，这个域名最好不要有多个 IP 地址与之对应，因为脚本内部只会获取其中某个 IP，这极有可能与本机代理进程解析出来的 IP 不一致，这可能会导致 iptables 规则死循环，应尽量避免这种情况，比如你可以将该域名与其中某个 IP 的映射关系写到 ss-tproxy 主机的 `/etc/hosts` 文件中，这样解析结果就是可预期的。允许填写多个 VPS 地址，用空格隔开，填写多个地址的目的是方便切换代理，比如我现在有两个 VPS，A、B，假设你先使用 A，因为某些因素，导致 A 的网络性能低下，那么你可能需要切换到 B，如果只填写了 A 的地址，就需要去修改 ss-tproxy.conf，将地址改为 B，修改启动与关闭命令，最后还得重启 ss-tproxy 脚本，很麻烦，更麻烦的是，如果现在 A 的网络又好了，那么你可能又想切换回 A，那么你又得重复上述步骤。但现在，你不需要这么做，你完全可以在 `proxy_svraddr` 中填写 A 和 B 的地址，假设你默认使用 A（`proxy_startcmd` 启动 A 代理进程），那么启动 ss-tproxy 后，使用的就是 A，此后如果想切换为 B，仅需停止 A 代理进程，再启动 B 代理进程（切回来的步骤则相反），该过程无需操作 ss-tproxy；这种配置下应注意 `proxy_stopcmd`，stopcmd 最好能停止 A 和 B 进程，不然切换进程后执行 ss-tproxy stop 可能不会正确停止相关的代理进程。另外，你只需填写实际会使用到的 VPS 地址，比如本机代理进程仅使用 IPv4 访问 VPS，则 `proxy_svraddr6` 可能是空的，反之，如果本机代理进程仅使用 IPv6 访问 VPS，则 `proxy_svraddr4` 可能是空的；这两个数组是否为空与 `ipv4`、`ipv6` 选项没有必然的联系，比如你可以启用 IPv4 和 IPv6 透明代理，但是本机代理进程仅使用 IPv4 访问 VPS，这是完全可以的，但不允许 `proxy_svraddr4` 与 `proxy_svraddr6` 都为空，你至少需要填写一个地址。
-    
-</details>
-
-<details><summary>proxy_svrport</summary>
-
-**不建议使用此机制，请使用`proxy_procuser`/`proxy_procgroup`**：填写 VPS 上代理服务器的外部监听端口，格式同 `ipts_proxy_dst_port`，填写不正确会导致 iptables 规则死循环。如果是 v2ray 动态端口，如端口号 1000 到 2000 都是代理监听端口，则填 `1000:2000`（含边界）。
-    
+- 可以填 gid，也可以填 name，建议用 name，脚本会自动帮你创建 group
+- 所有代理进程都必须以此 group 身份运行（否则会产生死循环），脚本不检查它
+- 此文档的所有示例，均使用`proxy`组，如非必要，请勿修改为其他 group，防止出错
+ 
 </details>
 
 <details><summary>proxy_tcpport、proxy_udpport</summary>
     
-`本机代理进程`的 **透明代理** 监听端口，前者为 TCP 端口，后者为 UDP 端口，通常情况下这两端口是相同的。<br>
-如果 UDP 隧道不稳定，或无法使用 UDP 代理，可使用 `tcponly` 模式，这种情况下，`proxy_udpport` 将被忽略。
-
-> 此端口必须支持透明代理(REDIRECT/TPROXY)，请不要填写其他传入协议的端口，如`socks5`。
-    
+- `本机代理进程`的 **透明代理** 监听端口，前者为 TCP 端口，后者为 UDP 端口，通常情况下是相同的。
+- 如果 UDP 不稳定，或无法使用 UDP，请使用 `tcponly` 模式，这种情况下，`proxy_udpport` 被忽略。
+- 此端口必须支持 **透明代理** 传入(REDIRECT/TPROXY)，并且必须与 `tproxy` 配置保持一致，否则将出错。
+ 
 </details>
 
 <details><summary>proxy_startcmd、proxy_stopcmd</summary>
     
-前者是启动`本机代理进程`的 shell 命令，后者是关闭`本机代理进程`的 shell 命令<br>
-这些命令应该能快速执行完毕，防止卡住脚本(长时间处于半启动或半关闭状态)<br>
-> 具体命令例子，见 [代理软件配置](#代理软件配置)
+- 前者是启动`本机代理进程`的 shell 命令，后者是关闭`本机代理进程`的 shell 命令
+- 这些命令不应执行过长时间，防止卡住脚本，长时间处于某种中间状态
+- 具体命令例子，见 [代理软件配置](#代理软件配置)
+
+如果需要经常切换代理节点，请直接操作相关代理进程，而不是 `ss-tproxy restart`，因为这是一个重量级操作，没有必要反复操作 iptables 规则。如果觉得切换节点麻烦，可以使用那些支持 **自动切换节点** 的代理套件，比如 clash，又比如套上 haproxy，总之，请尽情发挥你的想象力。
+
+ss-tproxy 要求代理进程不参与 ip 分流、dns 分流/解析，专心实现 TCP/UDP 全局透明代理即可，脚本已经帮你设置好了 iptables 分流规则，iptables 分流比代理进程的“用户空间”分流更快，性能开销更小，也更加彻底。
 
 </details>
 
-<details><summary>dnsmasq_bind_port</summary>
-    
-dnsmasq 监听端口，默认 53，如果端口已被占用则修改为其它未占用的端口，如 `60053`。
-    
-</details>
+<details><summary>dns_custom</summary>
 
-<details><summary>dnsmasq_conf_dir、dnsmasq_conf_file</summary>
-    
-dnsmasq 外部配置文件/目录，被作为 dnsmasq 的 `conf-dir`、`conf-file` 选项的值。
-    
-</details>
-
-<details><summary>dnsmasq_conf_string</summary>
-    
-shell 数组，每个元素都是一行独立的 dnsmasq 配置，多个用空白符隔开，如果元素内容包含空白符，请用引号包围。
+给高级用户用的，用于自定义 DNS 方案，具体见 ss-tproxy.conf、ss-tproxy 脚本。
 
 </details>
 
-<details><summary>chinadns_gfwlist_mode</summary>
+<details><summary>dns_procgroup</summary>
 
-是否启用 chinadns-ng 的 gfwlist 黑名单匹配模式。如果需要在 Android 上使用 Google Play，建议打开此选项，否则可能会遇到 `从服务器检索信息时出错，DF-DFERH-01` 错误，导致 Google Play 无法使用，究其原因是因为 `services.googleapis.cn` 这个域名的解析没有走代理导致的（连到了谷歌中国）。启用 gfwlist 匹配模式后就正常了，因为 `gfwlist.txt` 包含了 `services.googleapis.cn` 这个域名。当然也可以使用 dnsmasq 的 `--server` 选项来解决这个问题，只不过会稍微多几个步骤，这里就不详细介绍了。
-    
- > 如非特殊情况，建议始终启用其模式，可以最大限度的提高 chinadns-ng 准确性，极大减少 dns 污染可能性
-    
+- 可以填 gid，也可以填 name，建议用 name，脚本会自动帮你创建 group
+- 所有 DNS 进程都必须以此 group 身份运行（否则会产生死循环），脚本不检查它
+- 默认是`proxy_dns`，使用内置 DNS 方案时，无需关心此配置，脚本会自动帮你处理
+
 </details>
 
-<details><summary>chinadns_privaddr4、chinadns_privaddr6</summary>
+<details><summary>dns_mainport</summary>
+    
+- DNS 的请求入口（UDP 监听端口），脚本会自动将相关 DNS 请求重定向至此端口
+- 对于内置 DNS 方案，该端口是 dnsmasq 的监听端口，如果与其他进程有冲突，请修改
+ 
+</details>
 
-如果希望`chinadns-ng`接受**包含保留地址的解析记录**(如`192.168.1.1`)，请在此配置加入对应保留地址(段)，如`192.168.1.0/24`。前者为 IPv4 地址段数组、后者为 IPv6 地址段数组，多个用空格隔开，默认为空数组。
+<details><summary>chinadns_for_gfwlist</summary>
+
+在 chinadns-ng 已安装的情况下，如果使用 mode=gfwlist 分流，chinadns-ng 将接管 DNS 分流操作，这是由于 dnsmasq 不适合配置大量 server、ipset 记录，会拉低 DNS 解析性能，所以使用 chinadns-ng 来避免该问题。
+
+</details>
+
+<details><summary>chinadns_chnlist_first</summary>
+
+该选项只作用于 mode=chnroute，用于设置 chinadns-ng 的 `--chnlist-first` 选项。该选项只影响那些 **同时位于黑白名单** 的域名模式，具体解释可以参见 chinadns-ng 的 README 文档。
+
+</details>
+
+<details><summary>dns2tcp_enable</summary>
+
+- `auto`：tcponly 模式时启用，否则不启用
+- `true`：总是启用，如果 UDP 代理效果一般，建议启用
+- `false`：总是禁用，使用自定义 DNS 方案时，才能禁用
+
+> 使用自定义 DNS 方案时，dns2tcp 仍然可以启用，并且对 DNS 组件透明。
 
 </details>
 
 <details><summary>ipts_set_snat</summary>
 
-是否设置 IPv4 的 MASQUERADE 规则（true设置，false不设置），通常 false 即可。有两种情况需要将其设置为 true：
-- ss-tproxy 部署在出口路由位置且确实需要 MASQUERADE 规则（即至少两张网卡，一张连内网，一张连公网，需要源地址转换）
-- 在设置为 false 的情况下，代理不正常，典型的如：白名单地址无法访问（如百度），黑名单地址正常访问，也需要将其改为 true
+selfonly=false 时有效，设置 IPv4 的 MASQUERADE 规则，有两种情况需要将其设置为 true：
 
-> 注意，MASQUERADE 规则在 ss-tproxy stop 仍然是有效的，如果你想清空这些残留规则，可以执行 `ss-tproxy flush-postrule` 命令
+- ss-tproxy 部署在出口路由位置，即至少两张网卡，一张连内网，一张连公网，需要源地址转换。
+- 黑名单正常访问，但白名单无法访问，如百度，请设置为 true，这种情况通常与路由器设置有关。
+
+此规则在 ss-tproxy stop 后仍然有效，如果你想清空这些规则，请执行 `ss-tproxy flush-stoprule`。
 
 </details>
 
 <details><summary>ipts_set_snat6</summary>
 
-是否设置 IPv6 的 MASQUERADE 规则（true设置，false不设置），通常 false 即可。<br>
-v4.6 版本的 IPv6 透明代理不再需要配置 ULA 私有地址，可直接使用 GUA 公网地址。
-    
+selfonly=false 时有效，设置 IPv6 的 MASQUERADE 规则，需要设置的情况同 ipts_set_snat。
+
+v4.6+ 版本的 IPv6 透明代理可以通过 GUA 公网地址进行，不需要额外配置。但如果希望其他主机也使用 ss-tproxy 主机的代理（网关和 DNS 都指向 ss-tproxy 主机），建议给相关主机配置 ULA 静态私有地址，也就是组建一个 IPv6 内网，避免公网 IP 经常变动带来的麻烦。这种情况下，你需要将此配置设为 true。
+
 </details>
 
 <details><summary>ipts_reddns_onstop</summary>
 
-当 ss-tproxy stop 之后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求重定向至本地直连 DNS（`dns_direct/dns_direct6`），为什么要这么做呢？因为其它内网主机的 DNS 是指向 ss-tproxy 主机的，但是现在我们已经关闭了 ss-tproxy（dnsmasq 关闭了），所以这些内网主机会无法解析 DNS 而无法上网；设置此选项后，这些 DNS 请求会被重定向给 114.114.114.114 等国内直连 DNS，这样它们就又可以正常上网了，在下次执行 ss-tproxy start 时，这些规则会被脚本自动删除，如果你需要手动删除这些规则，可以执行 `ss-tproxy flush-postrule` 命令。该选项的默认值为 true，如果 ss-tproxy 主机上有正常运行的 DNS 服务，那么这个选项应该设置为 false。
-    
+ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求重定向至本地直连 DNS，为什么要这么做？因为其它内网主机的 DNS 已经指向了 ss-tproxy 主机，但现在 ss-tproxy 已经关闭了，附带的 DNS 服务自然也被一同关闭，所以这些内网主机会因为无法解析 DNS 而无法上网。
+
+设置此选项后，这些 DNS 请求会被重定向给 dns_direct* 直连 DNS，这样这些主机就可以正常解析 DNS 了。这些规则会在执行 ss-tproxy start 时被自动移除，如果在 stop 状态下需要手动移除规则，请执行 `ss-tproxy flush-stoprule`。
+
+当然，如果 ss-tproxy 主机上有可用的 DNS 服务，请设置为 false。
+ 
+> 此配置仅在 selfonly=false 时有效。
+ 
 </details>
 
 <details><summary>ipts_proxy_dst_port</summary>
-    
-要代理黑名单地址的哪些目的端口。所谓黑名单地址，对于 gfwlist/chnlist 模式来说，就是 gfwlist.txt/gfwlist.ext 里面的域名、IP、网段，对于 chnroute 模式来说，就是国外 IP 地址。默认值为 `1:65535`，因此只要我们访问黑名单地址，就会走代理，因为所有端口号都在其中。如果觉得端口范围太大，那么你可以修改这个选项的值，比如设置为 `1:1023,8080`，在这种配置下，只有当我们访问黑名单地址的 1 到 1023 和 8080 这些目的端口时才会走代理，访问黑名单地址的其它目的端口是不会走代理的，因此可以利用此选项来放行 BT、PT 流量，因为这些流量的目的端口通常都在 1024 以上。修改此选项需要足够小心，配置不当会导致某些常用软件无法正常走代理，因为它们使用的端口号可能不在你所指定的范围之内，因此指定为 `1:65535` 可能是最保险的一种做法。
-    
+ 
+要代理 **黑名单** 的哪些端口，留空表示全部，等价于 `1:65535`。允许指定多个范围，逗号隔开即可。
+
+如果觉得端口范围太大，可以设置为 `1:1023,8080`；此时，只有当我们访问黑名单的 1~1023 和 8080 端口时才会走代理，访问其它端口不走代理，因此可以利用此选项来放行 BT、PT 流量，因为这些流量的目的端口通常在 1024 以上。
+
+修改此选项需要足够小心，配置不当会导致某些软件无法走代理，因为它们访问的目标端口可能不在你指定的范围内；因此将此选项留空，可能是最保险的一种做法，防止出现漏网之鱼。
+ 
 </details>
 
 <details><summary>opts_ss_netstat</summary>
 
-告诉 ss-tproxy，使用 ss 还是 netstat 命令进行端口检测，目前检测`本机代理进程`是否正常运行的方式是直接检测其是否已监听对应的端口，虽然这种方式有时并不准确，但我现在并没有其它更好的便携方法来做这个事情。选项的默认值为 `auto`，表示自动模式，所谓自动模式就是，如果当前系统有 ss 命令则使用 ss 命令进行检测，如果没有 ss 命令但是有 netstat 命令则使用 netstat 命令进行检测，而 `ss` 选项值则是明确告诉 ss-tproxy 使用 `ss` 进行检测，同理，`netstat` 选项也是明确告诉 ss-tproxy 使用 `netstat` 进行端口检测。通常情况下保持 `auto` 即可。
-    
-</details>
+告诉 ss-tproxy，使用 ss 还是 netstat 命令进行端口检测，目前检测`本机代理进程`是否正常运行的方式是直接检测其是否已监听对应的端口，虽然这种方式有时并不准确，但似乎也没有其它更好的便携方法来做这个事情。
 
-<details><summary>opts_ping_cmd_to_use</summary>
-    
-告诉 ss-tproxy，使用何种 ping 命令（主要是 ping6 的问题）。默认为 `auto`，如果存在 `ping6` 且 `ping6` 并非软链接文件，则使用 `ping` 处理 ipv4 地址/域名，使用 `ping6` 来处理 ipv6 地址/域名，如果不存在 `ping6` 或 `ping6` 是 `ping` 的软链接文件，则使用 `ping -4` 处理 ipv4 地址/域名，使用 `ping -6` 处理 ipv6 地址/域名。如果选项值为 `standalone` 则明确使用 `ping/ping6` 方案，如果选项值为 `parameter` 则明确使用 `ping -4/-6` 方案。一般情况下，保持默认即可，除非遇到运行时错误等问题（如 `ping -4/-6` 选项不支持）。
-    
-</details>
+- `auto`：优先考虑 ss，没有 ss 时，使用 netstat
+- `ss`：使用 ss，ss 由 iproute2 提供
+- `netstat`：使用 netstat
 
-<details><summary>opts_hostname_resolver</summary>
-
-告诉 ss-tproxy，使用哪个工具来解析 `proxy_svraddr4/6` 中的域名(`proxy_procuser/group`模式下不需要)；默认为 `auto`，auto 模式的查找优先级为 `dig`、`getent`、`ping`，只要找到其中一个就停止搜寻；dig 需要安装 bind-utils/dnsutils 包，getent 大多数发行版都自带，ping 基本上是个系统都有；如果你的系统只有 ping 命令，且能明显感受到 1 秒左右的解析延迟，那么请安装 dig 实用工具（Debian/Ubuntu 系列基本上都有这个问题，busybox 版本的 ping 也一样）。
-    
-</details>
-
-<details><summary>opts_overwrite_resolv</summary>
-
-如果设置为 true，则表示直接使用 I/O 重定向方式修改 `/etc/resolv.conf` 文件，这个操作是不可逆的，但是可移植性好；如果设置为 false，则表示使用 `mount -o bind` 魔法来暂时性修改 `/etc/resolv.conf` 文件，当 ss-tproxy stop 之后，`/etc/resolv.conf` 会恢复为原来的文件，也就是说这个修改操作是可逆的，但是这个方式可能某些系统会不支持，默认为 `false`，如果遇到问题请修改为 `true`；此选项留空则不操作 `/etc/resolv.conf`。
-    
-</details>
-
-<details><summary>opts_ip_for_check_net</summary>
-
-指定一个允许 Ping 的 IP 地址（IPv4 或 IPv6 都行），用于检查外部网络的连通情况，如果此选项留空则表示跳过网络可用性检查（不建议）。默认为 `223.5.5.5`，注意这个 IP 地址应该为公网 IP，如果你填一个私有 IP，即使检测成功，也不能保证外网是可访问的，因为这仅代表我可以访问这个内网。根据实际网络环境进行更改，一般改为延迟较低且较稳定的一个 IP。
-    
 </details>
 
 ## 代理软件配置
