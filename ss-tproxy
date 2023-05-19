@@ -386,7 +386,7 @@ update_domain_list() {
     local url="$1" filename="$2"
 
     local data # 声明和赋值必须分开，不然错误码会丢失
-    data="$(curl -4sSkL "$url" | grep -v -e '^[[:space:]]*$' -e '^[[:space:]]*#')" ||
+    data="$(set -o pipefail; curl -4sSkL "$url" | grep -v -e '^[[:space:]]*$' -e '^[[:space:]]*#')" ||
         log_error "download failed: $url (exit-code: $?)"
 
     if head -n1 <<<"$data" | grep -q /; then
@@ -410,7 +410,7 @@ update_chnroute() {
     command_required 'curl'
 
     local data # 声明和赋值必须分开，不然错误码会丢失
-    data="$(curl -4sSkL "$url_chnroute" | grep CN)" ||
+    data="$(set -o pipefail; curl -4sSkL "$url_chnroute" | grep CN)" ||
         log_error "download failed: $url_chnroute (exit-code: $?)"
 
     awk -F'|' '/ipv4/ {printf("%s/%d\n", $4, 32-log($5)/log(2))}' <<<"$data" >chnroute.txt
