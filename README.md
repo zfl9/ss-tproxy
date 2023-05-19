@@ -84,7 +84,7 @@ ipt2socks 是我编写的一个简单 C 程序，只专注于给科学上网套�
 
 基础依赖：
 
-- `bash`：脚本必须用 bash 执行（涉及数组等语法），不兼容 busybox(ash)。
+- `bash`：脚本必须用 bash 执行，主要是因为用了 shell 数组等语法特性。
 - `iptables`：用于配置 IPv4 透明代理规则，仅在启用 IPv4 透明代理时需要。
 - `ip6tables`：用于配置 IPv6 透明代理规则，仅在启用 IPv6 透明代理时需要。
 - `ipset`：用于存储黑名单/白名单的 IP，使 iptables 规则与 dns 组件实现联动。
