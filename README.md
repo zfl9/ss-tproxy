@@ -706,34 +706,6 @@ systemctl enable ss-tproxy
 
 > 对于其它配置项，都可以在改完配置后，执行`ss-tproxy restart`命令来生效，无需遵循上述约定
 
-## 内网主机tcp限速
-
-首先限速的原理很简单，就是将超过规定速率的包给丢掉（限速一般只针对tcp，udp很少有这种需求），丢掉超过规定速率的包之后，在TCP发送方看来，就是对方(接收方)没收到我发出去的包，也就是“丢包”了，于是会触发TCP的重传机制，于是就达到了限速的目的。
-
-一个简单的例子（这些iptables规则在ss-tproxy主机设置）：
-```shell
-## 连接级别
-# 192.168.1.0/24网段的主机，每条tcp连接，上传限速100kb/s
-iptables -t mangle -I PREROUTING -p tcp -s 192.168.1.0/24 -m hashlimit --hashlimit-name upload --hashlimit-mode srcip,srcport --hashlimit-above 100kb/s -j DROP
-
-# 192.168.1.0/24网段的主机，每条tcp连接，下载限速100kb/s
-iptables -t mangle -I POSTROUTING -p tcp -d 192.168.1.0/24 -m hashlimit --hashlimit-name download --hashlimit-mode dstip,dstport --hashlimit-above 100kb/s -j DROP
-
-## 主机级别
-# 192.168.1.0/24网段的主机，每个内网ip，上传限速100kb/s
-iptables -t mangle -I PREROUTING -p tcp -s 192.168.1.0/24 -m hashlimit --hashlimit-name upload --hashlimit-mode srcip --hashlimit-above 100kb/s -j DROP
-
-# 192.168.1.0/24网段的主机，每个内网ip，下载限速100kb/s
-iptables -t mangle -I POSTROUTING -p tcp -d 192.168.1.0/24 -m hashlimit --hashlimit-name download --hashlimit-mode dstip --hashlimit-above 100kb/s -j DROP
-```
-
-如果是要限制从直连网站下载的速度，要设置一条snat规则，不然限速是不会有效的 ( 因为数据包直接由光猫/路由器发到内网客户机了，不会经过ss-tproxy主机）：
-```shell
-iptables -t nat -A POSTROUTING -p tcp -s 192.168.1.0/24 -j MASQUERADE
-```
-
-> 可以利用`post_start`钩子函数来设置这些规则，然后利用`post_stop`来清理这些规则（把`-I`/`-A`改为`-D`就是删除）。
-
 ## 钩子函数小技巧
 
 1、某些系统的 TPROXY 模块可能需要手动加载，对于这种情况，可以利用 `pre_start()` 钩子来加载它：
