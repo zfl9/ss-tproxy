@@ -655,52 +655,6 @@ stop_hy() {
 
 标准内网地址段如：`10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16`，如果你将其它 IP 段作为内网使用（有人甚至将公网 IP 段作为内网使用），那么强烈建议你纠正这个错误，这不仅会导致透明代理出问题，也会隐藏其它 bug（很多软件设计者并没有考虑到你使用的是一个非标准内网地址段）。如果因为各种原因无法更改（比如公司内部），那么请将相关网段加入 `ignlist.ext`。
 
-## 钩子函数
-
-ss-tproxy 脚本支持 4 个钩子函数，分别是：
-- `pre_start`：启动前执行
-- `post_start`：启动后执行
-- `pre_stop`：停止前执行
-- `post_stop`：停止后执行
-
-> 需要注意的是，shell 中的函数是不允许重复定义的，虽然这不会有任何报错，但是实际只有最后一个函数生效
-
-举个例子，我需要在 ss-tproxy 启动后添加某些规则，在 ss-tproxy 停止后删除这些规则，则修改 ss-tproxy.conf，添加：
-
-```bash
-post_start() {
-    iptables -A ...
-    iptables -A ...
-    iptables -A ...
-}
-
-post_stop() {
-    iptables -D ...
-    iptables -D ...
-    iptables -D ...
-}
-```
-
-当然，对于这种需要添加 iptables 规则的情况，可以考虑将 iptables 规则添加到 ss-tproxy 的自定义链上，这些自定义链在 ss-tproxy 停止后会自动删除，因此你只需要关心 `post_start()` 钩子函数的内容；目前有这几个自定义链：
-
-```bash
-$ipts -t mangle -N SSTP_PREROUTING
-$ipts -t mangle -N SSTP_OUTPUT
-$ipts -t nat    -N SSTP_PREROUTING
-$ipts -t nat    -N SSTP_OUTPUT
-$ipts -t nat    -N SSTP_POSTROUTING
-```
-
-它们分别挂接到去掉 `SSTP_` 前缀的同名预定义链上，如下：
-
-```bash
-$ipts -t mangle -A PREROUTING  -j SSTP_PREROUTING
-$ipts -t mangle -A OUTPUT      -j SSTP_OUTPUT
-$ipts -t nat    -A PREROUTING  -j SSTP_PREROUTING
-$ipts -t nat    -A OUTPUT      -j SSTP_OUTPUT
-$ipts -t nat    -A POSTROUTING -j SSTP_POSTROUTING
-```
-
 ## 脚本开机自启
 
 对于 `SysVinit` 发行版，直接在 `/etc/rc.d/rc.local` 开机脚本中加上 ss-tproxy 的启动命令即可：
@@ -751,15 +705,6 @@ systemctl enable ss-tproxy
 - `file_dnsserver_pid`
 
 > 对于其它配置项，都可以在改完配置后，执行`ss-tproxy restart`命令来生效，无需遵循上述约定
-
-## 黑名单、白名单说明
-- 对于 global 模式，白名单文件为 `ignlist.ext`，没有黑名单文件，因为默认都走代理。
-- 对于 gfwlist 模式，黑名单文件为 `gfwlist.txt/ext`，没有白名单文件，因为其它都走直连。
-- 对于 chnroute 模式，白名单文件为 `ignlist.ext`，没有黑名单文件，但允许开启此功能，见下。
-
-如果想让 chnroute 模式支持黑名单扩展，请打开 chinadns-ng 的 gfwlist 模式（`chinadns_gfwlist_mode`）；开启 gfwlist 模式后，chinadns-ng 会读取 `gfwlist.txt/ext` 黑名单文件中的**域名模式**；当 chinadns-ng 收到域名解析请求时，会先检查给定域名是否在黑名单中，如果是则只向可信 DNS 发出解析请求（也就是 `dns_remote/dns_remote6`），因此解析出来的会是国外 IP（不一定，具体要看给定域名的A/AAAA记录以及其dns解析设定），然后当客户端访问该 IP 时就会走代理出去了（如果解析的地址是国外地址）。
-
-> `chinadns_gfwlist_mode`的本意其实并不是为了支持'黑名单'，而是为了提高 chinadns-ng 的准确性，降低 dns 污染的可能性
 
 ## 内网主机tcp限速
 
@@ -823,13 +768,6 @@ post_start() {
     fi
 }
 ```
-
-## 切换代理小技巧
-
-如果觉得切换代理要修改 ss-tproxy.conf 很麻烦，可以这么做：
-- 将`proxy_startcmd`和`proxy_stopcmd`改为空调用，即`proxy_startcmd='true'`、`proxy_stopcmd='true'`
-- 然后配好`proxy_procuser/group`或`proxy_svraddr/port`(不建议用此机制)，将所有可能会用到的值都填进去
-- 最后执行`ss-tproxy start`启动，因为我们没有填写任何代理进程的启动和停止命令，所以会显示代理进程未运行，没关系，现在我们要做的就是启动对应的代理进程，假设为 ss-redir 且使用 systemd 管理，则执行 `systemctl start ss-redir`，现在你再执行 `ss-tproxy status` 就会看到对应的状态正常了，当然代理应该也是正常的，如果需要换为 v2ray，假设也是使用 systemd 管理，那么只需要先关闭 ss-redir，然后再启动 v2ray 就行了，即 `systemctl stop ss-redir`、`systemctl start v2ray`。有点类似于启动一个代理框架，后面切换代理就无需再操作 ss-tproxy，直接切换`本机代理进程`即可
 
 ## 常见问题解答
 [ss-tproxy 常见问题解答](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
