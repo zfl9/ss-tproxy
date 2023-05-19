@@ -82,6 +82,8 @@ ipt2socks 是我编写的一个简单 C 程序，只专注于给科学上网套�
 
 ## 相关依赖
 
+> 依赖安装参考：<https://github.com/zfl9/ss-tproxy/wiki/安装依赖>
+
 基础依赖：
 
 - `bash`：脚本必须用 bash 执行，主要是因为用了 shell 数组等语法特性。
@@ -107,8 +109,6 @@ TPROXY 相关：
 - `curl`：用于更新 gfwlist.txt、chnlist.txt、chnroute.txt，需要支持 https。
 
 如果某些模式基本不用，那对应的依赖也不用管。比如，不打算使用 IPv6 透明代理，则无需关心 ip6tables；不打算使用 chnroute 模式，则无需关心 chinadns-ng。脚本会检查当前配置所需的依赖，根据提示安装缺少的依赖即可。
-
-[ss-tproxy 脚本相关的依赖的安装方式参考](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96)
 
 ## 获取脚本
 
@@ -706,50 +706,10 @@ systemctl enable ss-tproxy
 
 > 对于其它配置项，都可以在改完配置后，执行`ss-tproxy restart`命令来生效，无需遵循上述约定
 
-## 钩子函数小技巧
+## 更多信息请参见 wiki
 
-1、某些系统的 TPROXY 模块可能需要手动加载，对于这种情况，可以利用 `pre_start()` 钩子来加载它：
-```bash
-pre_start() {
-    # 加载 TPROXY 模块
-    modprobe xt_TPROXY
-}
-```
-
-2、不想让某些内网主机走 ss-tproxy 的透明代理，即使它们将网关设为 ss-tproxy 主机，那么可以这么做：
-```bash
-post_start() {
-    if is_false "$selfonly"; then
-        if is_true "$ipv4"; then
-            # 定义要放行的 IPv4 地址
-            local intranet_ignore_list=(192.168.1.100 192.168.1.200)
-            for ipaddr in "${intranet_ignore_list[@]}"; do
-                iptables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
-                iptables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
-            done
-        fi
-
-        if is_true "$ipv6"; then
-            # 定义要放行的 IPv6 地址
-            local intranet_ignore_list6=(fd00:abcd::1111 fd00:abcd::2222)
-            for ipaddr in "${intranet_ignore_list6[@]}"; do
-                ip6tables -t mangle -I SSTP_PREROUTING -s $ipaddr -j RETURN
-                ip6tables -t nat    -I SSTP_PREROUTING -s $ipaddr -j RETURN
-            done
-        fi
-    fi
-}
-```
-
-## 常见问题解答
-[ss-tproxy 常见问题解答](https://github.com/zfl9/ss-tproxy/wiki/Linux-%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
-
-如果透明代理未正常工作，请先自行按照如下顺序进行一个简单的排查：
-1. 检查 ss-tproxy.conf 以及代理软件的配置是否正确，此文详细说明了许多配置细节，它们并不是废话，请务必仔细阅读此文。如果确认配置无误，那么请务必开启代理进程的详细日志（debug/verbose logging），以及 dnsmasq、chinadns-ng、dns2tcp 的详细日志（ss-tproxy.conf），日志是调试的基础。
-2. 如果 ss-tproxy 在配置正确的情况下出现运行时报错，请在执行 ss-tproxy 相关命令时带上 `-x` 调试选项，以查看是哪条命令报的错。出现这种错误通常是脚本自身的问题，可直接通过 issue 报告此错误，但是你需要提供尽可能详细的信息，别一句话就应付了我，这等同于应付了你自己。
-3. 如果 ss-tproxy status 显示的状态不正常，那么通常都是配置问题，`pxy/tcp` 显示 stopped 表示代理进程的 TCP 端口未监听，`pxy/udp` 显示 stopped 表示代理进程的 UDP 端口未监听，`dnsmasq`、`chinadns-ng`、`dns2tcp` 显示 stopped 时请查看它们各自的日志文件，可能是监听端口被占用了，等等。
-4. 在 ss-tproxy 主机上检查 DNS 是否正常，域名解析是访问互联网的第一步，这一步如果出问题，后面的就不用测试了。这里选择 dig 作为 DNS 调试工具，因此请先安装 dig 工具。在调试 DNS 之前，先开启几个终端，分别 `tail -f` 代理进程、dnsmasq、chinadns-ng、dns2tcp 的日志；然后再开一个终端，执行 `dig www.baidu.com`、`dig www.google.com`，观察 dig 以及前面几个终端的日志输出，发现不对的地方可以先尝试自行解决，如果解决不了，请通过 issue 报告它。如果启用了 udp 透明代理，要特别注意代理的 udp relay 是否正常，udp relay 不正常会导致 `dig www.google.com` 解析失败；如果确认已开启 udp relay，那么你还要注意是否出现了 udp 丢包，某些 ISP 会对 udp 数据包进行恶意性丢弃，检查 udp 是否丢包通常需要检查本地以及 vps 上的代理进程的详细日志输出。实在不行就只能使用 tcponly 模式了。
-5. 如果 ss-tproxy 主机的 DNS 工作正常，说明 UDP 透明代理应该是正常的，那么接下来应该检查 TCP 透明代理，最简单的方式就是使用 curl 工具进行检测，首先安装 curl 工具，然后执行 `curl -4vsSkL https://www.baidu.com`、`curl -4vsSkL https://www.google.com`，如果启用了 ss-tproxy 的 IPv6 透明代理支持，则还应该进行 IPv6 的网页浏览测试，即执行 `curl -6vsSkL https://ipv6.baidu.com`、`curl -6vsSkL https://ipv6.google.com`，观察它们的输出是否正常（即是否能够正常获取 HTML 源码），同时观察代理进程、dnsmasq、chinadns-ng、dns2tcp 的日志输出。
-6. 如果 ss-tproxy 主机的 DNS 以及 curl 测试都没问题，那么就进行最后一步，在其它内网主机上分别测试 DNS 以及 TCP 透明代理（最简单的就是浏览器访问百度、谷歌），同时你也应该观察代理进程、dnsmasq、chinadns-ng、dns2tcp 的日志输出。对于某些系统，可能会优先使用 IPv6 网络（特别是解析 DNS 时），因此如果你没有启用 ss-tproxy 的 IPv6 透明代理，那么请通过各种手段禁用 IPv6（或者进行其它一些妥当的处理），否则会影响透明代理的正常使用。
-
-> 在报告问题时，请务必提供详细信息，而不是单纯一句话，xxx 不能工作，这对于问题的解决没有任何帮助。
+- <https://github.com/zfl9/ss-tproxy/wiki/安装依赖>
+- <https://github.com/zfl9/ss-tproxy/wiki/故障排查>
+- <https://github.com/zfl9/ss-tproxy/wiki/常见问题>
+- <https://github.com/zfl9/ss-tproxy/wiki/钩子函数>
+- <https://github.com/zfl9/ss-tproxy/wiki/内网限速>
