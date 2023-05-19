@@ -647,9 +647,50 @@ stop_hy() {
 
 再次重申，如果只是切换节点/代理，请不要通过修改 ss-tproxy.conf、重启 ss-tproxy 的方式进行，请直接操作相关代理进程。举个例子，对于 ss-redir，就是先把原来的 ss-redir 进程杀死，然后启动新的 ss-redir 进程。当然，你可以用脚本或者你喜欢的任意方式，来封装节点切换操作，或者使用 clash 这种支持 **自动切换/选择节点** 的代理客户端。
 
-## IPv6 透明代理的实施方式
+## 脚本命令行选项
 
-对于 v4.6+ 版本，设置 `ipv6` 选项即可使用 IPv6 透明代理，使用方法同 IPv4 透明代理。但如果想让其他主机也接入 ss-tproxy 的透明代理，建议给相关主机配置 ULA 静态私有地址，也就是组建一个局域网，这样在给他们设置网关和 DNS 时，就不怕公网 IP 经常变动了。在这种情况下，你需要启用 ss-tproxy.conf 的 ipts_set_snat6 选项。
+- `ss-tproxy help`：查看帮助信息
+- `ss-tproxy version`：查看版本号
+- `ss-tproxy start`：启动透明代理
+- `ss-tproxy stop`：关闭透明代理
+- `ss-tproxy restart`：重启透明代理
+- `ss-tproxy status`：查看代理状态
+- `ss-tproxy show-iptables`：查看当前的 iptables 规则
+- `ss-tproxy flush-stoprule`：清空 stop 状态下的 iptables 规则
+- `ss-tproxy flush-dnscache`：清空 DNS 查询缓存
+- `ss-tproxy update-gfwlist`：更新 gfwlist.txt，restart 后生效
+- `ss-tproxy update-chnlist`：更新 chnlist.txt，restart 后生效
+- `ss-tproxy update-chnroute`：更新 chnroute*.txt，restart 后生效
+
+---
+
+此外，可以在命令行的任意位置，指定以下选项：
+
+- `-x`：输出调试信息，比如脚本出错时，可用来定位是哪条命令
+- `-d dir`：使用给定的工作目录，默认是 /etc/ss-tproxy
+- `-c config`：使用给定的配置文件，默认是 ss-tproxy.conf
+- `NAME=VALUE`：临时覆盖 ss-tproxy.conf 中的同名配置
+
+---
+
+ss-tproxy restart 后，可能会由于 DNS 缓存，导致无法代理，请尝试：
+
+- 清空当前系统的 DNS 缓存：
+  - Windows：打开 cmd，执行 `ipconfig /flushdns`
+  - 手机：可以开关一下飞行模式，或者重连一下 WiFi
+- 如果还不行，请重新打开当前应用程序，然后再试
+
+---
+
+如果要修改以下配置，请先 stop，再修改 ss-tproxy.conf，再 start。
+
+- `proxy_stopcmd`
+- `dns_custom`
+- `ipts_rt_tab`
+
+对于 proxy_stopcmd，如果忘记遵循 **先 stop，后修改** 的顺序，也可以补救，那就是自己手动 kill 之前的代理进程。当然，你也可以在 proxy_stopcmd 中预先填写好所有可能要 kill 的代理进程，这样后续就不需要再修改了。
+
+> 其他 ss-tproxy.conf 配置无需遵循上述约定，改完 restart 即可。
 
 ## 脚本开机自启
 
@@ -666,41 +707,9 @@ systemctl enable ss-tproxy
 
 > 不建议使用 `systemctl start|stop|restart ss-tproxy` 来操作 ss-tproxy，此服务文件应仅作开机自启用。
 
-## 脚本命令行选项
-- `ss-tproxy help`：查看帮助信息
-- `ss-tproxy version`：查看版本号
-- `ss-tproxy start`：启动透明代理
-- `ss-tproxy stop`：关闭透明代理
-- `ss-tproxy restart`：重启透明代理
-- `ss-tproxy status`：查看代理状态
-- `ss-tproxy show-iptables`：查看当前的 iptables 规则
-- `ss-tproxy flush-postrule`：清空遗留的 iptables 规则
-- `ss-tproxy flush-dnscache`：清空 dnsmasq 的查询缓存
-- `ss-tproxy delete-gfwlist`：删除 gfwlist 黑名单 ipset
-- `ss-tproxy update-chnlist`：更新 chnlist（restart 生效）
-- `ss-tproxy update-gfwlist`：更新 gfwlist（restart 生效）
-- `ss-tproxy update-chnroute`：更新 chnroute（restart 生效）
-- 在任意位置指定 `-x` 选项可启用调试，如 `ss-tproxy start -x`
-- 在任意位置指定 `-c cfgfile` 可使用给定路径的 ss-tproxy.conf
-- 在任意位置指定 `NAME=VALUE` 可覆盖 ss-tproxy.conf 中的同名配置
+## IPv6 透明代理
 
-**何时使用`delete-gfwlist`**
-
-在`gfwlist/chnlist`模式下，执行了`update-gfwlist|update-chnlist`或修改了`/etc/ss-tproxy/gfwlist.ext`，则建议`start`前执行此指令，防止遗留的`gfwlist`列表导致问题。注意，执行此指令后，可能还需清空内网主机的dns缓存，并重启相关被代理的应用，如正在使用的浏览器。
-
-**关于特殊配置项与`restart`**
-
-如果需要修改某些特殊配置项，请先`ss-tproxy stop`，再修改，再`ss-tproxy start`生效；<br>
-不要直接改配置并执行`ss-tproxy restart`，这会导致不可预估的错误，需要遵循约定的有：
-- `ipv4`
-- `ipv6`
-- `proxy_stopcmd`
-- `ipts_rt_tab`
-- `ipts_rt_mark`
-- `opts_overwrite_resolv`
-- `file_dnsserver_pid`
-
-> 对于其它配置项，都可以在改完配置后，执行`ss-tproxy restart`命令来生效，无需遵循上述约定
+对于 v4.6+ 版本，设置 `ipv6` 选项即可使用 IPv6 透明代理，使用方法同 IPv4 透明代理。但如果想让其他主机也接入 ss-tproxy 的透明代理，建议给相关主机配置 ULA 静态私有地址，也就是组建一个局域网，这样在给他们设置网关和 DNS 时，就不怕公网 IP 经常变动了。在这种情况下，你需要启用 ss-tproxy.conf 的 ipts_set_snat6 选项。
 
 ## 更多信息请参见 wiki
 
