@@ -84,6 +84,7 @@ ipt2socks 是我编写的一个简单 C 程序，只专注于给科学上网套�
 
 基础依赖：
 
+- `bash`：脚本必须用 bash 执行（涉及数组等语法），不兼容 busybox(ash)。
 - `iptables`：用于配置 IPv4 透明代理规则，仅在启用 IPv4 透明代理时需要。
 - `ip6tables`：用于配置 IPv6 透明代理规则，仅在启用 IPv6 透明代理时需要。
 - `ipset`：用于存储黑名单/白名单的 IP，使 iptables 规则与 dns 组件实现联动。
@@ -260,7 +261,11 @@ rm -fr /etc/systemd/system/ss-tproxy.service # service文件
 - 这些命令不应执行过长时间，防止卡住脚本，长时间处于某种中间状态
 - 具体命令例子，见 [代理软件配置](#代理软件配置)
 
-如果需要经常切换代理节点，请直接操作相关代理进程，而不是 `ss-tproxy restart`，因为这是一个重量级操作，没有必要反复操作 iptables 规则。如果觉得切换节点麻烦，可以使用那些支持 **自动切换节点** 的代理套件，比如 clash，又比如套上 haproxy，总之，请尽情发挥你的想象力。
+如果需要切换代理节点，请直接操作相关代理进程，而不是修改 ss-tproxy.conf、`ss-tproxy restart`，因为这是一个重量级操作，没有必要反复操作 iptables 规则、重启 DNS 服务。
+
+ss-tproxy 提供 proxy_startcmd/proxy_stopcmd 的目的，是为了“帮你”启动/关闭代理进程，并不是要完全接管它；因此，对于那些不涉及 iptables 规则、DNS 服务的操作（比如切换节点），请不要通过 ss-tproxy 进行。
+
+如果觉得切换节点麻烦，可以使用那些支持 **自动切换节点** 的代理套件，比如 clash，又比如套上 haproxy，或者用脚本封装节点切换操作，总之，请尽情发挥你的想象力。
 
 ss-tproxy 要求代理进程不参与 ip 分流、dns 分流/解析，专心实现 TCP/UDP 全局透明代理即可，脚本已经帮你设置好了 iptables 分流规则，iptables 分流比代理进程的“用户空间”分流更快，性能开销更小，也更加彻底。
 
