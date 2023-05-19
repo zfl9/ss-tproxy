@@ -695,11 +695,13 @@ ss-tproxy restart 后，可能会由于 DNS 缓存，导致无法代理，请尝
 ## 脚本开机自启
 
 对于 `SysVinit` 发行版，直接在 `/etc/rc.d/rc.local` 开机脚本中加上 ss-tproxy 的启动命令即可：
+
 ```bash
 /usr/local/bin/ss-tproxy start
 ```
 
 对于 `Systemd` 发行版，将 ss-tproxy.service 文件放到 `/etc/systemd/system/ss-tproxy.service`，执行：
+
 ```bash
 systemctl daemon-reload
 systemctl enable ss-tproxy
