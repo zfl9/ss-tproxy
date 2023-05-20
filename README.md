@@ -325,7 +325,7 @@ v4.6+ 版本的 IPv6 透明代理可以通过 GUA 公网地址进行，不需要
 
 <details><summary>ipts_reddns_onstop、ipts_reddns6_onstop</summary>
  
-此配置仅在 selfonly=false 时有效；前者用于 IPv4，后者用于 IPv6。
+此配置仅在 selfonly=false 时有效；前者用于 IPv4，后者用于 IPv6；必须指定端口号。
 
 ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求重定向至给定的 DNS，为什么要这么做？因为其它内网主机的 DNS 已经指向了 ss-tproxy 主机，但现在 ss-tproxy 已经关闭了，附带的 DNS 服务自然也被一同关闭，所以这些内网主机会因为无法解析 DNS 而无法上网。
 
