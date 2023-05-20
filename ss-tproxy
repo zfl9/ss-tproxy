@@ -616,8 +616,8 @@ get_extra_whiteip() {
 
 get_extra_blackip() {
     if is_built_in_dns; then
-        is_true "$dns_remote_white" && get_ip_from_addr "$dns_remote"
-        is_true "$dns_remote6_white" && get_ip_from_addr "$dns_remote6"
+        is_true "$dns_remote_black" && get_ip_from_addr "$dns_remote"
+        is_true "$dns_remote6_black" && get_ip_from_addr "$dns_remote6"
     else
         is_func custom_dns_blackip && custom_dns_blackip
     fi
