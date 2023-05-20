@@ -304,16 +304,6 @@ ss-tproxy 要求代理进程不参与 ip 分流、dns 分流/解析，专心实�
 
 </details>
 
-<details><summary>dns2tcp_enable</summary>
-
-- `auto`：tcponly 模式时启用，否则不启用
-- `true`：总是启用，如果 UDP 代理效果一般，建议启用
-- `false`：总是禁用，使用自定义 DNS 方案时，才能禁用
-
-> 使用自定义 DNS 方案时，dns2tcp 仍然可以启用，并且对 DNS 组件透明。
-
-</details>
-
 <details><summary>ipts_set_snat</summary>
 
 selfonly=false 时有效，设置 IPv4 的 MASQUERADE 规则，有两种情况需要将其设置为 true：
@@ -333,15 +323,15 @@ v4.6+ 版本的 IPv6 透明代理可以通过 GUA 公网地址进行，不需要
 
 </details>
 
-<details><summary>ipts_reddns_onstop</summary>
-
-ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求重定向至本地直连 DNS，为什么要这么做？因为其它内网主机的 DNS 已经指向了 ss-tproxy 主机，但现在 ss-tproxy 已经关闭了，附带的 DNS 服务自然也被一同关闭，所以这些内网主机会因为无法解析 DNS 而无法上网。
-
-设置此选项后，这些 DNS 请求会被重定向给 dns_direct* 直连 DNS，这样这些主机就可以正常解析 DNS 了。这些规则会在执行 ss-tproxy start 时被自动移除，如果在 stop 状态下需要手动移除规则，请执行 `ss-tproxy flush-stoprule`。
-
-当然，如果 ss-tproxy 主机上有可用的 DNS 服务，请设置为 false。
+<details><summary>ipts_reddns_onstop、ipts_reddns6_onstop</summary>
  
-> 此配置仅在 selfonly=false 时有效。
+此配置仅在 selfonly=false 时有效；前者用于 IPv4，后者用于 IPv6。
+
+ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求重定向至给定的 DNS，为什么要这么做？因为其它内网主机的 DNS 已经指向了 ss-tproxy 主机，但现在 ss-tproxy 已经关闭了，附带的 DNS 服务自然也被一同关闭，所以这些内网主机会因为无法解析 DNS 而无法上网。
+
+设置该选项后，ss-tproxy 会设置一些 iptables 规则，重定向至指定的 DNS，确保内网主机可以正常上网。这些规则在执行 start 时会被自动移除，如果在 stop 状态下需要手动移除规则，请执行 `ss-tproxy flush-stoprule`。
+
+如果 ss-tproxy 主机上有可用的 DNS 服务，请设置为空串（留空）。
  
 </details>
 
@@ -404,7 +394,7 @@ start_ss() {
 }
 
 stop_ss() {
-    kill -9 $(pidof ss-redir)
+    kill -9 $(pidof ss-redir) &>/dev/null
 }
 ```
 
@@ -448,7 +438,7 @@ start_ssr() {
 }
 
 stop_ssr() {
-    kill -9 $(pidof ssr-redir)
+    kill -9 $(pidof ssr-redir) &>/dev/null
 }
 ```
 
@@ -524,7 +514,7 @@ start_v2ray() {
 }
 
 stop_v2ray() {
-    kill -9 $(pidof v2ray) $(pidof v2ctl)
+    kill -9 $(pidof v2ray) $(pidof v2ctl) &>/dev/null
 }
 ```
 
@@ -591,7 +581,7 @@ start_trojan() {
 }
 
 stop_trojan() {
-    kill -9 $(pidof trojan) $(pidof ipt2socks)
+    kill -9 $(pidof trojan) $(pidof ipt2socks) &>/dev/null
 }
 ```
 
@@ -637,7 +627,7 @@ start_hy() {
 }
 
 stop_hy() {
-    kill -9 $(pidof hysteria)
+    kill -9 $(pidof hysteria) &>/dev/null
 }
 ```
 
@@ -661,6 +651,8 @@ stop_hy() {
 - `ss-tproxy update-gfwlist`：更新 gfwlist.txt，restart 后生效
 - `ss-tproxy update-chnlist`：更新 chnlist.txt，restart 后生效
 - `ss-tproxy update-chnroute`：更新 chnroute*.txt，restart 后生效
+- `ss-tproxy set-proxy-group <可执行文件>`：设置所属 group、setgid 权限位
+- `ss-tproxy set-dns-group <可执行文件>`：设置所属 group、setgid 权限位
 
 ---
 
@@ -669,7 +661,7 @@ stop_hy() {
 - `-x`：输出调试信息，比如脚本出错时，可用来定位是哪条命令
 - `-d dir`：使用给定的工作目录，默认是 /etc/ss-tproxy
 - `-c config`：使用给定的配置文件，默认是 ss-tproxy.conf
-- `NAME=VALUE`：临时覆盖 ss-tproxy.conf 中的同名配置
+- `NAME=VALUE`：定义变量，可用来临时覆盖 ss-tproxy.conf 中的同名配置
 
 ---
 
@@ -685,7 +677,6 @@ ss-tproxy restart 后，可能会由于 DNS 缓存，导致无法代理，请尝
 如果要修改以下配置，请先 stop，再修改 ss-tproxy.conf，再 start。
 
 - `proxy_stopcmd`
-- `dns_custom`
 - `ipts_rt_tab`
 
 对于 proxy_stopcmd，如果忘记遵循 **先 stop，后修改** 的顺序，也可以补救，那就是自己手动 kill 之前的代理进程。当然，你也可以在 proxy_stopcmd 中预先填写好所有可能要 kill 的代理进程，这样后续就不需要再修改了。
