@@ -596,7 +596,7 @@ start_proxyproc() {
 }
 
 stop_proxyproc() {
-    eval "$proxy_stopcmd" &>/dev/null
+    eval "$proxy_stopcmd"
 }
 
 # setname <ip_list
