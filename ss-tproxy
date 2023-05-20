@@ -107,8 +107,8 @@ create_group() {
 
 # group command
 set_command_group() {
-    local group="$1"
-    local path="$(command_path "$2")"
+    command_required "$2"
+    local group="$1" path="$(command_path "$2")"
     chgrp "$group" "$path" || log_error "chgrp failed: group=$group path=$path"
     chmod g+xs "$path"
 }
@@ -217,7 +217,6 @@ is_enabled_dns2tcp() {
             true
             ;;
         false)
-            is_built_in_dns && log_error "can't disable dns2tcp when using built-in dns"
             false
             ;;
         *)
@@ -242,48 +241,17 @@ get_port_from_addr() {
     echo "${addr#*#}"
 }
 
-get_directdns_ip() {
-    get_ip_from_addr "$dns_direct"
-}
-
-get_directdns6_ip() {
-    get_ip_from_addr "$dns_direct6"
-}
-
-get_directdns_port() {
-    get_port_from_addr "$dns_direct"
-}
-
-get_directdns6_port() {
-    get_port_from_addr "$dns_direct6"
-}
-
-get_remotedns_ip() {
-    get_ip_from_addr "$dns_remote"
-}
-
-get_remotedns6_ip() {
-    get_ip_from_addr "$dns_remote6"
-}
-
-get_remotedns_port() {
-    get_port_from_addr "$dns_remote"
-}
-
-get_remotedns6_port() {
-    get_port_from_addr "$dns_remote6"
-}
-
 load_pidfile() {
     file_is_exists /run/ss-tproxy.pid && source /run/ss-tproxy.pid
 }
 
 save_pidfile() {
     {
-        echo "pid_dnsmasq=$pid_dnsmasq"
-        echo "pid_chinadns=$pid_chinadns"
-        echo "pid_dns2tcp4=$pid_dns2tcp4"
-        echo "pid_dns2tcp6=$pid_dns2tcp6"
+        echo "sstp_pid_dnsmasq=$sstp_pid_dnsmasq"
+        echo "sstp_pid_chinadns=$sstp_pid_chinadns"
+        echo "sstp_pid_dns2tcp4=$sstp_pid_dns2tcp4"
+        echo "sstp_pid_dns2tcp6=$sstp_pid_dns2tcp6"
+        is_func custom_dns_pid && custom_dns_pid
     } >/run/ss-tproxy.pid
 }
 
@@ -339,21 +307,12 @@ check_config() {
     is_enabled_ipv6 && command_required 'ip6tables'
 
     if is_built_in_dns; then
-        command_required 'dnsmasq'
         set_dns_group 'dnsmasq'
-
-        is_enabled_chinadns && {
-            command_required 'chinadns-ng'
-            set_dns_group 'chinadns-ng'
-        }
+        is_enabled_chinadns && set_dns_group 'chinadns-ng'
+        is_enabled_dns2tcp && set_dns_group 'dns2tcp'
     else
         is_func custom_dns_init && custom_dns_init
     fi
-
-    is_enabled_dns2tcp && {
-        command_required 'dns2tcp'
-        set_dns_group 'dns2tcp'
-    }
 
     case "$opts_ss_netstat" in
         auto)
@@ -503,7 +462,7 @@ start_chinadns() {
     is_true "$chinadns_verbose" && args+=' -v'
 
     if is_gfwlist_mode; then
-        pid_chinadns=$(
+        sstp_pid_chinadns=$(
             chinadns-ng \
             $args \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
@@ -513,7 +472,7 @@ start_chinadns() {
             echo $!
         )
     else # chnroute
-        pid_chinadns=$(
+        sstp_pid_chinadns=$(
             chinadns-ng \
             $args \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
@@ -545,9 +504,18 @@ start_dns2tcp() {
 
 start_dnsserver() {
     if is_built_in_dns; then
+        if is_enabled_dns2tcp; then
+            is_enabled_ipv4 && sstp_pid_dns2tcp4=$(start_dns2tcp 1)
+            is_enabled_ipv6 && sstp_pid_dns2tcp6=$(start_dns2tcp 0)
+
+            # 函数会优先查找同名local变量
+            local dns_remote="127.0.0.1#$dns2tcp_bind_port"
+            local dns_remote6="::1#$dns2tcp_bind_port"
+        fi
+
         is_enabled_chinadns && start_chinadns
 
-        pid_dnsmasq=$(
+        sstp_pid_dnsmasq=$(
             {
                 echo "port = $dns_mainport"
                 echo "group = $dns_procgroup"
@@ -579,30 +547,25 @@ start_dnsserver() {
         is_func custom_dns_start && custom_dns_start
     fi
 
-    if is_enabled_dns2tcp; then
-        is_enabled_ipv4 && pid_dns2tcp4=$(start_dns2tcp 1)
-        is_enabled_ipv6 && pid_dns2tcp6=$(start_dns2tcp 0)
-    fi
-
     save_pidfile
 }
 
 stop_dnsserver() {
-    if ! is_built_in_dns; then
-        is_func custom_dns_stop && custom_dns_stop
-    fi
+    # 为防止修改配置导致进程残留，此处不做判断
 
-    kill -9 $pid_dnsmasq  &>/dev/null
-    kill -9 $pid_chinadns &>/dev/null
-    kill -9 $pid_dns2tcp4 &>/dev/null
-    kill -9 $pid_dns2tcp6 &>/dev/null
+    kill -9 $sstp_pid_dnsmasq  &>/dev/null
+    kill -9 $sstp_pid_chinadns &>/dev/null
+    kill -9 $sstp_pid_dns2tcp4 &>/dev/null
+    kill -9 $sstp_pid_dns2tcp6 &>/dev/null
+
+    is_func custom_dns_stop && custom_dns_stop
 
     delete_pidfile
 }
 
 flush_dnscache() {
     if is_built_in_dns; then
-        ss_tproxy_is_started && kill -HUP "$pid_dnsmasq"
+        ss_tproxy_is_started && kill -HUP "$sstp_pid_dnsmasq"
     else
         is_func custom_dns_flush && custom_dns_flush
     fi
@@ -642,19 +605,37 @@ init_ipset() {
     sed "s/^/add $1 /" | ipset -! restore
 }
 
+get_extra_whiteip() {
+    if is_built_in_dns; then
+        is_true "$dns_direct_white" && get_ip_from_addr "$dns_direct"
+        is_true "$dns_direct6_white" && get_ip_from_addr "$dns_direct6"
+    else
+        is_func custom_dns_whiteip && custom_dns_whiteip
+    fi
+}
+
+get_extra_blackip() {
+    if is_built_in_dns; then
+        is_true "$dns_remote_white" && get_ip_from_addr "$dns_remote"
+        is_true "$dns_remote6_white" && get_ip_from_addr "$dns_remote6"
+    else
+        is_func custom_dns_blackip && custom_dns_blackip
+    fi
+}
+
 # dns和iptables都需要ipset，为防止dns组件报错(A/AAAA)，v4和v6集合将始终创建
 start_ipset() {
     if is_global_mode; then
-        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  } | init_ipset sstp_white
-        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; } | init_ipset sstp_white6
+        { list_ext_ipv4 ignlist.ext; get_extra_whiteip | list_ext_ipv4 -; } | init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_extra_whiteip | list_ext_ipv6 -; } | init_ipset sstp_white6
     elif is_gfwlist_mode; then
-        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | init_ipset sstp_black
-        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | init_ipset sstp_black6
+        { list_ext_ipv4 gfwlist.ext; get_extra_blackip | list_ext_ipv4 -; } | init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_extra_blackip | list_ext_ipv6 -; } | init_ipset sstp_black6
     elif is_chnroute_mode; then
-        { list_ext_ipv4 ignlist.ext; get_directdns_ip;  cat chnroute.txt;  } | init_ipset sstp_white
-        { list_ext_ipv6 ignlist.ext; get_directdns6_ip; cat chnroute6.txt; } | init_ipset sstp_white6
-        { list_ext_ipv4 gfwlist.ext; get_remotedns_ip;  } | init_ipset sstp_black
-        { list_ext_ipv6 gfwlist.ext; get_remotedns6_ip; } | init_ipset sstp_black6
+        { list_ext_ipv4 ignlist.ext; get_extra_whiteip | list_ext_ipv4 -; cat chnroute.txt;  } | init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_extra_whiteip | list_ext_ipv6 -; cat chnroute6.txt; } | init_ipset sstp_white6
+        { list_ext_ipv4 gfwlist.ext; get_extra_blackip | list_ext_ipv4 -; } | init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_extra_blackip | list_ext_ipv6 -; } | init_ipset sstp_black6
     fi
 }
 
@@ -721,20 +702,16 @@ start_iptables_post() {
     $1 -t nat    -A POSTROUTING -j SSTP_POSTROUTING
 }
 
-# local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
+# local loopback_addr loopback_addrx white_setname black_setname
 init_iptables_param() {
     if is_ipv4_ipts $1; then
         loopback_addr="127.0.0.1"
         loopback_addrx="127.0.0.1"
-        remote_dns_ip="$(get_remotedns_ip)"
-        remote_dns_port="$(get_remotedns_port)"
         white_setname="sstp_white"
         black_setname="sstp_black"
     else
         loopback_addr="::1"
         loopback_addrx="[::1]"
-        remote_dns_ip="$(get_remotedns6_ip)"
-        remote_dns_port="$(get_remotedns6_port)"
         white_setname="sstp_white6"
         black_setname="sstp_black6"
     fi
@@ -809,14 +786,6 @@ do_proxy_tproxy() {
             -p udp \
             -m udp --dport 53 \
             -m owner ! --gid-owner $dns_procgroup \
-            -j RETURN
-
-    # 使用dns2tcp时，放行发往dns_remote的udp请求，留给nat去重定向
-    ((udp)) && is_enabled_dns2tcp &&
-        $1 -t mangle -A SSTP_OUTPUT \
-            -d $remote_dns_ip \
-            -p udp \
-            -m udp --dport $remote_dns_port \
             -j RETURN
 
     # 本机传出流量 => SSTP_RULE
@@ -915,16 +884,6 @@ redir_dns_request() {
         -m owner ! --gid-owner $dns_procgroup \
         -j REDIRECT --to-ports $dns_mainport
 
-    # dns进程 => dns2tcp
-    is_enabled_dns2tcp &&
-        $1 -t nat -A SSTP_OUTPUT \
-            -d $remote_dns_ip \
-            -p udp \
-            -m udp --dport $remote_dns_port \
-            -m conntrack --ctstate NEW \
-            -m owner ! --gid-owner $proxy_procgroup \
-            -j REDIRECT --to-ports $dns2tcp_bind_port
-
     # 其他主机发来的dns请求
     is_proxy_other && ((dns_mainport != 53)) &&
         $1 -t nat -A SSTP_PREROUTING \
@@ -959,7 +918,7 @@ start_iptables_redirect() {
 _start_iptables() {
     start_iptables_pre $1
 
-    local loopback_addr loopback_addrx remote_dns_ip remote_dns_port white_setname black_setname
+    local loopback_addr loopback_addrx white_setname black_setname
     init_iptables_param $1
 
     if is_tcp_tproxy; then
@@ -1043,18 +1002,18 @@ show_iptables() {
 
 # stop后，dns进程未运行，为保证内网机器正常上网，需要重定向dns请求至直连dns
 add_reddns_rule() {
-    is_false "$ipts_reddns_onstop" && return
-
     local direct_dns_ip direct_dns_ipx direct_dns_port
 
     if is_ipv4_ipts $1; then
-        direct_dns_ip="$(get_directdns_ip)"
-        direct_dns_ipx="$(get_directdns_ip)"
-        direct_dns_port="$(get_directdns_port)"
+        [ -z "$ipts_reddns_onstop" ] && return
+        direct_dns_ip="$(get_ip_from_addr "$ipts_reddns_onstop")"
+        direct_dns_ipx="$direct_dns_ip"
+        direct_dns_port="$(get_port_from_addr "$ipts_reddns_onstop")"
     else
-        direct_dns_ip="$(get_directdns6_ip)"
-        direct_dns_ipx="[$(get_directdns6_ip)]"
-        direct_dns_port="$(get_directdns6_port)"
+        [ -z "$ipts_reddns6_onstop" ] && return
+        direct_dns_ip="$(get_ip_from_addr "$ipts_reddns6_onstop")"
+        direct_dns_ipx="[$direct_dns_ip]"
+        direct_dns_port="$(get_port_from_addr "$ipts_reddns6_onstop")"
     fi
 
     $1 -t nat -N SSTP_PREROUTING  &>/dev/null
@@ -1176,15 +1135,15 @@ status() {
     is_enabled_udp && _status "proxy/udp" udp_port_is_exists $proxy_udpport
 
     if is_built_in_dns; then
-        _status "dnsmasq" process_is_running $pid_dnsmasq
-        is_enabled_chinadns && _status "chinadns" process_is_running $pid_chinadns
+        _status "dnsmasq" process_is_running $sstp_pid_dnsmasq
+        is_enabled_chinadns && _status "chinadns" process_is_running $sstp_pid_chinadns
     else
         is_func custom_dns_status && custom_dns_status
     fi
 
     if is_enabled_dns2tcp; then
-        is_enabled_ipv4 && _status "dns2tcp4" process_is_running $pid_dns2tcp4
-        is_enabled_ipv6 && _status "dns2tcp6" process_is_running $pid_dns2tcp6
+        is_enabled_ipv4 && _status "dns2tcp4" process_is_running $sstp_pid_dns2tcp4
+        is_enabled_ipv6 && _status "dns2tcp6" process_is_running $sstp_pid_dns2tcp6
     fi
 
     is_func extra_status && extra_status
@@ -1208,6 +1167,8 @@ COMMAND := {
     update-gfwlist      update gfwlist.txt
     update-chnlist      update chnlist.txt
     update-chnroute     update chnroute.txt
+    set-proxy-group     set group for executable
+    set-dns-group       set group for executable
     version             show version and exit
     help                show help and exit
 }
@@ -1266,6 +1227,8 @@ main() {
         update-gfwlist)  update_gfwlist;;
         update-chnlist)  update_chnlist;;
         update-chnroute) update_chnroute;;
+        set-proxy-group) set_proxy_group "${arg_list[1]}";;
+        set-dns-group)   set_dns_group "${arg_list[1]}";;
         v*)              version;;
         h*)              help;;
         *)               echo "$(color_yellow "Unknown command: ${arg_list[0]}")"; help; return 1;;
