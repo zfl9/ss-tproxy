@@ -247,11 +247,14 @@ load_pidfile() {
 
 save_pidfile() {
     {
-        echo "sstp_pid_dnsmasq=$sstp_pid_dnsmasq"
-        echo "sstp_pid_chinadns=$sstp_pid_chinadns"
-        echo "sstp_pid_dns2tcp4=$sstp_pid_dns2tcp4"
-        echo "sstp_pid_dns2tcp6=$sstp_pid_dns2tcp6"
-        is_func custom_dns_pid && custom_dns_pid
+        if is_built_in_dns; then
+            echo "sstp_pid_dnsmasq=$sstp_pid_dnsmasq"
+            echo "sstp_pid_chinadns=$sstp_pid_chinadns"
+            echo "sstp_pid_dns2tcp4=$sstp_pid_dns2tcp4"
+            echo "sstp_pid_dns2tcp6=$sstp_pid_dns2tcp6"
+        else
+            is_func custom_dns_pid && custom_dns_pid
+        fi
     } >/run/ss-tproxy.pid
 }
 
@@ -607,8 +610,8 @@ init_ipset() {
 
 get_extra_whiteip() {
     if is_built_in_dns; then
-        is_true "$dns_direct_white" && get_ip_from_addr "$dns_direct"
-        is_true "$dns_direct6_white" && get_ip_from_addr "$dns_direct6"
+        is_true "$dns_direct_white" && echo "-$(get_ip_from_addr "$dns_direct")"
+        is_true "$dns_direct6_white" && echo "~$(get_ip_from_addr "$dns_direct6")"
     else
         is_func custom_dns_whiteip && custom_dns_whiteip
     fi
@@ -616,8 +619,8 @@ get_extra_whiteip() {
 
 get_extra_blackip() {
     if is_built_in_dns; then
-        is_true "$dns_remote_black" && get_ip_from_addr "$dns_remote"
-        is_true "$dns_remote6_black" && get_ip_from_addr "$dns_remote6"
+        is_true "$dns_remote_black" && echo "-$(get_ip_from_addr "$dns_remote")"
+        is_true "$dns_remote6_black" && echo "~$(get_ip_from_addr "$dns_remote6")"
     else
         is_func custom_dns_blackip && custom_dns_blackip
     fi
@@ -1137,20 +1140,17 @@ status() {
     if is_built_in_dns; then
         _status "dnsmasq" process_is_running $sstp_pid_dnsmasq
         is_enabled_chinadns && _status "chinadns" process_is_running $sstp_pid_chinadns
+        is_enabled_dns2tcp && is_enabled_ipv4 && _status "dns2tcp4" process_is_running $sstp_pid_dns2tcp4
+        is_enabled_dns2tcp && is_enabled_ipv6 && _status "dns2tcp6" process_is_running $sstp_pid_dns2tcp6
     else
         is_func custom_dns_status && custom_dns_status
-    fi
-
-    if is_enabled_dns2tcp; then
-        is_enabled_ipv4 && _status "dns2tcp4" process_is_running $sstp_pid_dns2tcp4
-        is_enabled_ipv6 && _status "dns2tcp6" process_is_running $sstp_pid_dns2tcp6
     fi
 
     is_func extra_status && extra_status
 }
 
 version() {
-    echo "ss-tproxy v4.7 (2023-05-19)"
+    echo "ss-tproxy v4.7 (2023-05-20)"
 }
 
 help() {
