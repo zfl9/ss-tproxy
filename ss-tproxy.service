@@ -1,7 +1,7 @@
 [Unit]
 Description=linux transparent proxy script
-Requires=network.target network-online.target
-After=network.target network-online.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
