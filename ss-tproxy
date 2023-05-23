@@ -35,6 +35,11 @@ is_func() {
     [ "$(type -t $1)" = 'function' ]
 }
 
+# 如果函数存在，则调用
+call_func() {
+    is_func "$1" && "$@"
+}
+
 # 使用数值0和1做布尔值最好，但由于历史原因，没法改了
 is_true() {
     [ "$1" = 'true' ]
@@ -135,6 +140,7 @@ udp_port_is_exists() {
     $netstat -anpu | grep -q ":$1[[:blank:]]"
 }
 
+# 通过一些运行时特征(系统重启后不保留的状态)，判断是否处于start状态
 ss_tproxy_is_started() {
     iptables  -t mangle -S SSTP_OUTPUT &>/dev/null ||
     iptables  -t nat    -S SSTP_OUTPUT &>/dev/null ||
@@ -242,7 +248,12 @@ get_port_from_addr() {
 }
 
 load_pidfile() {
-    file_is_exists /run/ss-tproxy.pid && source /run/ss-tproxy.pid
+    if ss_tproxy_is_started; then
+        source .ss-tproxy.pid
+    else
+        # start状态下重启系统，pid文件会保留，这里删一下
+        delete_pidfile
+    fi
 }
 
 save_pidfile() {
@@ -253,13 +264,13 @@ save_pidfile() {
             echo "sstp_pid_dns2tcp4=$sstp_pid_dns2tcp4"
             echo "sstp_pid_dns2tcp6=$sstp_pid_dns2tcp6"
         else
-            is_func custom_dns_pid && custom_dns_pid
+            call_func custom_dns_pid
         fi
-    } >/run/ss-tproxy.pid
+    } >.ss-tproxy.pid
 }
 
 delete_pidfile() {
-    rm -f /run/ss-tproxy.pid &>/dev/null
+    rm -f .ss-tproxy.pid &>/dev/null
 }
 
 load_config() {
@@ -309,12 +320,21 @@ check_config() {
     is_enabled_ipv4 && command_required 'iptables'
     is_enabled_ipv6 && command_required 'ip6tables'
 
+    # 有xtables锁时进行等待，而不是返回失败和报错
+    # 在此处定义，是为了不影响command_required判断
+    iptables() {
+        command iptables -w "$@"
+    }
+    ip6tables() {
+        command ip6tables -w "$@"
+    }
+
     if is_built_in_dns; then
         set_dns_group 'dnsmasq'
         is_enabled_chinadns && set_dns_group 'chinadns-ng'
         is_enabled_dns2tcp && set_dns_group 'dns2tcp'
     else
-        is_func custom_dns_init && custom_dns_init
+        call_func custom_dns_init
     fi
 
     case "$opts_ss_netstat" in
@@ -547,7 +567,7 @@ start_dnsserver() {
             echo $!
         )
     else
-        is_func custom_dns_start && custom_dns_start
+        call_func custom_dns_start
     fi
 
     save_pidfile
@@ -561,7 +581,7 @@ stop_dnsserver() {
     kill -9 $sstp_pid_dns2tcp4 &>/dev/null
     kill -9 $sstp_pid_dns2tcp6 &>/dev/null
 
-    is_func custom_dns_stop && custom_dns_stop
+    call_func custom_dns_stop
 
     delete_pidfile
 }
@@ -570,7 +590,7 @@ flush_dnscache() {
     if is_built_in_dns; then
         ss_tproxy_is_started && kill -HUP "$sstp_pid_dnsmasq"
     else
-        is_func custom_dns_flush && custom_dns_flush
+        call_func custom_dns_flush
     fi
 }
 
@@ -613,7 +633,7 @@ get_extra_whiteip() {
         is_true "$dns_direct_white" && echo "-$(get_ip_from_addr "$dns_direct")"
         is_true "$dns_direct6_white" && echo "~$(get_ip_from_addr "$dns_direct6")"
     else
-        is_func custom_dns_whiteip && custom_dns_whiteip
+        call_func custom_dns_whiteip
     fi
 }
 
@@ -622,7 +642,7 @@ get_extra_blackip() {
         is_true "$dns_remote_black" && echo "-$(get_ip_from_addr "$dns_remote")"
         is_true "$dns_remote6_black" && echo "~$(get_ip_from_addr "$dns_remote6")"
     else
-        is_func custom_dns_blackip && custom_dns_blackip
+        call_func custom_dns_blackip
     fi
 }
 
@@ -644,10 +664,9 @@ start_ipset() {
 
 # stop就清空，如果只是换节点或重启代理，不要通过ss-tproxy进行，请直接操作代理进程
 flush_ipset() {
-    ipset destroy sstp_white  &>/dev/null
-    ipset destroy sstp_white6 &>/dev/null
-    ipset destroy sstp_black  &>/dev/null
-    ipset destroy sstp_black6 &>/dev/null
+    for setname in $(ipset -n list | grep '^sstp_'); do
+        ipset destroy $setname
+    done
 }
 
 _start_iproute() {
@@ -973,7 +992,7 @@ _flush_iptables() {
     $1 -t nat    -D POSTROUTING -j SSTP_POSTROUTING &>/dev/null
 
     for table in mangle nat; do
-        local chain_list=$($1 -t $table -S 2>/dev/null | grep -- '-N SSTP_' | awk '{print $2}')
+        local chain_list=$($1 -t $table -S 2>/dev/null | grep '^-N SSTP_' | awk '{print $2}')
         for chain in $chain_list; do
             $1 -t $table -F $chain
         done
@@ -1090,7 +1109,7 @@ start() {
     # 清空并删除sstp_*规则，如stoprule
     flush_iptables
 
-    is_func pre_start && pre_start
+    call_func pre_start
 
     set_kernel_param
     start_proxyproc
@@ -1099,14 +1118,14 @@ start() {
     start_iproute
     start_iptables
 
-    is_func post_start && post_start
+    call_func post_start
 
     # post_start可能会添加规则到sstp_*，所以放到后面
     delete_unused_chain
 }
 
 stop() {
-    is_func pre_stop && pre_stop
+    call_func pre_stop
 
     flush_iptables
     flush_iproute
@@ -1117,7 +1136,7 @@ stop() {
     # 内网dns重定向、设置snat规则
     add_stoprule
 
-    is_func post_stop && post_stop
+    call_func post_stop
 }
 
 # name func args...
@@ -1143,10 +1162,10 @@ status() {
         is_enabled_dns2tcp && is_enabled_ipv4 && _status "dns2tcp4" process_is_running $sstp_pid_dns2tcp4
         is_enabled_dns2tcp && is_enabled_ipv6 && _status "dns2tcp6" process_is_running $sstp_pid_dns2tcp6
     else
-        is_func custom_dns_status && custom_dns_status
+        call_func custom_dns_status
     fi
 
-    is_func extra_status && extra_status
+    call_func extra_status
 }
 
 version() {
@@ -1212,9 +1231,11 @@ main() {
     cd -- "$base_dir" ||
         log_error "base directory not exists: $base_dir"
 
-    load_pidfile
     load_config
     check_config
+
+    # dns进程的pid
+    load_pidfile
 
     case "${arg_list[0]}" in
         start)           start; status;;
