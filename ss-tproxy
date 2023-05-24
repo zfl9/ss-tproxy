@@ -647,8 +647,8 @@ get_ext_ip() {
 
 get_ext_whiteip() {
     if is_built_in_dns; then
-        get_ext_ip - "$dns_direct_white" "$dns_direct"
-        get_ext_ip ~ "$dns_direct6_white" "$dns_direct6"
+        get_ext_ip '-' "$dns_direct_white" "$dns_direct"
+        get_ext_ip '~' "$dns_direct6_white" "$dns_direct6"
     else
         call_func custom_dns_whiteip
     fi
@@ -656,8 +656,8 @@ get_ext_whiteip() {
 
 get_ext_blackip() {
     if is_built_in_dns; then
-        get_ext_ip - "$dns_remote_black" "$dns_remote"
-        get_ext_ip ~ "$dns_remote6_black" "$dns_remote6"
+        get_ext_ip '-' "$dns_remote_black" "$dns_remote"
+        get_ext_ip '~' "$dns_remote6_black" "$dns_remote6"
     else
         call_func custom_dns_blackip
     fi
