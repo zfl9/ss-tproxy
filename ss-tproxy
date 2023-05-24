@@ -1192,7 +1192,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.7 (2023-05-20)"
+    echo "ss-tproxy v4.7.1 (2023-05-24)"
 }
 
 help() {
