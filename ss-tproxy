@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+export PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 # 除了主脚本，其他文件都放这个目录，此值可被命令行参数覆盖
 base_dir='/etc/ss-tproxy' # 同时也是工作目录
@@ -8,6 +8,16 @@ config_file='ss-tproxy.conf' # 可被命令行参数覆盖
 
 # 已存在的函数和变量尽量别改名/删除，因为可能被 ss-tproxy.conf 引用(如钩子函数)
 # 由于需要执行 iptables、策略路由、内核参数 等特权操作，脚本必须以 root 权限执行
+
+# 有xtables锁时进行等待，而不是报错退出
+iptables() {
+    command iptables -w "$@"
+}
+
+# 有xtables锁时进行等待，而不是报错退出
+ip6tables() {
+    command ip6tables -w "$@"
+}
 
 font_bold() {
     printf "\e[1m$*\e[0m"
@@ -79,11 +89,11 @@ list_ext_domain() {
 }
 
 command_path() {
-    command -v "$1"
+    type -P "$1"
 }
 
 command_is_exists() {
-    command -v "$1" &>/dev/null
+    type -P "$1" &>/dev/null
 }
 
 command_required() {
@@ -328,15 +338,6 @@ load_config() {
 
     is_enabled_ipv4 && command_required 'iptables'
     is_enabled_ipv6 && command_required 'ip6tables'
-
-    # 有xtables锁时进行等待，而不是直接报错退出
-    # 在此处定义，是为了不影响command_required判断
-    iptables() {
-        command iptables -w "$@"
-    }
-    ip6tables() {
-        command ip6tables -w "$@"
-    }
 
     # 放到外面来，可能custom也会用到此配置
     [ "$dnsmasq_bind_port" ] || dnsmasq_bind_port=$dns_mainport
