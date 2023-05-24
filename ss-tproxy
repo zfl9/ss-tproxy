@@ -247,15 +247,17 @@ get_port_from_addr() {
     echo "${addr#*#}"
 }
 
+# 加载上次start时的一些运行时状态，主要是pid
 load_pidfile() {
     if ss_tproxy_is_started; then
         source .ss-tproxy.pid
     else
-        # start状态下重启系统，pid文件会保留，这里删一下
+        # start状态下重启系统，pid文件会保留(未被清理)，这里删一下
         delete_pidfile
     fi
 }
 
+# start之后调用，保存start时的一些运行时状态
 save_pidfile() {
     {
         if is_built_in_dns; then
@@ -266,20 +268,26 @@ save_pidfile() {
         else
             call_func custom_dns_pid
         fi
+        call_func extra_pid
     } >.ss-tproxy.pid
 }
 
+# stop时移除，或者重启系统后有残留，也移除
 delete_pidfile() {
     rm -f .ss-tproxy.pid &>/dev/null
 }
 
 load_config() {
     file_required $config_file
-    source $config_file "${arg_list[@]}" || log_error "$config_file load failed, exit-code: $?"
-    for override in "${override_list[@]}"; do eval "$override"; done
-}
 
-check_config() {
+    source $config_file "${arg_list[@]}" ||
+        log_error "$config_file load failed, exit-code: $?"
+
+    # 覆盖同名配置，也可以用来定义新变量
+    for override in "${override_list[@]}"; do
+        eval "$override"
+    done
+
     { ! is_enabled_ipv4 && ! is_enabled_ipv6; } &&
         log_error "both ipv4 and ipv6 are disabled, nothing to do"
 
@@ -317,10 +325,11 @@ check_config() {
     is_need_iproute && command_required 'ip'
 
     command_required 'ipset'
+
     is_enabled_ipv4 && command_required 'iptables'
     is_enabled_ipv6 && command_required 'ip6tables'
 
-    # 有xtables锁时进行等待，而不是返回失败和报错
+    # 有xtables锁时进行等待，而不是直接报错退出
     # 在此处定义，是为了不影响command_required判断
     iptables() {
         command iptables -w "$@"
@@ -329,8 +338,10 @@ check_config() {
         command ip6tables -w "$@"
     }
 
+    # 放到外面来，可能custom也会用到此配置
+    [ "$dnsmasq_bind_port" ] || dnsmasq_bind_port=$dns_mainport
+
     if is_built_in_dns; then
-        [ "$dnsmasq_bind_port" ] || dnsmasq_bind_port=$dns_mainport
         set_dns_group 'dnsmasq'
         is_enabled_chinadns && set_dns_group 'chinadns-ng'
         is_enabled_dns2tcp && set_dns_group 'dns2tcp'
@@ -570,8 +581,6 @@ start_dnsserver() {
     else
         call_func custom_dns_start
     fi
-
-    save_pidfile
 }
 
 stop_dnsserver() {
@@ -583,8 +592,6 @@ stop_dnsserver() {
     kill -9 $sstp_pid_dns2tcp6 &>/dev/null
 
     call_func custom_dns_stop
-
-    delete_pidfile
 }
 
 flush_dnscache() {
@@ -614,9 +621,9 @@ set_kernel_param() {
     sysctl_all_iface 4 send_redirects=0
 }
 
-# 进程启动失败将退出脚本
+# 失败也不退出，避免逻辑执行不完整
 start_proxyproc() {
-    eval "$proxy_startcmd" || log_error "failed to execute the 'proxy_startcmd', exit-code: $?"
+    eval "$proxy_startcmd"
 }
 
 stop_proxyproc() {
@@ -629,19 +636,28 @@ init_ipset() {
     sed "s/^/add $1 /" | ipset -! restore
 }
 
-get_extra_whiteip() {
+# prefix "true/false/ip..." "ip#port"
+get_ext_ip() {
+    case "$2" in
+        true) echo "$1$(get_ip_from_addr "$3")";;
+        false) ;;
+        *) for ip in $2; do echo "$1$ip"; done;;
+    esac
+}
+
+get_ext_whiteip() {
     if is_built_in_dns; then
-        is_true "$dns_direct_white" && echo "-$(get_ip_from_addr "$dns_direct")"
-        is_true "$dns_direct6_white" && echo "~$(get_ip_from_addr "$dns_direct6")"
+        get_ext_ip - "$dns_direct_white" "$dns_direct"
+        get_ext_ip ~ "$dns_direct6_white" "$dns_direct6"
     else
         call_func custom_dns_whiteip
     fi
 }
 
-get_extra_blackip() {
+get_ext_blackip() {
     if is_built_in_dns; then
-        is_true "$dns_remote_black" && echo "-$(get_ip_from_addr "$dns_remote")"
-        is_true "$dns_remote6_black" && echo "~$(get_ip_from_addr "$dns_remote6")"
+        get_ext_ip - "$dns_remote_black" "$dns_remote"
+        get_ext_ip ~ "$dns_remote6_black" "$dns_remote6"
     else
         call_func custom_dns_blackip
     fi
@@ -650,16 +666,16 @@ get_extra_blackip() {
 # dns和iptables都需要ipset，为防止dns组件报错(A/AAAA)，v4和v6集合将始终创建
 start_ipset() {
     if is_global_mode; then
-        { list_ext_ipv4 ignlist.ext; get_extra_whiteip | list_ext_ipv4 -; } | init_ipset sstp_white
-        { list_ext_ipv6 ignlist.ext; get_extra_whiteip | list_ext_ipv6 -; } | init_ipset sstp_white6
+        { list_ext_ipv4 ignlist.ext; get_ext_whiteip | list_ext_ipv4 -; } | init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_ext_whiteip | list_ext_ipv6 -; } | init_ipset sstp_white6
     elif is_gfwlist_mode; then
-        { list_ext_ipv4 gfwlist.ext; get_extra_blackip | list_ext_ipv4 -; } | init_ipset sstp_black
-        { list_ext_ipv6 gfwlist.ext; get_extra_blackip | list_ext_ipv6 -; } | init_ipset sstp_black6
+        { list_ext_ipv4 gfwlist.ext; get_ext_blackip | list_ext_ipv4 -; } | init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_ext_blackip | list_ext_ipv6 -; } | init_ipset sstp_black6
     elif is_chnroute_mode; then
-        { list_ext_ipv4 ignlist.ext; get_extra_whiteip | list_ext_ipv4 -; cat chnroute.txt;  } | init_ipset sstp_white
-        { list_ext_ipv6 ignlist.ext; get_extra_whiteip | list_ext_ipv6 -; cat chnroute6.txt; } | init_ipset sstp_white6
-        { list_ext_ipv4 gfwlist.ext; get_extra_blackip | list_ext_ipv4 -; } | init_ipset sstp_black
-        { list_ext_ipv6 gfwlist.ext; get_extra_blackip | list_ext_ipv6 -; } | init_ipset sstp_black6
+        { list_ext_ipv4 ignlist.ext; get_ext_whiteip | list_ext_ipv4 -; cat chnroute.txt;  } | init_ipset sstp_white
+        { list_ext_ipv6 ignlist.ext; get_ext_whiteip | list_ext_ipv6 -; cat chnroute6.txt; } | init_ipset sstp_white6
+        { list_ext_ipv4 gfwlist.ext; get_ext_blackip | list_ext_ipv4 -; } | init_ipset sstp_black
+        { list_ext_ipv6 gfwlist.ext; get_ext_blackip | list_ext_ipv6 -; } | init_ipset sstp_black6
     fi
 }
 
@@ -1113,13 +1129,16 @@ start() {
     call_func pre_start
 
     set_kernel_param
+    start_ipset # 先创建ipset，因为dns进程需要
     start_proxyproc
-    start_ipset
     start_dnsserver
     start_iproute
     start_iptables
 
     call_func post_start
+
+    # post_start后再保存pid等运行时状态到文件
+    save_pidfile
 
     # post_start可能会添加规则到sstp_*，所以放到后面
     delete_unused_chain
@@ -1128,11 +1147,13 @@ start() {
 stop() {
     call_func pre_stop
 
+    # 与start顺序相反
+    delete_pidfile
     flush_iptables
     flush_iproute
     stop_dnsserver
-    flush_ipset
     stop_proxyproc
+    flush_ipset
 
     # 内网dns重定向、设置snat规则
     add_stoprule
@@ -1232,10 +1253,10 @@ main() {
     cd -- "$base_dir" ||
         log_error "base directory not exists: $base_dir"
 
+    # 先加载ss-tproxy.conf
     load_config
-    check_config
 
-    # dns进程的pid
+    # 加载上次start时记录的状态，如dns进程pid
     load_pidfile
 
     case "${arg_list[0]}" in
