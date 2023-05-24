@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 
 # 除了主脚本，其他文件都放这个目录，此值可被命令行参数覆盖
 base_dir='/etc/ss-tproxy' # 同时也是工作目录
