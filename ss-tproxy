@@ -330,6 +330,7 @@ check_config() {
     }
 
     if is_built_in_dns; then
+        [ "$dnsmasq_bind_port" ] || dnsmasq_bind_port=$dns_mainport
         set_dns_group 'dnsmasq'
         is_enabled_chinadns && set_dns_group 'chinadns-ng'
         is_enabled_dns2tcp && set_dns_group 'dns2tcp'
@@ -540,7 +541,7 @@ start_dnsserver() {
 
         sstp_pid_dnsmasq=$(
             {
-                echo "port = $dns_mainport"
+                echo "port = $dnsmasq_bind_port"
                 echo "group = $dns_procgroup"
                 is_true "$dnsmasq_log_enable" && echo 'log-queries'
                 echo "log-facility = $dnsmasq_log_file"
