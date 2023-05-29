@@ -683,7 +683,10 @@ start_ipset() {
 # stop就清空，如果只是换节点或重启代理，不要通过ss-tproxy进行，请直接操作代理进程
 flush_ipset() {
     for setname in $(ipset -n list | grep '^sstp_'); do
-        ipset destroy $setname
+        # https://github.com/zfl9/ss-tproxy/issues/234
+        while ! ipset destroy $setname &>/dev/null; do
+            sleep 0.02
+        done
     done
 }
 
@@ -1192,7 +1195,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.7.1 (2023-05-24)"
+    echo "ss-tproxy v4.7.2 (2023-05-29)"
 }
 
 help() {
