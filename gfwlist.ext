@@ -23,3 +23,6 @@
 # Telegram IPv6
 ~2001:67c:4e8::/48
 ~2001:0b28:f23d::/48
+
+# Google Play 问题
+@googleapis.cn

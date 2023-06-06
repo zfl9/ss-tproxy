@@ -208,6 +208,17 @@ is_proxy_other() {
     is_false "$selfonly"
 }
 
+is_drop_quic() {
+    case "$ipts_drop_quic" in
+        tcponly)
+            ! is_enabled_udp;;
+        always)
+            true;;
+        *)
+            false;;
+    esac
+}
+
 is_enabled_ipv4() {
     is_true "$ipv4"
 }
@@ -499,6 +510,7 @@ start_chinadns() {
 
     if is_gfwlist_mode; then
         sstp_pid_chinadns=$(
+            trap "" CHLD # 避免bash变为僵尸进程
             chinadns-ng \
             $args \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
@@ -509,6 +521,7 @@ start_chinadns() {
         )
     else # chnroute
         sstp_pid_chinadns=$(
+            trap "" CHLD # 避免bash变为僵尸进程
             chinadns-ng \
             $args \
             -g gfwlist.txt,<(list_ext_domain gfwlist.ext) \
@@ -801,6 +814,45 @@ create_sstp_rule() {
     fi
 }
 
+# mangle表 OUTPUT/PREROUTING -p udp --dport 443
+drop_quic() {
+    $1 -t mangle -N SSTP_QUIC
+
+    if is_global_mode; then
+        $1 -t mangle -A SSTP_QUIC \
+            -m set ! --match-set $white_setname dst \
+            -j DROP
+    elif is_gfwlist_mode; then
+        $1 -t mangle -A SSTP_QUIC \
+            -m set --match-set $black_setname dst \
+            -j DROP
+    elif is_chnroute_mode; then
+        # 放行白名单ip (若该ip同时也位于黑名单，则不放行)
+        $1 -t $table -A SSTP_QUIC \
+            -m set --match-set $white_setname dst \
+            -m set ! --match-set $black_setname dst \
+            -j RETURN
+        $1 -t $table -A SSTP_QUIC \
+            -j DROP
+    fi
+
+    $1 -t mangle -A SSTP_OUTPUT \
+        -p udp \
+        -m udp --dport 443 \
+        -m conntrack --ctdir ORIGINAL \
+        -m addrtype ! --dst-type LOCAL \
+        -m owner ! --gid-owner $proxy_procgroup \
+        -j SSTP_QUIC
+
+    is_proxy_other &&
+        $1 -t mangle -A SSTP_PREROUTING \
+            -p udp \
+            -m udp --dport 443 \
+            -m conntrack --ctdir ORIGINAL \
+            -m addrtype ! --dst-type LOCAL \
+            -j SSTP_QUIC
+}
+
 # mangle表 OUTPUT/PREROUTING
 do_proxy_tproxy() {
     local tcp=$(is_tcp_tproxy && echo 1 || echo 0)
@@ -963,6 +1015,10 @@ _start_iptables() {
 
     local loopback_addr loopback_addrx white_setname black_setname
     init_iptables_param $1
+
+    if is_drop_quic; then
+        drop_quic $1
+    fi
 
     if is_tcp_tproxy; then
         start_iptables_tproxy $1
