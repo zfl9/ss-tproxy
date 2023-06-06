@@ -532,7 +532,7 @@ stop_v2ray() {
 
 </details>
 
-<details><summary>socks5(trojan)</summary>
+<details><summary>trojan(socks5)</summary>
 
 - 如果手上只有 socks5 代理，可以将 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入
 - 以 trojan 为例，trojan 原生不支持 udp 透明代理传入，所以配合 ipt2socks 来实现
@@ -640,6 +640,45 @@ start_hy() {
 
 stop_hy() {
     kill -9 $(pidof hysteria) &>/dev/null
+}
+```
+
+</details>
+
+<details><summary>naive(socks5)</summary>
+
+- naive 不支持 UDP 代理，必须使用 tcponly='true' 模式
+- 仍然以 ipt2socks 为例，配合 naive 的 socks5 传入协议
+
+naive 配置文件：/etc/naive.json：
+
+```javascript
+{
+  "listen": "socks://127.0.0.1:1080",
+  "proxy": "https://用户:密码@naive服务器域名"
+}
+```
+
+配置 ss-tproxy.conf，填写启动和停止命令：
+
+```bash
+# 这里只介绍 v4.7+ 版本的配置
+
+tproxy='true' # ipt2socks默认为tproxy模式
+proxy_startcmd='start_naive'
+proxy_stopcmd='stop_naive'
+
+start_naive() {
+    # 设置 setgid 权限位 (只需执行一次)
+    set_proxy_group naive
+    set_proxy_group ipt2socks
+
+    (naive /etc/naive.json </dev/null &>>/var/log/naive.log &)
+    (ipt2socks </dev/null &>>/var/log/ipt2socks.log &)
+}
+
+stop_naive() {
+    kill -9 $(pidof naive) $(pidof ipt2socks) &>/dev/null
 }
 ```
 
