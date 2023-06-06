@@ -580,6 +580,7 @@ stop_v2ray() {
 # 这里只介绍 v4.7+ 版本的配置
 
 tproxy='true' # ipt2socks默认为tproxy模式
+
 proxy_startcmd='start_trojan'
 proxy_stopcmd='stop_trojan'
 
@@ -628,6 +629,7 @@ hysteria 配置文件 /etc/hysteria.json，这里使用 **纯 TPROXY 模式**：
 # 这里只介绍 v4.7+ 版本的配置
 
 tproxy='true' # 纯tproxy模式
+
 proxy_startcmd='start_hy'
 proxy_stopcmd='stop_hy'
 
@@ -666,6 +668,7 @@ naive 配置文件：/etc/naive.json：
 
 tproxy='true' # ipt2socks默认为tproxy模式
 tcponly='true' # naive不支持udp代理
+
 proxy_startcmd='start_naive'
 proxy_stopcmd='stop_naive'
 
