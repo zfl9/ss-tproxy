@@ -665,6 +665,7 @@ naive 配置文件：/etc/naive.json：
 # 这里只介绍 v4.7+ 版本的配置
 
 tproxy='true' # ipt2socks默认为tproxy模式
+tcponly='true' # naive不支持udp代理
 proxy_startcmd='start_naive'
 proxy_stopcmd='stop_naive'
 
