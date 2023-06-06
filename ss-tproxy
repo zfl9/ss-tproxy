@@ -828,11 +828,11 @@ drop_quic() {
             -j DROP
     elif is_chnroute_mode; then
         # 放行白名单ip (若该ip同时也位于黑名单，则不放行)
-        $1 -t $table -A SSTP_QUIC \
+        $1 -t mangle -A SSTP_QUIC \
             -m set --match-set $white_setname dst \
             -m set ! --match-set $black_setname dst \
             -j RETURN
-        $1 -t $table -A SSTP_QUIC \
+        $1 -t mangle -A SSTP_QUIC \
             -j DROP
     fi
 
