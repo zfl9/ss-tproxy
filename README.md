@@ -66,7 +66,7 @@ ipt2socks 是我编写的一个简单 C 程序，只专注于给科学上网套�
 - TCP 支持 REDIRECT 和 TPROXY 方式，支持纯 TPROXY 模式。
 - 只代理"主动出站"的流量，不影响 DMZ 主机、端口映射等应用。
 - 使用 [chinadns-ng](https://github.com/zfl9/chinadns-ng) 替代原版 chinadns，支持黑白名单、ipset 操作。
-- 自带一套开箱即用的 DNS 解析方案，也允许用户自定义 DNS 方案。
+- 自带一套开箱即用的 DNS 解析方案，也允许用户[自定义 DNS 方案](https://github.com/zfl9/ss-tproxy/wiki/DNS方案)。
 
 ---
 
@@ -273,7 +273,7 @@ ss-tproxy 要求代理进程不参与 ip 分流、dns 分流/解析，专心实�
 
 <details><summary>dns_custom</summary>
 
-给高级用户用的，用于自定义 DNS 方案，具体见 ss-tproxy.conf、ss-tproxy 脚本。
+给高级用户用的，用于自定义 DNS 方案，具体见 ss-tproxy.conf、ss-tproxy 脚本、[wiki/DNS方案](https://github.com/zfl9/ss-tproxy/wiki/DNS方案)。
 
 </details>
 
@@ -712,6 +712,8 @@ systemctl enable ss-tproxy
 
 > 不建议使用 `systemctl start|stop|restart ss-tproxy` 来操作 ss-tproxy，此服务文件应仅作开机自启用。
 
+如果遇到开机自启失败的问题，可以看下这个 wiki：<https://github.com/zfl9/ss-tproxy/wiki/开机自启>
+
 ## IPv6 透明代理
 
 对于 v4.6+ 版本，设置 `ipv6` 选项即可使用 IPv6 透明代理，使用方法同 IPv4 透明代理。但如果想让其他主机也接入 ss-tproxy 的透明代理，建议给相关主机配置 ULA 静态私有地址，也就是组建一个局域网，这样在给他们设置网关和 DNS 时，就不怕公网 IP 经常变动了。在这种情况下，你需要启用 ss-tproxy.conf 的 ipts_set_snat6 选项。
@@ -723,3 +725,5 @@ systemctl enable ss-tproxy
 - <https://github.com/zfl9/ss-tproxy/wiki/常见问题>
 - <https://github.com/zfl9/ss-tproxy/wiki/钩子函数>
 - <https://github.com/zfl9/ss-tproxy/wiki/内网限速>
+- <https://github.com/zfl9/ss-tproxy/wiki/开机自启>
+- <https://github.com/zfl9/ss-tproxy/wiki/DNS方案>
