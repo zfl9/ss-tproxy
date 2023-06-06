@@ -345,6 +345,16 @@ ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求�
  
 </details>
 
+<details><summary>ipts_drop_quic</summary>
+
+丢弃发往 **黑名单** 的 QUIC 流量（目标端口为 UDP/443），黑名单是指“分流”时，被判定为要走代理的地址。注意：本机代理进程传出的流量，不会受到此配置的影响。目前有如下取值：
+
+- 留空：不丢弃 QUIC，主要用于兼容旧版本行为。
+- tcponly：tcponly='true' 时，丢弃 QUIC，见 #237 issue。
+- always：总是丢弃 QUIC；如果代理的 UDP 体验差，建议丢弃。
+
+</details>
+
 <details><summary>opts_ss_netstat</summary>
 
 告诉 ss-tproxy，使用 ss 还是 netstat 命令进行端口检测，目前检测`本机代理进程`是否正常运行的方式是直接检测其是否已监听对应的端口，虽然这种方式有时并不准确，但似乎也没有其它更好的便携方法来做这个事情。
