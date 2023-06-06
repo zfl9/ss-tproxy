@@ -350,8 +350,10 @@ ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求�
 丢弃发往 **黑名单** 的 QUIC 流量（目标端口为 UDP/443），黑名单是指“分流”时，被判定为要走代理的地址。注意：本机代理进程传出的流量，不会受到此配置的影响。目前有如下取值：
 
 - 留空：不丢弃 QUIC，主要用于兼容旧版本行为。
-- tcponly：tcponly='true' 时，丢弃 QUIC，见 #237 issue。
+- tcponly：tcponly='true' 时，丢弃 QUIC，见 [#237](https://github.com/zfl9/ss-tproxy/issues/237) issue。
 - always：总是丢弃 QUIC；如果代理的 UDP 体验差，建议丢弃。
+
+比如 YouTube、ChatGPT 就默认启用 QUIC，如果油管测速比较低、ChatGPT 无法使用，可以尝试禁用 QUIC。
 
 </details>
 
