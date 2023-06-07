@@ -467,8 +467,6 @@ v2ray 配置文件 /etc/v2ray.json，在原有配置上，添加 dokodemo-door �
 ```javascript
 {
   "log": {
-    "access": "/var/log/v2ray/access.log",
-    "error": "/var/log/v2ray/error.log",
     "loglevel": "info" // 调试时请改为 debug
   },
 
@@ -520,13 +518,12 @@ proxy_stopcmd='stop_v2ray'
 start_v2ray() {
     # 设置 setgid 权限位 (只需执行一次)
     set_proxy_group v2ray
-    set_proxy_group v2ctl
 
-    (v2ray -config /etc/v2ray.json </dev/null &>/dev/null &)
+    (v2ray run -c /etc/v2ray.json </dev/null &>>/var/log/v2ray.log &)
 }
 
 stop_v2ray() {
-    kill -9 $(pidof v2ray) $(pidof v2ctl) &>/dev/null
+    kill -9 $(pidof v2ray) &>/dev/null
 }
 ```
 
