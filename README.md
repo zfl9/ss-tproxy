@@ -649,7 +649,7 @@ stop_hy() {
 - naive 不支持 UDP 代理，必须使用 tcponly='true' 模式
 - 仍然以 ipt2socks 为例，配合 naive 的 socks5 传入协议
 
-naive 配置文件：/etc/naive.json：
+naive 配置文件 /etc/naive.json：
 
 ```javascript
 {
