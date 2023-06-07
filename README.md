@@ -685,6 +685,76 @@ stop_naive() {
 
 </details>
 
+<details><summary>clash</summary>
+
+- clash 支持自动选择节点，支持 RESTful API，可以在 Web 进行配置和管理。
+- 分流和 DNS 由 ss-tproxy 负责，clash 这边让流量走代理出去即可，不要分流。
+- Web 控制台：<http://yacd.haishan.me>，填写 external-controller 和 secret 即可。
+
+clash 配置文件 /etc/clash/config.yaml：
+
+```yaml
+mode: rule
+
+# 日志级别
+# log-level: info
+log-level: warning
+
+# redir-port: 60080 # REDIRECT 模式
+tproxy-port: 60080 # 纯 TPROXY 模式
+
+# RESTful API 相关
+external-controller: 0.0.0.0:9090 # 监听 0.0.0.0 是为了能在其他设备访问
+secret: a934ecd1-9729-4925-bcb3-15a3d7d85e77 # RESTful API 的认证密码
+
+# 节点列表，节点名可被 proxy-groups 引用
+proxies:
+  - name: socks5_server # 节点名
+    type: socks5 # 以 socks5 节点为例，其他协议请看 clash 文档
+    udp: true # 启用 UDP，默认不启用 (请尽量启用，除非节点不支持)
+    server: 192.168.1.100 # 填写 socks5 服务器地址
+    port: 1080 # 填写 socks5 服务器端口
+
+# 节点分组，分组名可被 rules 引用
+proxy-groups:
+  - name: PROXY # 分组名
+    type: select # 如果想自动选择节点，可使用 url-test
+    proxies:
+      - socks5_server # 引用的节点名
+
+# 如果是机场，也可以使用订阅，具体请看 clash 文档
+# proxy-providers:
+
+# 分流由 ss-tproxy 负责，clash 这边只需全部走代理
+rules:
+  - MATCH,PROXY # 所有流量都走 PROXY 组出去
+```
+
+配置 ss-tproxy.conf，填写启动和停止命令：
+
+```bash
+# 这里只介绍 v4.7+ 版本的配置
+
+tproxy='true' # 本例中，使用纯tproxy模式
+# tcponly='true' # 若节点不支持udp，请使用tcponly
+
+proxy_startcmd='start_clash'
+proxy_stopcmd='stop_clash'
+
+start_clash() {
+    # 设置 setgid 权限位 (只需执行一次)
+    set_proxy_group clash
+
+    (clash -d /etc/clash </dev/null &>>/var/log/clash.log &)
+}
+
+stop_clash() {
+    kill -9 $(pidof clash) &>/dev/null
+}
+```
+
+</details>
+
 ---
 
 再次重申，如果只是切换节点/代理，请不要通过修改 ss-tproxy.conf、重启 ss-tproxy 的方式进行，请直接操作相关代理进程。举个例子，对于 ss-redir，就是先把原来的 ss-redir 进程杀死，然后启动新的 ss-redir 进程。当然，你可以用脚本或者你喜欢的任意方式，来封装节点切换操作，或者使用 clash 这种支持 **自动切换/选择节点** 的代理客户端。
