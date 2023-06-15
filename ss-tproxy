@@ -970,7 +970,7 @@ do_proxy_dnat() {
 
 # nat表 OUTPUT/PREROUTING -p udp
 redir_dns_request() {
-    # 本机发出的dns请求
+    # 本机发出的dns请求 (dnat)
     $1 -t nat -A SSTP_OUTPUT \
         -p udp \
         -m udp --dport 53 \
@@ -979,13 +979,19 @@ redir_dns_request() {
         -m owner ! --gid-owner $dns_procgroup \
         -j REDIRECT --to-ports $dns_mainport
 
+    # 本机发出的dns请求 (snat)
+    $1 -t nat -A SSTP_POSTROUTING \
+        -d $loopback_addr \
+        ! -s $loopback_addr \
+        -j SNAT --to-source $loopback_addr
+
     # 其他主机发来的dns请求
-    is_proxy_other && ((dns_mainport != 53)) &&
+    is_proxy_other &&
         $1 -t nat -A SSTP_PREROUTING \
             -p udp \
             -m udp --dport 53 \
             -m conntrack --ctstate NEW \
-            -m addrtype ! --src-type LOCAL --dst-type LOCAL \
+            -m addrtype ! --src-type LOCAL \
             -j REDIRECT --to-ports $dns_mainport
 }
 
@@ -1251,7 +1257,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.7.4 (2023-06-06)"
+    echo "ss-tproxy v4.7.5 (2023-06-15)"
 }
 
 help() {
