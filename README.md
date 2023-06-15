@@ -289,7 +289,7 @@ ss-tproxy 要求代理进程不参与 ip 分流、dns 分流/解析，专心实�
     
 - DNS 的请求入口（UDP 监听端口），脚本会自动将相关 DNS 请求重定向至此端口
 - 对于内置 DNS 方案，该端口是 dnsmasq 的监听端口，如果与其他进程有冲突，请修改
-- 如果 ss-tproxy 主机上有其他进程监听了 53 端口，请修改为其他端口。已知 systemd-resolved 会监听 53 端口，会导致 dnsmasq 启动失败。
+- 已知 systemd-resolved 会监听 53 端口，所以 v4.7.5+ 将端口改为了 60053，减少冲突
  
 </details>
 
