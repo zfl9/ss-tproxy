@@ -393,6 +393,9 @@ ss 配置文件 /etc/ss.json，与常规配置相同，无特别之处。
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
 
+tproxy='false' # ss-libev 默认为 redirect 模式
+tcponly='false' # 若节点不支持 udp，请修改为 true
+
 proxy_startcmd='start_ss'
 proxy_stopcmd='stop_ss'
 
@@ -436,6 +439,9 @@ ssr 配置文件 /etc/ssr.json，与常规配置相同，无特别之处。
 
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
+
+tproxy='false' # ssr-libev 只支持 redirect 模式
+tcponly='false' # 若节点不支持 udp，请修改为 true
 
 proxy_startcmd='start_ssr'
 proxy_stopcmd='stop_ssr'
@@ -513,6 +519,9 @@ v2ray 配置文件 /etc/v2ray.json，在原有配置上，添加 dokodemo-door �
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
 
+tproxy='false' # 本例中，使用 redirect 模式
+tcponly='false' # 若节点不支持 udp，请修改为 true
+
 proxy_startcmd='start_v2ray'
 proxy_stopcmd='stop_v2ray'
 
@@ -577,7 +586,8 @@ stop_v2ray() {
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
 
-tproxy='true' # ipt2socks默认为tproxy模式
+tproxy='true' # ipt2socks 默认使用纯 tproxy 模式
+tcponly='false' # 若节点不支持 udp，请修改为 true
 
 proxy_startcmd='start_trojan'
 proxy_stopcmd='stop_trojan'
@@ -626,7 +636,8 @@ hysteria 配置文件 /etc/hysteria.json，这里使用 **纯 TPROXY 模式**：
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
 
-tproxy='true' # 纯tproxy模式
+tproxy='true' # 本例中，使用纯 tproxy 模式
+tcponly='false' # 若节点不支持 udp，请修改为 true
 
 proxy_startcmd='start_hy'
 proxy_stopcmd='stop_hy'
@@ -664,8 +675,8 @@ naive 配置文件 /etc/naive.json：
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
 
-tproxy='true' # ipt2socks默认为tproxy模式
-tcponly='true' # naive不支持udp代理
+tproxy='true' # ipt2socks 默认使用纯 tproxy 模式
+tcponly='true' # naive 不支持 udp 代理
 
 proxy_startcmd='start_naive'
 proxy_stopcmd='stop_naive'
@@ -736,8 +747,8 @@ rules:
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
 
-tproxy='true' # 本例中，使用纯tproxy模式
-# tcponly='true' # 若节点不支持udp，请使用tcponly
+tproxy='true' # 本例中，使用纯 tproxy 模式
+tcponly='false' # 若节点不支持 udp，请修改为 true
 
 proxy_startcmd='start_clash'
 proxy_stopcmd='stop_clash'
