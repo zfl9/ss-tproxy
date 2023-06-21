@@ -926,6 +926,7 @@ do_proxy_tproxy() {
         ((udp)) &&
             $1 -t mangle -A SSTP_PREROUTING \
                 -p udp \
+                -m udp ! --dport 53 \
                 -m conntrack --ctstate NEW,RELATED \
                 -m addrtype ! --src-type LOCAL \
                 $(get_dst_port_match) \
@@ -1257,7 +1258,7 @@ status() {
 }
 
 version() {
-    echo "ss-tproxy v4.7.5 (2023-06-19)"
+    echo "ss-tproxy v4.7.6 (2023-06-21)"
 }
 
 help() {
