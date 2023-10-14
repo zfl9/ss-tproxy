@@ -182,6 +182,8 @@ rm -fr /etc/systemd/system/ss-tproxy.service # service文件
 
 > 注意，配置文件在 /etc/ss-tproxy/ 目录，不是 git clone 下来的目录！
 
+**初次接触的，请先跳过这一段，直接看下一节 [代理软件配置](#代理软件配置)**，按照示例修改配置即可
+
 配置项有点多，但通常只需修改 ss-tproxy.conf 前面的少数配置项（开头至`proxy`配置段）
 
 <details><summary>注释</summary>
@@ -539,6 +541,12 @@ stop_v2ray() {
 
 </details>
 
+<details><summary>xray</summary>
+
+xray 在配置上兼容 v2ray，inbounds 配置照抄 v2ray 的，然后将 v2ray 替换为 xray 即可。
+
+</details>
+
 <details><summary>trojan(socks5)</summary>
 
 - 如果手上只有 socks5 代理，可以将 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入
@@ -766,6 +774,52 @@ stop_clash() {
 ```
 
 </details>
+
+---
+
+**如果使用 systemctl 方式启停代理进程，请进行一次如下操作：**
+
+> 步骤1 和 步骤2 执行过一次就行，除非代理程序重新安装或更新了
+
+1、执行`systemctl edit <服务名>`，它会打开一个文件，让你编辑
+
+```bash
+systemctl edit xray # 以xray为例
+```
+
+2、在光标默认位置（第4行），新增两行，然后保存退出。具体如下：
+
+```service
+### Editing /etc/systemd/system/xray.service.d/override.conf
+### Anything between here and the comment below will become the contents of the drop-in file
+
+# 下面两行就是要新加的，含义是：让代理进程以proxy组的身份来运行
+[Service]
+Group=proxy
+
+### Edits below this comment will be discarded
+```
+
+3、重启代理进程的服务，让刚刚的修改生效：`systemctl restart <服务名>`
+
+```bash
+systemctl restart xray # 以xray为例
+```
+
+---
+
+**无论是什么方式启动的代理进程，请务必检查下gid是否正确**
+
+```bash
+# 先查看proxy组的gid是多少
+grep proxy /etc/group
+
+# 检查进程的gid是否为proxy组
+grep Gid /proc/$(pidof xray)/status # 以xray为例
+
+# 如果gid不对，说明配置或姿势不对，请发issue寻求帮助，我尽量解决
+# 也可以看下这个: https://github.com/zfl9/ss-tproxy/discussions/233
+```
 
 ---
 
