@@ -804,16 +804,20 @@ Group=proxy
 
 ```bash
 systemctl restart xray # 以xray为例
+```
 
-# 使用以下命令检查Gid是否正确
+---
 
+**无论是什么方式启动的代理进程，请务必检查下gid是否正确**
+
+```bash
 # 先查看proxy组的gid是多少
 grep proxy /etc/group
 
 # 检查进程的gid是否为proxy组
 grep Gid /proc/$(pidof xray)/status # 以xray为例
 
-# 如果gid不对，那么说明没修改对，请发issue寻求帮助
+# 如果gid不对，说明配置或姿势不对，请发issue寻求帮助，我尽量解决
 # 也可以看下这个: https://github.com/zfl9/ss-tproxy/discussions/233
 ```
 
