@@ -98,9 +98,7 @@ TPROXY 相关：
 
 默认 DNS 方案：
 
-- `dnsmasq`：基础 DNS 服务，对于 global/gfwlist 模式，需要支持 `--ipset` 选项。
 - `chinadns-ng`：用于 chnroute 模式，v4.7 开始，也可用于 gfwlist 模式，提升性能。
-- `dns2tcp`：用于 tcponly 模式，将 DNS 查询从 UDP 转为 TCP，注意是 [zfl9/dns2tcp](https://github.com/zfl9/dns2tcp)。
 
 > 使用自定义 DNS 方案时，不需要上述 DNS 依赖。
 
@@ -290,15 +288,9 @@ ss-tproxy 要求代理进程不参与 ip 分流、dns 分流/解析，专心实�
 <details><summary>dns_mainport</summary>
     
 - DNS 的请求入口（UDP 监听端口），脚本会自动将相关 DNS 请求重定向至此端口
-- 对于内置 DNS 方案，该端口是 dnsmasq 的监听端口，如果与其他进程有冲突，请修改
+- 对于内置 DNS 方案，该端口是 chinadns-ng 的监听端口，如与其他进程有冲突，请修改
 - 已知 systemd-resolved 会监听 53 端口，所以 v4.7.5+ 将端口改为了 60053，减少冲突
  
-</details>
-
-<details><summary>chinadns_for_gfwlist</summary>
-
-在 chinadns-ng 已安装的情况下，如果使用 mode=gfwlist 分流，chinadns-ng 将接管 DNS 分流操作，这是由于 dnsmasq 不适合配置大量 server、ipset 记录，会拉低 DNS 解析性能，所以使用 chinadns-ng 来避免该问题。
-
 </details>
 
 <details><summary>chinadns_chnlist_first</summary>
