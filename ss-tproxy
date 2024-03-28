@@ -569,10 +569,20 @@ init_ipset() {
     sed "s/^/add $1 /" | ipset -! restore
 }
 
-# prefix "true/false/ip..." "ip#port"
+# [proto://][host@]ip[#port][path]
+get_upstream_ip() {
+    local upstream="$1"
+    upstream="${upstream##*://}"
+    upstream="${upstream##*@}"
+    upstream="${upstream%%/*}"
+    upstream="${upstream%%#*}"
+    echo "$upstream"
+}
+
+# prefix "true/false/ip..." "upstreams..."
 get_ext_ip() {
     case "$2" in
-        true) echo "$1$(get_ip_from_addr "$3")";;
+        true) for u in $3; do echo "$1$(get_upstream_ip "$u")"; done;;
         false) ;;
         *) for ip in $2; do echo "$1$ip"; done;;
     esac
@@ -805,6 +815,12 @@ do_proxy_tproxy() {
         -j RETURN
 
     # 放行本机发出的dns请求，留给nat去重定向
+    ((tcp)) &&
+        $1 -t mangle -A SSTP_OUTPUT \
+            -p tcp \
+            -m tcp --dport 53 \
+            -m owner ! --gid-owner $dns_procgroup \
+            -j RETURN
     ((udp)) &&
         $1 -t mangle -A SSTP_OUTPUT \
             -p udp \
@@ -848,7 +864,7 @@ do_proxy_tproxy() {
         ((tcp)) &&
             $1 -t mangle -A SSTP_PREROUTING \
                 -p tcp \
-                -m tcp --syn \
+                -m tcp --syn ! --dport 53 \
                 -m addrtype ! --src-type LOCAL \
                 $(get_dst_port_match) \
                 -j SSTP_RULE
@@ -904,6 +920,12 @@ do_proxy_dnat() {
 redir_dns_request() {
     # 本机发出的dns请求 (dnat)
     $1 -t nat -A SSTP_OUTPUT \
+        -p tcp \
+        -m tcp --dport 53 --syn \
+        -m owner ! --gid-owner $proxy_procgroup \
+        -m owner ! --gid-owner $dns_procgroup \
+        -j REDIRECT --to-ports $dns_mainport
+    $1 -t nat -A SSTP_OUTPUT \
         -p udp \
         -m udp --dport 53 \
         -m conntrack --ctstate NEW \
@@ -920,6 +942,12 @@ redir_dns_request() {
     # 其他主机发来的dns请求
     is_proxy_other &&
         $1 -t nat -A SSTP_PREROUTING \
+            -p tcp \
+            -m tcp --dport 53 --syn \
+            -m addrtype ! --src-type LOCAL \
+            -j REDIRECT --to-ports $dns_mainport
+    is_proxy_other &&
+        $1 -t nat -A SSTP_PREROUTING \
             -p udp \
             -m udp --dport 53 \
             -m conntrack --ctstate NEW \
@@ -933,7 +961,7 @@ start_iptables_tproxy() {
     # 处理tcp/udp mangle表
     do_proxy_tproxy $1
 
-    # 处理dns(udp) nat表
+    # 处理dns(tcp+udp) nat表
     redir_dns_request $1
 }
 
@@ -946,7 +974,7 @@ start_iptables_redirect() {
         do_proxy_tproxy $1
     fi
 
-    # 处理dns(udp) nat表
+    # 处理dns(tcp+udp) nat表
     redir_dns_request $1
 }
 
@@ -1067,11 +1095,22 @@ add_reddns_rule() {
     $1 -t nat -N SSTP_POSTROUTING &>/dev/null
 
     $1 -t nat -A SSTP_PREROUTING \
+        -p tcp \
+        -m tcp --dport 53 \
+        -m addrtype ! --src-type LOCAL --dst-type LOCAL \
+        -j DNAT --to-destination $direct_dns_ipx:$direct_dns_port
+    $1 -t nat -A SSTP_PREROUTING \
         -p udp \
         -m udp --dport 53 \
         -m addrtype ! --src-type LOCAL --dst-type LOCAL \
         -j DNAT --to-destination $direct_dns_ipx:$direct_dns_port
 
+    $1 -t nat -A SSTP_POSTROUTING \
+        -d $direct_dns_ip \
+        -p tcp \
+        -m tcp --dport $direct_dns_port \
+        -m addrtype ! --src-type LOCAL \
+        -j MASQUERADE
     $1 -t nat -A SSTP_POSTROUTING \
         -d $direct_dns_ip \
         -p udp \
