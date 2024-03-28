@@ -916,7 +916,7 @@ do_proxy_dnat() {
 
 #===============================================================
 
-# nat表 OUTPUT/PREROUTING -p udp
+# nat表 OUTPUT/PREROUTING -p tcp,udp
 redir_dns_request() {
     # 本机发出的dns请求 (dnat)
     $1 -t nat -A SSTP_OUTPUT \
@@ -958,14 +958,17 @@ redir_dns_request() {
 #===============================================================
 
 start_iptables_tproxy() {
-    # 处理tcp/udp mangle表
-    do_proxy_tproxy $1
-
     # 处理dns(tcp+udp) nat表
     redir_dns_request $1
+
+    # 处理tcp/udp mangle表
+    do_proxy_tproxy $1
 }
 
 start_iptables_redirect() {
+    # 处理dns(tcp+udp) nat表
+    redir_dns_request $1
+
     # 处理tcp nat表
     do_proxy_dnat $1
 
@@ -973,9 +976,6 @@ start_iptables_redirect() {
     if is_enabled_udp; then
         do_proxy_tproxy $1
     fi
-
-    # 处理dns(tcp+udp) nat表
-    redir_dns_request $1
 }
 
 _start_iptables() {
