@@ -621,11 +621,11 @@ hysteria 配置文件 /etc/hysteria.json，这里使用 **纯 TPROXY 模式**：
   "retry": -1,
   "retry_interval": 1,
   "tproxy_tcp": {
-    "listen": "127.0.0.1:60080",
+    "listen": ":60080",
     "timeout": 300
   },
   "tproxy_udp": {
-    "listen": "127.0.0.1:60080",
+    "listen": ":60080",
     "timeout": 300
   }
 }
