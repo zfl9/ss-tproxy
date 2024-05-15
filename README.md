@@ -82,7 +82,9 @@ ipt2socks 是我编写的一个简单 C 程序，只专注于给科学上网套�
 
 ## 相关依赖
 
-> 依赖安装参考：<https://github.com/zfl9/ss-tproxy/wiki/安装依赖>
+> <https://github.com/zfl9/ss-tproxy/wiki/安装依赖>
+
+<details><summary><b>依赖项</b></summary><p>
 
 基础依赖：
 
@@ -91,24 +93,36 @@ ipt2socks 是我编写的一个简单 C 程序，只专注于给科学上网套�
 - `ip6tables`：用于配置 IPv6 透明代理规则，仅在启用 IPv6 透明代理时需要。
 - `ipset`：用于存储黑名单/白名单的 IP，使 iptables 规则与 dns 组件实现联动。
 
+---
+
 TPROXY 相关：
 
 - `xt_TPROXY`：TPROXY 内核模块，涉及到 TPROXY 规则时需要此依赖（如 UDP）。
 - `iproute2`：用于配置策略路由，完成 TPROXY 操作，与 xt_TPROXY 是互相配套的。
 
+---
+
 默认 DNS 方案：
+
+> 使用自定义 DNS 方案时，不需要此处的 DNS 依赖。
 
 - `chinadns-ng`：实现 DNS 分流、DNS 缓存、与 ipset 进行联动。
 
-> 使用自定义 DNS 方案时，不需要上述 DNS 依赖。
+---
 
 其他依赖：
 
 - `curl`：用于更新 gfwlist.txt、chnlist.txt、chnroute.txt，需要支持 https。
 
+---
+
 如果某些模式基本不用，那对应的依赖也不用管。比如，不打算使用 IPv6 透明代理，则无需关心 ip6tables。脚本会检查当前配置所需的依赖，根据提示安装缺少的依赖即可。
 
-## 获取脚本
+</p></details>
+
+## 安装和卸载
+
+<details><summary><b>获取</b></summary><p>
 
 ```bash
 git clone https://github.com/zfl9/ss-tproxy
@@ -116,7 +130,9 @@ cd ss-tproxy
 chmod +x ss-tproxy
 ```
 
-## 安装脚本
+</p></details>
+
+<details><summary><b>安装</b></summary><p>
 
 > 请确保当前用户有权限读写以下目录，如没有，请先运行`sudo su`进入超级用户(root)。
 
@@ -138,7 +154,9 @@ cp -af *.conf *.txt *.ext /etc/ss-tproxy
 cp -af ss-tproxy.service /etc/systemd/system # 可选，安装 service 文件
 ```
 
-## 卸载脚本
+</p></details>
+
+<details><summary><b>卸载</b></summary><p>
 
 ```bash
 # 停止脚本 (v4.7版本之前)
@@ -156,11 +174,15 @@ rm -fr /etc/ss-tproxy # 删除配置(做好备份)
 rm -fr /etc/systemd/system/ss-tproxy.service # service文件
 ```
 
-## 升级脚本
+</p></details>
+
+<details><summary><b>升级</b></summary><p>
 
 脚本目前没有自我更新能力，只能卸载后重新安装，也许后续会支持。
 
 不同版本的配置文件、数据文件，不保证兼容，避免背上不必要的历史包袱。
+
+</p></details>
 
 ## 文件列表
 
@@ -842,7 +864,7 @@ done
 
 ---
 
-此外，可以在命令行的任意位置，指定以下选项：
+可以在命令行的任意位置，指定以下选项：
 
 - `-x`：输出调试信息，比如脚本出错时，可用来定位是哪条命令
 - `-d dir`：使用给定的工作目录，默认是 /etc/ss-tproxy
@@ -867,7 +889,7 @@ ss-tproxy restart 后，可能会由于 DNS 缓存，导致无法代理，请尝
 
 对于 proxy_stopcmd，如果忘记遵循 **先 stop，后修改** 的顺序，也可以补救，那就是自己手动 kill 之前的代理进程。当然，你也可以在 proxy_stopcmd 中预先填写好所有可能要 kill 的代理进程，这样后续就不需要再修改了。
 
-> 其他 ss-tproxy.conf 配置无需遵循上述约定，改完 restart 即可。
+其他 ss-tproxy.conf 配置无需遵循上述约定，改完 restart 即可。
 
 ## 脚本开机自启
 
