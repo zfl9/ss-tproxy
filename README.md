@@ -185,9 +185,9 @@ rm -fr /etc/systemd/system/ss-tproxy.service # service文件
 配置项有点多，但通常只需修改 ss-tproxy.conf 前面的少数配置项（开头至`proxy`配置段）
 
 <details><summary>注释</summary>
-    
+
 井号开头的行为注释行，配置文件本质上是一个 shell 脚本，对于同名变量或函数，后定义的会覆盖先定义的。
-    
+
 </details>
 
 <details><summary>mode</summary>
@@ -364,7 +364,7 @@ ss-tproxy stop 后，是否将内网主机发往 ss-tproxy 主机的 DNS 请求�
 
 ## 代理软件配置
 
-<details><summary>ss-libev</summary>
+<details><summary><b>ss-libev</b></summary><p>
  
 ss 配置文件 /etc/ss.json，与常规配置相同，无特别之处。
 
@@ -408,9 +408,9 @@ stop_ss() {
 }
 ```
 
-</details>
+</p></details>
 
-<details><summary>ssr-libev</summary>
+<details><summary><b>ssr-libev</b></summary><p>
 
 ssr 配置文件 /etc/ssr.json，与常规配置相同，无特别之处。
 
@@ -455,9 +455,9 @@ stop_ssr() {
 }
 ```
 
-</details>
+</p></details>
 
-<details><summary>v2ray</summary>
+<details><summary><b>v2ray</b></summary><p>
 
 v2ray 配置文件 /etc/v2ray.json，在原有配置上，添加 dokodemo-door 入站协议即可。
 
@@ -531,15 +531,15 @@ stop_v2ray() {
 }
 ```
 
-</details>
+</p></details>
 
-<details><summary>xray</summary>
+<details><summary><b>xray</b></summary><p>
 
 xray 在配置上兼容 v2ray，inbounds 配置照抄 v2ray 的，然后将 v2ray 替换为 xray 即可。
 
-</details>
+</p></details>
 
-<details><summary>trojan(socks5)</summary>
+<details><summary><b>trojan(socks5)</b></summary><p>
 
 - 如果手上只有 socks5 代理，可以将 [ipt2socks](https://github.com/zfl9/ipt2socks) 作为其前端，提供透明代理传入
 - 以 trojan 为例，trojan 原生不支持 udp 透明代理传入，所以配合 ipt2socks 来实现
@@ -606,9 +606,9 @@ stop_trojan() {
 }
 ```
 
-</details>
+</p></details>
 
-<details><summary>hysteria</summary>
+<details><summary><b>hysteria</b></summary><p>
 
 hysteria 配置文件 /etc/hysteria.json，这里使用 **纯 TPROXY 模式**：
 
@@ -657,9 +657,9 @@ stop_hy() {
 }
 ```
 
-</details>
+</p></details>
 
-<details><summary>naive</summary>
+<details><summary><b>naive</b></summary><p>
 
 - naive 不支持 UDP 代理，必须使用 tcponly='true' 模式
 
@@ -695,9 +695,9 @@ stop_naive() {
 }
 ```
 
-</details>
+</p></details>
 
-<details><summary>clash</summary>
+<details><summary><b>clash</b></summary><p>
 
 - clash 支持自动选择节点，支持 RESTful API，可以在 Web 进行配置和管理。
 - 分流和 DNS 由 ss-tproxy 负责，clash 这边让流量走代理出去即可，不要分流。
@@ -765,13 +765,13 @@ stop_clash() {
 }
 ```
 
-</details>
+</p></details>
 
 ---
 
-**如果使用 systemctl 方式启停代理进程，请进行一次如下操作：**
+<details><summary><b>若使用 systemctl 启动代理进程，请进行一次下面的操作</b></summary><p>
 
-> 步骤1 和 步骤2 执行过一次就行，除非代理程序重新安装或更新了
+> 这些操作执行过一次就行，除非代理程序重新安装或 service 文件更新了
 
 1、执行`systemctl edit <服务名>`，它会打开一个文件，让你编辑
 
@@ -798,9 +798,11 @@ Group=proxy
 systemctl restart xray # 以xray为例
 ```
 
+</p></details>
+
 ---
 
-**无论是什么方式启动的代理进程，请务必检查下gid是否正确**
+<details><summary><b>无论是什么方式启动的代理进程，请务必检查下gid是否正确</b></summary><p>
 
 ```bash
 # 先查看proxy组的gid是多少
@@ -814,6 +816,8 @@ done
 # 如果gid不对，说明配置或姿势不对，请发issue寻求帮助，我尽量解决
 # 也可以看下这个: https://github.com/zfl9/ss-tproxy/discussions/233
 ```
+
+</p></details>
 
 ---
 
