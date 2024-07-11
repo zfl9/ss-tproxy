@@ -1249,6 +1249,8 @@ COMMAND := {
     start               start ss-tproxy
     stop                stop ss-tproxy
     restart             restart ss-tproxy
+    restart-proxy       restart proxy program
+    restart-dns         restart dns program
     status              status of ss-tproxy
     show-iptables       show iptables rules
     flush-stoprule      flush stop rules
@@ -1312,6 +1314,8 @@ main() {
     case "${arg_list[0]}" in
         start)           start; status;;
         stop)            stop; status;;
+        restart-p*)      stop_proxyproc; start_proxyproc; status;;
+        restart-d*)      stop_dnsserver; start_dnsserver; save_pidfile; status;;
         r*)              stop; status; echo; start; status;;
         stat*)           status;;
         show*)           show_iptables;;
