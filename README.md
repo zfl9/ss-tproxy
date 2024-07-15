@@ -847,12 +847,12 @@ done
 
 ## 脚本命令行选项
 
-- `ss-tproxy help`：查看帮助信息
-- `ss-tproxy version`：查看版本号
-- `ss-tproxy start`：启动透明代理
-- `ss-tproxy stop`：关闭透明代理
-- `ss-tproxy restart`：重启透明代理
-- `ss-tproxy status`：查看代理状态
+- `ss-tproxy start`：启动
+- `ss-tproxy stop`：关闭
+- `ss-tproxy status`：查看状态
+- `ss-tproxy restart`：重启
+- `ss-tproxy restart-proxy`：重启 “代理进程”
+- `ss-tproxy restart-dns`：重启 “DNS 进程”
 - `ss-tproxy show-iptables`：查看当前的 iptables 规则
 - `ss-tproxy flush-stoprule`：清空 stop 状态下的 iptables 规则
 - `ss-tproxy flush-dnscache`：清空 DNS 查询缓存
@@ -861,6 +861,8 @@ done
 - `ss-tproxy update-chnroute`：更新 chnroute*.txt，restart 后生效
 - `ss-tproxy set-proxy-group <可执行文件>`：设置所属 group、setgid 权限位
 - `ss-tproxy set-dns-group <可执行文件>`：设置所属 group、setgid 权限位
+- `ss-tproxy version`：查看版本号
+- `ss-tproxy help`：查看帮助
 
 ---
 

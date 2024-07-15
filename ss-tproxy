@@ -517,6 +517,14 @@ stop_dnsserver() {
     call_func custom_dns_stop
 }
 
+restart_dnsserver() {
+    ss_tproxy_is_started || return 1
+    stop_dnsserver
+    start_dnsserver
+    save_pidfile
+    return 0
+}
+
 flush_dnscache() {
     ss_tproxy_is_started || return
 
@@ -559,6 +567,13 @@ start_proxyproc() {
 
 stop_proxyproc() {
     eval "$proxy_stopcmd"
+}
+
+restart_proxyproc() {
+    ss_tproxy_is_started || return 1
+    stop_proxyproc
+    start_proxyproc
+    return 0
 }
 
 #===============================================================
@@ -1314,8 +1329,8 @@ main() {
     case "${arg_list[0]}" in
         start)           start; status;;
         stop)            stop; status;;
-        restart-p*)      stop_proxyproc; start_proxyproc; status;;
-        restart-d*)      stop_dnsserver; start_dnsserver; save_pidfile; status;;
+        restart-p*)      restart_proxyproc && status;;
+        restart-d*)      restart_dnsserver && status;;
         r*)              stop; status; echo; start; status;;
         stat*)           status;;
         show*)           show_iptables;;
