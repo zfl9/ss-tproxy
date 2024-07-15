@@ -1182,6 +1182,21 @@ flush_stoprule() {
     flush_iptables
 }
 
+check_resolv_conf() {
+    ss_tproxy_is_started || return
+
+    local ipv4_dns="$(awk 'BEGIN {ORS=" "} $1 == "nameserver" && $2 ~ /\./ {print "`" $2 "`"}' /etc/resolv.conf)"
+    local ipv6_dns="$(awk 'BEGIN {ORS=" "} $1 == "nameserver" && $2 ~ /:/ {print "`" $2 "`"}' /etc/resolv.conf)"
+
+    if ! is_enabled_ipv4 && [ "$ipv4_dns" ]; then
+        echo "$(color_red "[warning]") found ipv4-dns ${ipv4_dns}but ipv4='false'"
+        echo "$(color_red "[warning]") please consider removing it from /etc/resolv.conf"
+    elif ! is_enabled_ipv6 && [ "$ipv6_dns" ]; then
+        echo "$(color_red "[warning]") found ipv6-dns ${ipv6_dns}but ipv6='false'"
+        echo "$(color_red "[warning]") please consider removing it from /etc/resolv.conf"
+    fi
+}
+
 #===============================================================
 
 start() {
@@ -1249,6 +1264,8 @@ status() {
     fi
 
     call_func extra_status
+
+    check_resolv_conf
 }
 
 #===============================================================
