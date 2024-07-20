@@ -142,6 +142,41 @@ process_is_running() {
     kill -0 "$1" &>/dev/null
 }
 
+# 优雅关闭进程
+kill_by_pid() {
+    [ $# -eq 0 ] && return
+
+    # send SIGTERM
+    kill "$@"
+
+    # wait up to 5s
+    local running_pids
+    for ((i = 0; i < 100; i++)); do
+        running_pids=()
+        for pid in "$@"; do
+            if process_is_running "$pid"; then
+                running_pids+=("$pid")
+            fi
+        done
+        [ "${running_pids[@]}" ] && sleep 0.05 || return
+        ((i % 20 == 0 && i >= 30)) &&
+            echo "[notice] kill process: ${running_pids[@]}"
+    done
+
+    # force kill
+    echo "[notice] force kill: ${running_pids[@]}"
+    kill -9 "${running_pids[@]}"
+}
+
+# 优雅关闭进程
+kill_by_name() {
+    local pids=()
+    for name in "$@"; do
+        pids+=($(pidof "$name"))
+    done
+    kill_by_pid "${pids[@]}"
+}
+
 tcp_port_is_exists() {
     $netstat -lnpt | grep -q ":$1[[:blank:]]"
 }
@@ -512,7 +547,7 @@ start_dnsserver() {
 stop_dnsserver() {
     # 为防止修改配置导致进程残留，此处不做判断
 
-    kill -9 $sstp_pid_chinadns &>/dev/null
+    kill_by_pid $sstp_pid_chinadns
 
     call_func custom_dns_stop
 }
@@ -529,7 +564,7 @@ flush_dnscache() {
     ss_tproxy_is_started || return
 
     if is_built_in_dns; then
-        kill -9 $sstp_pid_chinadns
+        kill_by_pid $sstp_pid_chinadns
         start_chinadns
         save_pidfile
     else

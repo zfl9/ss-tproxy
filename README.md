@@ -426,7 +426,7 @@ start_ss() {
 }
 
 stop_ss() {
-    kill -9 $(pidof ss-redir) &>/dev/null
+    kill_by_name ss-redir
 }
 ```
 
@@ -473,7 +473,7 @@ start_ssr() {
 }
 
 stop_ssr() {
-    kill -9 $(pidof ssr-redir) &>/dev/null
+    kill_by_name ssr-redir
 }
 ```
 
@@ -549,7 +549,7 @@ start_v2ray() {
 }
 
 stop_v2ray() {
-    kill -9 $(pidof v2ray) &>/dev/null
+    kill_by_name v2ray
 }
 ```
 
@@ -624,7 +624,7 @@ start_trojan() {
 }
 
 stop_trojan() {
-    kill -9 $(pidof trojan) $(pidof ipt2socks) &>/dev/null
+    kill_by_name trojan ipt2socks
 }
 ```
 
@@ -675,7 +675,7 @@ start_hy() {
 }
 
 stop_hy() {
-    kill -9 $(pidof hysteria) &>/dev/null
+    kill_by_name hysteria
 }
 ```
 
@@ -713,7 +713,7 @@ start_naive() {
 }
 
 stop_naive() {
-    kill -9 $(pidof naive) &>/dev/null
+    kill_by_name naive
 }
 ```
 
@@ -783,7 +783,7 @@ start_clash() {
 }
 
 stop_clash() {
-    kill -9 $(pidof clash) &>/dev/null
+    kill_by_name clash
 }
 ```
 
