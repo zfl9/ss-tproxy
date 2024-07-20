@@ -158,13 +158,14 @@ kill_by_pid() {
                 running_pids+=("$pid")
             fi
         done
-        [ "${running_pids[@]}" ] && sleep 0.05 || return
+        [ "${running_pids[@]}" ] || return
+        ((i < 5)) && sleep 0.01 || sleep 0.05
         ((i % 20 == 0 && i >= 30)) &&
             echo "[notice] kill process: ${running_pids[@]}"
     done
 
     # force kill
-    echo "[notice] force kill: ${running_pids[@]}"
+    echo "[warning] force kill: ${running_pids[@]}"
     kill -9 "${running_pids[@]}"
 }
 
