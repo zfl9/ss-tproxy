@@ -488,6 +488,9 @@ start_chinadns() {
     args+=" --cache-refresh $chinadns_cache_refresh"
     args+=" --verdict-cache $chinadns_verdict_cache"
 
+    [ "$chinadns_cache_db" ] && args+=" --cache-db $chinadns_cache_db"
+    [ "$chinadns_verdict_db" ] && args+=" --verdict-cache-db $chinadns_verdict_db"
+
     for config in $chinadns_config_files; do
         args+=" -C $config"
     done
@@ -535,6 +538,18 @@ start_chinadns() {
     fi
 }
 
+# dns: 删除dns-cache
+# verdict: 删除verdict-cache
+# 无参数: 删除dns-cache和verdict-cache
+del_chinadns_cache() {
+    if [ $# -eq 0 ] || [ "$1" = dns ]; then
+        file_is_exists "$chinadns_cache_db" && rm "$chinadns_cache_db"
+    fi
+    if [ $# -eq 0 ] || [ "$1" = verdict ]; then
+        file_is_exists "$chinadns_verdict_db" && rm "$chinadns_verdict_db"
+    fi
+}
+
 #===============================================================
 
 start_dnsserver() {
@@ -562,12 +577,17 @@ restart_dnsserver() {
 }
 
 flush_dnscache() {
-    ss_tproxy_is_started || return
+    # ss_tproxy_is_started || return
 
     if is_built_in_dns; then
-        kill_by_pid $sstp_pid_chinadns
-        start_chinadns
-        save_pidfile
+        if ss_tproxy_is_started; then
+            kill_by_pid $sstp_pid_chinadns
+            del_chinadns_cache "$@"
+            start_chinadns
+            save_pidfile
+        else
+            del_chinadns_cache "$@"
+        fi
     else
         call_func custom_dns_flush
     fi
@@ -1307,7 +1327,7 @@ status() {
 #===============================================================
 
 version() {
-    echo "ss-tproxy v4.8.1 (2024-07-15)"
+    echo "ss-tproxy v4.8.2 (2024-07-20)"
 }
 
 help() {
@@ -1388,7 +1408,7 @@ main() {
         stat*)           status;;
         show*)           show_iptables;;
         flush-stop*)     flush_stoprule;;
-        flush-dns*)      flush_dnscache;;
+        flush-dns*)      flush_dnscache "${arg_list[@]}";;
         update-gfwlist)  update_gfwlist;;
         update-chnlist)  update_chnlist;;
         update-chnroute) update_chnroute;;
