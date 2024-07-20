@@ -542,10 +542,10 @@ start_chinadns() {
 # verdict: 删除verdict-cache
 # 无参数: 删除dns-cache和verdict-cache
 del_chinadns_cache() {
-    if [ $# -eq 0 ] || [ "$1" = dns ]; then
+    if [ -z "$1" ] || [ "$1" = dns ]; then
         file_is_exists "$chinadns_cache_db" && rm "$chinadns_cache_db"
     fi
-    if [ $# -eq 0 ] || [ "$1" = verdict ]; then
+    if [ -z "$1" ] || [ "$1" = verdict ]; then
         file_is_exists "$chinadns_verdict_db" && rm "$chinadns_verdict_db"
     fi
 }
@@ -582,14 +582,14 @@ flush_dnscache() {
     if is_built_in_dns; then
         if ss_tproxy_is_started; then
             kill_by_pid $sstp_pid_chinadns
-            del_chinadns_cache "$@"
+            del_chinadns_cache "$1"
             start_chinadns
             save_pidfile
         else
-            del_chinadns_cache "$@"
+            del_chinadns_cache "$1"
         fi
     else
-        call_func custom_dns_flush
+        call_func custom_dns_flush "$1"
     fi
 }
 
@@ -1408,7 +1408,7 @@ main() {
         stat*)           status;;
         show*)           show_iptables;;
         flush-stop*)     flush_stoprule;;
-        flush-dns*)      flush_dnscache "${arg_list[@]}";;
+        flush-dns*)      flush_dnscache "${arg_list[1]}";;
         update-gfwlist)  update_gfwlist;;
         update-chnlist)  update_chnlist;;
         update-chnroute) update_chnroute;;
