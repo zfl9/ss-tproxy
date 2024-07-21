@@ -901,6 +901,8 @@ done
 - `ss-tproxy flush-dnscache dns`：清空 DNS 缓存
 - `ss-tproxy flush-dnscache verdict`：清空 verdict 缓存
 
+> verdict 缓存仅存在于 mode=chnroute 模式，其他模式下该缓存是空的。
+
 ---
 
 ss-tproxy restart 后，客户机可能由于 DNS 缓存而无法正常代理，请尝试：
