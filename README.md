@@ -895,7 +895,7 @@ done
 
 > “缓存持久化” 是指 chinadns-ng 进程重启后，其缓存数据将被保留，不会丢失。
 
-如果更改了 分流模式(mode)、gfwlist/chnlist/ignlist 等配置，除了需要 `ss-tproxy restart`，还需要清空 chinadns-ng 的持久化缓存。
+如果更改了 分流模式（mode）、gfwlist/chnlist/ignlist 等域名列表（比如一个域名从“代理”域名变成了“直连”域名），除了需要 `ss-tproxy restart`，还需要清空 chinadns-ng 的持久化缓存，操作如下：
 
 - `ss-tproxy flush-dnscache`：清空 DNS 缓存、verdict 缓存
 - `ss-tproxy flush-dnscache dns`：清空 DNS 缓存
