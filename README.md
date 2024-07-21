@@ -855,7 +855,7 @@ done
 - `ss-tproxy restart-dns`：重启 “DNS 进程”
 - `ss-tproxy show-iptables`：查看当前的 iptables 规则
 - `ss-tproxy flush-stoprule`：清空 stop 状态下的 iptables 规则
-- `ss-tproxy flush-dnscache`：清空 DNS 查询缓存
+- `ss-tproxy flush-dnscache`：清空 DNS 缓存 (具体说明在下面)
 - `ss-tproxy update-gfwlist`：更新 gfwlist.txt，restart 后生效
 - `ss-tproxy update-chnlist`：更新 chnlist.txt，restart 后生效
 - `ss-tproxy update-chnroute`：更新 chnroute*.txt，restart 后生效
@@ -875,15 +875,6 @@ done
 
 ---
 
-ss-tproxy restart 后，可能会由于 DNS 缓存，导致无法代理，请尝试：
-
-- 清空当前系统的 DNS 缓存：
-  - Windows：打开 cmd，执行 `ipconfig /flushdns`
-  - 手机：可以开关一下飞行模式，或者重连一下 WiFi
-- 如果还不行，请重新打开当前应用程序，然后再试
-
----
-
 如果要修改以下配置，请先 stop，再修改 ss-tproxy.conf，再 start。
 
 - `proxy_stopcmd`
@@ -892,6 +883,32 @@ ss-tproxy restart 后，可能会由于 DNS 缓存，导致无法代理，请尝
 对于 proxy_stopcmd，如果忘记遵循 **先 stop，后修改** 的顺序，也可以补救，那就是自己手动 kill 之前的代理进程。当然，你也可以在 proxy_stopcmd 中预先填写好所有可能要 kill 的代理进程，这样后续就不需要再修改了。
 
 其他 ss-tproxy.conf 配置无需遵循上述约定，改完 restart 即可。
+
+---
+
+**内置 DNS 方案的缓存**
+
+从 ss-tproxy v4.8.2 开始，内置 DNS 方案（chinadns-ng）支持 **缓存持久化**：
+
+- `chinadns_cache_db='dns-cache.db'`：DNS 缓存持久化
+- `chinadns_verdict_db='verdict-cache.db'`：verdict 缓存持久化
+
+> “缓存持久化” 是指 chinadns-ng 进程重启后，其缓存数据将被保留，不会丢失。
+
+如果更改了 分流模式(mode)、gfwlist/chnlist/ignlist 等配置，除了需要 `ss-tproxy restart`，还需要清空 chinadns-ng 的持久化缓存。
+
+- `ss-tproxy flush-dnscache`：清空 DNS 缓存、verdict 缓存
+- `ss-tproxy flush-dnscache dns`：清空 DNS 缓存
+- `ss-tproxy flush-dnscache verdict`：清空 verdict 缓存
+
+---
+
+ss-tproxy restart 后，客户机可能由于 DNS 缓存而无法正常代理，请尝试：
+
+- 清空当前系统的 DNS 缓存：
+  - Windows：打开 cmd，执行 `ipconfig /flushdns`
+  - 手机：可以开关一下飞行模式，或者重连一下 WiFi
+- 如果还不行，请重新打开当前应用程序，然后再试
 
 ## 脚本开机自启
 
