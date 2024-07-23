@@ -156,14 +156,11 @@ kill_by_pid() {
     for ((i = 0; i < 100; i++)); do
         running_pids=()
         for pid in "$@"; do
-            if process_is_running "$pid"; then
-                running_pids+=("$pid")
-            fi
+            process_is_running "$pid" && running_pids+=("$pid")
         done
         [ "${#running_pids[@]}" -eq 0 ] && return
         ((i < 5)) && sleep 0.01 || sleep 0.05
-        ((i % 20 == 0 && i >= 30)) &&
-            echo "[notice] kill process: ${running_pids[@]}"
+        ((i % 20 == 0 && i >= 30)) && echo "[notice] kill process: ${running_pids[@]}"
     done
 
     # force kill
