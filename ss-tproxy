@@ -147,7 +147,9 @@ kill_by_pid() {
     [ $# -eq 0 ] && return
 
     # send SIGTERM
-    kill "$@"
+    for pid in "$@"; do
+        process_is_running "$pid" && kill "$pid"
+    done
 
     # wait up to 5s
     local running_pids
