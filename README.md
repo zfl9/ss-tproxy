@@ -801,13 +801,9 @@ ExecStart=/usr/local/bin/clash -d /etc/clash
 WantedBy=multi-user.target
 ```
 
-启动 clash.service 前注意修改 `/etc/clash` 目录权限，允许 `proxy` group 读写，
+如果你在 Debian 中运行 ss-tproxy，考虑到 [proxy user 是 Debian 的内置用户](https://wiki.debian.org/SystemGroups#Groups_with_an_associated_user)，你可能会想在 clash.service 的 [Service] 段同时使用 `User=proxy` 和 `Group=proxy` 以进一步限制代理进程, 这种情况下在启动 clash.service 前需要修改 `/etc/clash` 目录属主为 `proxy:proxy` (如 `chown -R proxy:proxy /etc/clash`)，因为 clash 进程运行时(可能)会往其配置文件目录中写入一些文件, 比如 `Country.mmdb`, 另外如果配置了 `proxy-providers`, `proxy-providers.*.path` 配置成相对路径时也是基于 clash 的配置文件目录的。
 
-```shell
-chgrp -R proxy /etc/clash
-find /etc/clash -type d -exec chown 770 "{}" \;
-find /etc/clash -type f -exec chown 660 "{}" \;
-```
+clash.service 只使用 `Group=proxy` 的情况下无需特意修改 clash 配置文件目录权限，未指定 `User=` 时 clash 进程 UID 是 root，clash 可以自由在其配置文件目录下读写文件。在不存在 `proxy` user 的发行版上，ss-tproxy 会自动创建 `proxy` 和 `proxy_dns` group。
 
 </p></details>
 
