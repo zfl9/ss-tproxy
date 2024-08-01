@@ -723,7 +723,11 @@ stop_naive() {
 
 - clash 支持自动选择节点，支持 RESTful API，可以在 Web 进行配置和管理。
 - 分流和 DNS 由 ss-tproxy 负责，clash 这边让流量走代理出去即可，不要分流。
-- Web 控制台：<http://yacd.haishan.me>，填写 external-controller 和 secret 即可。
+- Web 控制台：填写 `external-controller` 和 `secret` 即可。
+  - 直接使用 http://yacd.haishan.me
+  - *或者*配置 `external-ui` (去掉下方注释)，下面两个 yacd 项目任选其一，下载其 gh-pages 分支代码，解压到 `external-ui` 所配置的目录中，如下方配置的 `ui` 目录 (绝对路径是 `/etc/clash/ui`)
+    - https://github.com/haishanh/yacd/tree/gh-pages
+    - https://github.com/MetaCubeX/Yacd-meta/tree/gh-pages
 
 clash 配置文件 /etc/clash/config.yaml：
 
@@ -740,6 +744,7 @@ tproxy-port: 60080 # 纯 TPROXY 模式
 # RESTful API 相关
 external-controller: 0.0.0.0:9090 # 监听 0.0.0.0 是为了能在其他设备访问
 secret: a934ecd1-9729-4925-bcb3-15a3d7d85e77 # RESTful API 的认证密码
+# external-ui: ui
 
 # 节点列表，节点名可被 proxy-groups 引用
 proxies:
@@ -764,7 +769,7 @@ rules:
   - MATCH,PROXY # 所有流量都走 PROXY 组出去
 ```
 
-配置 ss-tproxy.conf，填写启动和停止命令：
+配置 ss-tproxy.conf，推荐使用 systemd 守护 clash 后台进程，填写启动和停止命令 (自行管理代理进程时也可以不填)：
 
 ```bash
 # 这里只介绍 v4.7+ 版本的配置
@@ -772,20 +777,33 @@ rules:
 tproxy='true' # 本例中，使用纯 tproxy 模式
 tcponly='false' # 若节点不支持 udp，请修改为 true
 
-proxy_startcmd='start_clash'
-proxy_stopcmd='stop_clash'
-
-start_clash() {
-    # 设置 setgid 权限位 (只需执行一次)
-    set_proxy_group clash
-
-    (clash -d /etc/clash </dev/null &>>/var/log/clash.log &)
-}
-
-stop_clash() {
-    kill_by_name clash
-}
+proxy_startcmd='systemctl start clash.service'
+proxy_stopcmd='systemctl stop clash.service'
 ```
+
+clash systemd 配置文件 `/etc/systemd/system/clash.service`，
+
+```ini
+[Unit]
+Description=A rule based proxy in Go.
+After=network-online.target
+
+[Service]
+Type=simple
+Group=proxy
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+LimitNOFILE=65535
+Restart=on-abort
+ExecStart=/usr/local/bin/clash -d /etc/clash
+
+[Install]
+WantedBy=multi-user.target
+```
+
+如果你在 Debian 中运行 ss-tproxy，考虑到 [proxy user 是 Debian 的内置用户](https://wiki.debian.org/SystemGroups#Groups_with_an_associated_user)，你可能会想在 clash.service 的 [Service] 段同时使用 `User=proxy` 和 `Group=proxy` 以进一步限制代理进程, 这种情况下在启动 clash.service 前需要修改 `/etc/clash` 目录属主为 `proxy:proxy` (如 `chown -R proxy:proxy /etc/clash`)，因为 clash 进程运行时(可能)会往其配置文件目录中写入一些文件, 比如 `Country.mmdb`, 另外如果配置了 `proxy-providers`, `proxy-providers.*.path` 配置成相对路径时也是基于 clash 的配置文件目录的。
+
+clash.service 只使用 `Group=proxy` 的情况下无需特意修改 clash 配置文件目录权限，未指定 `User=` 时 clash 进程 UID 是 root，clash 可以自由在其配置文件目录下读写文件。在不存在 `proxy` user 的发行版上，ss-tproxy 会自动创建 `proxy` 和 `proxy_dns` group。
 
 </p></details>
 
