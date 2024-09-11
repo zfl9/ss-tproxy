@@ -722,9 +722,9 @@ stop_naive() {
 <details><summary><b>clash</b></summary><p>
 
 - clash 支持自动选择节点，支持 RESTful API，可以在 Web 进行配置和管理。
-- 分流和 DNS 由 ss-tproxy 负责，clash 这边让流量走代理出去即可，不要分流。
-- Web 控制台由 `external-controller`、`secret` 配置项控制，建议开启。
-  - 选项1：使用 http://yacd.haishan.me，输入 clash 所在主机的 IP、API监听端口、secret。
+- 分流和 DNS 由 ss-tproxy 负责，clash 这边全部走代理出去即可，不要分流。
+- Web 控制台由 `external-controller`、`secret`、`external-ui` 配置项控制，建议开启。
+  - 选项1：使用 <http://yacd.haishan.me>，输入 clash 所在主机的 IP、API 监听端口、secret。
   - 选项2：配置 `external-ui`，在下面两个 yacd 项目任选其一，下载其 gh-pages 分支代码，解压到 `external-ui` 所配置的目录中，如下方配置的 `ui` 目录（绝对路径是 `/etc/clash/ui`）。
     - https://github.com/haishanh/yacd/tree/gh-pages
     - https://github.com/MetaCubeX/Yacd-meta/tree/gh-pages
@@ -802,9 +802,9 @@ ExecStart=/usr/local/bin/clash -d /etc/clash
 WantedBy=multi-user.target
 ```
 
-clash.service 在只使用 `Group=proxy` 的情况下无需特意修改 clash 配置文件目录（/etc/clash）的权限；因为未指定 `User=` 时，clash 进程的 UID 是 root，不存在权限不足的问题。
+clash.service 在只使用 `Group=proxy` 的情况下无需特意修改 clash 配置文件目录（即 `/etc/clash`）的权限；因为未指定 `User=` 时，clash 进程的 UID 是 root，不存在权限不足的问题。
 
-如果在 Debian 中运行 ss-tproxy，考虑到 proxy 是 Debian 的[内置用户](https://wiki.debian.org/SystemGroups#Groups_with_an_associated_user)，你可能想在 clash.service 中同时使用 `User=proxy` 和 `Group=proxy` 以进一步限制进程的权限；这种情况下，在启动 clash.service 前，需要将 `/etc/clash` 目录的属主修改为 `proxy:proxy`（如 `chown -R proxy:proxy /etc/clash`），因为 clash 进程在运行时（可能）会往其配置文件目录写入一些文件，比如 `Country.mmdb`。
+如果在 Debian/Ubuntu 中运行 ss-tproxy，考虑到 `proxy` 是 Debian 的 [内置用户/组](https://wiki.debian.org/SystemGroups#Groups_with_an_associated_user)，你可能想在 clash.service 中同时使用 `User=proxy` 和 `Group=proxy` 以进一步限制进程的权限；这种情况下，在启动 clash.service 前，需要将 `/etc/clash` 目录的属主修改为 `proxy:proxy`（如 `chown -R proxy:proxy /etc/clash`），因为 clash 进程在运行时（可能）会往其配置文件目录写入一些文件，比如 `Country.mmdb`。
 
 </p></details>
 
