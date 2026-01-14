@@ -716,10 +716,13 @@ _start_iproute() {
     # https://man7.org/linux/man-pages/man8/ip-rule.8.html
     # https://man7.org/linux/man-pages/man7/rtnetlink.7.html
     # https://stackoverflow.com/questions/10259266/what-does-proto-kernel-means-in-unix-routing-table
+    local pref=''
+    [ -n "$ipts_rt_pref" ] && pref="pref $ipts_rt_pref"
+
     if ip rule help 2>&1 | grep -Fwq protocol; then
-        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab protocol static
+        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab $pref protocol static
     else
-        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab
+        ip $family rule add fwmark $ipts_rt_mark table $ipts_rt_tab $pref
     fi
 }
 
